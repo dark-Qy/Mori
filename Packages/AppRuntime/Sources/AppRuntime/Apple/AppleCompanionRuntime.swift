@@ -298,11 +298,13 @@
 
       let clockRevision = UInt64(max(0, date.timeIntervalSince1970 * 1_000))
       let revision = max(lastSyncRevision &+ 1, clockRevision)
+      // Reserve before the next suspension point so concurrent actor re-entry cannot reuse it.
+      lastSyncRevision = revision
+      let savedPreferences = try? await preferences.load()
       let selectedOutfitID =
-        (try? await preferences.load().selectedOutfitID)
+        savedPreferences?.selectedOutfitID
         ?? state.pet.equippedOutfitID
         ?? "default"
-      let savedPreferences = try? await preferences.load()
       do {
         try await connectivity.send(
           CompanionSyncState(
@@ -325,7 +327,6 @@
             ]
           )
         )
-        lastSyncRevision = revision
         return .synced
       } catch {
         return .failed(reason: String(describing: error))
