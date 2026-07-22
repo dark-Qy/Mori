@@ -71,6 +71,32 @@ public struct WorkoutSummary: Codable, Equatable, Hashable, Sendable {
   }
 }
 
+public struct SleepStageSummary: Codable, Equatable, Sendable {
+  public var coreMinutes: Int
+  public var deepMinutes: Int
+  public var remMinutes: Int
+  public var unspecifiedMinutes: Int
+  public var awakeMinutes: Int
+
+  public init(
+    coreMinutes: Int = 0,
+    deepMinutes: Int = 0,
+    remMinutes: Int = 0,
+    unspecifiedMinutes: Int = 0,
+    awakeMinutes: Int = 0
+  ) {
+    self.coreMinutes = max(0, coreMinutes)
+    self.deepMinutes = max(0, deepMinutes)
+    self.remMinutes = max(0, remMinutes)
+    self.unspecifiedMinutes = max(0, unspecifiedMinutes)
+    self.awakeMinutes = max(0, awakeMinutes)
+  }
+
+  public var asleepMinutes: Int {
+    coreMinutes + deepMinutes + remMinutes + unspecifiedMinutes
+  }
+}
+
 public struct LocalDay: RawRepresentable, Codable, Equatable, Hashable, Comparable, Sendable {
   public let rawValue: String
 
@@ -148,6 +174,9 @@ public struct HealthSnapshot: Codable, Equatable, Sendable {
   public var availability: HealthDataAvailability
   public var sources: [HealthSource]
   public var sleepMinutes: Int?
+  public var sleepStages: SleepStageSummary?
+  public var sleepWindowStart: Date?
+  public var sleepWindowEnd: Date?
   public var steps: Int?
   public var activeMinutes: Int?
   public var restingHeartRateBPM: Double?
@@ -163,6 +192,9 @@ public struct HealthSnapshot: Codable, Equatable, Sendable {
     availability: HealthDataAvailability,
     sources: [HealthSource] = [],
     sleepMinutes: Int? = nil,
+    sleepStages: SleepStageSummary? = nil,
+    sleepWindowStart: Date? = nil,
+    sleepWindowEnd: Date? = nil,
     steps: Int? = nil,
     activeMinutes: Int? = nil,
     restingHeartRateBPM: Double? = nil,
@@ -178,6 +210,9 @@ public struct HealthSnapshot: Codable, Equatable, Sendable {
     self.availability = availability
     self.sources = sources
     self.sleepMinutes = sleepMinutes.map { max(0, $0) }
+    self.sleepStages = sleepStages
+    self.sleepWindowStart = sleepWindowStart
+    self.sleepWindowEnd = sleepWindowEnd
     self.steps = steps.map { max(0, $0) }
     self.activeMinutes = activeMinutes.map { max(0, $0) }
     self.restingHeartRateBPM = restingHeartRateBPM
