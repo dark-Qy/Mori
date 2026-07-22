@@ -37,9 +37,35 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(element("watch.message.pause", in: app).exists)
   }
 
-  private func launchApp(scenario: String) -> XCUIApplication {
+  func testDefaultLaunchUsesNeutralHealthKitMode() {
     let app = XCUIApplication()
-    app.launchArguments = ["-UITesting", "--mock-scenario=\(scenario)"]
+    app.launchArguments = ["-UITesting"]
+    app.launch()
+
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("watch.live-badge", in: app).exists)
+    XCTAssertFalse(element("watch.mock-badge", in: app).exists)
+    let connectButton = app.buttons["watch.connect-health"]
+    scrollToElement(connectButton, in: app)
+    XCTAssertTrue(connectButton.exists)
+  }
+
+  func testNotificationRouteShowsSafeOptionalAction() {
+    let app = launchApp(
+      scenario: "recovery_low",
+      additionalArguments: ["--notification-route=pet/recovery"]
+    )
+
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(app.staticTexts["Mori：今天可以慢一点，由你决定是否回应"].exists)
+  }
+
+  private func launchApp(
+    scenario: String,
+    additionalArguments: [String] = []
+  ) -> XCUIApplication {
+    let app = XCUIApplication()
+    app.launchArguments = ["-UITesting", "--mock-scenario=\(scenario)"] + additionalArguments
     app.launch()
     return app
   }

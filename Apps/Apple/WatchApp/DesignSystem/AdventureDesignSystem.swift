@@ -49,3 +49,28 @@ struct MockBadge: View {
       .accessibilityIdentifier("watch.mock-badge")
   }
 }
+
+struct WatchDataBadge: View {
+  let model: WatchPresentationModel
+
+  var body: some View {
+    if case .invalidMock(let value) = model.dataMode {
+      Label("Mock 无效", systemImage: "exclamationmark.triangle.fill")
+        .font(.system(size: 9, weight: .bold, design: .rounded))
+        .foregroundStyle(AdventurePalette.rose)
+        .accessibilityLabel("Mock 场景无效，\(value)")
+        .accessibilityIdentifier("watch.invalid-mock-badge")
+    } else if let scenario = model.mockScenario {
+      MockBadge(scenarioName: scenario.displayName)
+    } else {
+      Label("HealthKit", systemImage: "heart.fill")
+        .font(.system(size: 9, weight: .bold, design: .rounded))
+        .foregroundStyle(AdventurePalette.mint)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(AdventurePalette.mint.opacity(0.13), in: Capsule())
+        .accessibilityLabel("真实模式，本机 HealthKit 数据")
+        .accessibilityIdentifier("watch.live-badge")
+    }
+  }
+}

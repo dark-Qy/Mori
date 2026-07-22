@@ -6,7 +6,7 @@ struct TrendView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: AdventureSpacing.medium) {
-        MockBadge(scenarioName: model.scenario.displayName)
+        WatchDataBadge(model: model)
         Text("你的节奏，不是分数比赛")
           .font(.headline)
         Text("趋势只和你自己的近期状态比较。缺失数据不会扣除生命力。")
@@ -14,39 +14,47 @@ struct TrendView: View {
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
 
-        AdventureCard {
-          VStack(alignment: .leading, spacing: AdventureSpacing.small) {
-            HStack {
-              Label("恢复", systemImage: "circle.fill")
-                .foregroundStyle(AdventurePalette.blue)
-              Label("活动", systemImage: "circle.fill")
-                .foregroundStyle(AdventurePalette.mint)
-            }
-            .font(.caption2.weight(.semibold))
-
-            HStack(alignment: .bottom, spacing: 5) {
-              ForEach(model.trends) { day in
-                VStack(spacing: 4) {
-                  HStack(alignment: .bottom, spacing: 2) {
-                    Capsule()
-                      .fill(AdventurePalette.blue)
-                      .frame(width: 5, height: max(8, day.recovery * 68))
-                    Capsule()
-                      .fill(AdventurePalette.mint)
-                      .frame(width: 5, height: max(8, day.activity * 68))
-                  }
-                  Text(day.weekday)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(
-                  "星期\(day.weekday)，恢复 \(Int(day.recovery * 100))，活动 \(Int(day.activity * 100))")
+        if model.trends.isEmpty {
+          AdventureCard {
+            Label("趋势正在积累", systemImage: "chart.bar.xaxis")
+              .font(.caption.weight(.semibold))
+              .foregroundStyle(AdventurePalette.blue)
+            Text("至少保留两天已知数据后再显示图表；缺失日不会按零计算。")
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+              .padding(.top, 4)
+          }
+          .accessibilityIdentifier("watch.trend-empty")
+        } else {
+          AdventureCard {
+            VStack(alignment: .leading, spacing: AdventureSpacing.small) {
+              HStack {
+                Label("恢复", systemImage: "circle.fill")
+                  .foregroundStyle(AdventurePalette.blue)
+                Label("活动", systemImage: "circle.fill")
+                  .foregroundStyle(AdventurePalette.mint)
               }
+              .font(.caption2.weight(.semibold))
+
+              HStack(alignment: .bottom, spacing: 5) {
+                ForEach(model.trends) { day in
+                  VStack(spacing: 4) {
+                    HStack(alignment: .bottom, spacing: 2) {
+                      trendBar(day.recovery, color: AdventurePalette.blue)
+                      trendBar(day.activity, color: AdventurePalette.mint)
+                    }
+                    Text(day.weekday)
+                      .font(.system(size: 9, weight: .medium))
+                      .foregroundStyle(.secondary)
+                  }
+                  .frame(maxWidth: .infinity)
+                  .accessibilityElement(children: .ignore)
+                  .accessibilityLabel(accessibilityLabel(for: day))
+                }
+              }
+              .frame(height: 90, alignment: .bottom)
+              .accessibilityIdentifier("watch.trend-chart")
             }
-            .frame(height: 90, alignment: .bottom)
-            .accessibilityIdentifier("watch.trend-chart")
           }
         }
 
@@ -54,7 +62,7 @@ struct TrendView: View {
           Label(model.trendSummary, systemImage: "lightbulb.fill")
             .font(.caption.weight(.semibold))
             .foregroundStyle(AdventurePalette.gold)
-          Text(model.scenario == .recoveryLow ? "最近恢复连续走低，今天的主线已自动变轻。" : "近 7 天入睡时间更稳定，节律比上周更连贯。")
+          Text(model.trendDetail)
             .font(.caption2)
             .foregroundStyle(.secondary)
             .padding(.top, 4)
@@ -67,5 +75,25 @@ struct TrendView: View {
     .background(AdventurePalette.background.ignoresSafeArea())
     .navigationTitle("7 日趋势")
     .accessibilityIdentifier("watch.trends")
+  }
+
+  private func trendBar(_ value: Double?, color: Color) -> some View {
+    Group {
+      if let value {
+        Capsule()
+          .fill(color)
+          .frame(width: 5, height: max(8, value * 68))
+      } else {
+        Capsule()
+          .stroke(color.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [2]))
+          .frame(width: 5, height: 8)
+      }
+    }
+  }
+
+  private func accessibilityLabel(for day: WatchTrendDay) -> String {
+    let recovery = day.recovery.map { String(Int($0 * 100)) } ?? "缺失"
+    let activity = day.activity.map { String(Int($0 * 100)) } ?? "缺失"
+    return "\(day.weekday)日，恢复相对值 \(recovery)，活动相对值 \(activity)"
   }
 }

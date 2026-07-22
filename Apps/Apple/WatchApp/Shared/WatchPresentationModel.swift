@@ -1,36 +1,23 @@
+import Domain
 import Foundation
 import SwiftUI
 
-struct WatchPresentationModel {
-  let scenario: WatchMockScenario
-  let level: Int
-  let vitality: Int
-  let petMood: String
-  let petSymbol: String
-  let dayStatus: String
-  let petPrompt: String
-  let metrics: [WatchMetric]
-  let quest: WatchQuest
-  let trends: [WatchTrendDay]
-  let messages: [WatchMessage]
+enum WatchDataMode: Equatable {
+  case live
+  case mock(WatchMockScenario)
+  case invalidMock(String)
 
-  var unreadMessageCount: Int {
-    messages.filter { $0.isUnread }.count
-  }
-
-  var trendSummary: String {
-    scenario == .recoveryLow ? "恢复需要留意" : "节律正在变稳"
-  }
-
-  static func fromLaunchArguments(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> Self
-  {
+  static func from(arguments: [String]) -> Self {
     let rawScenario =
       arguments
       .first(where: { $0.hasPrefix("--mock-scenario=") })?
       .replacingOccurrences(of: "--mock-scenario=", with: "")
       ?? value(after: "--mock-scenario", in: arguments)
-
-    return make(scenario: WatchMockScenario(rawValue: rawScenario ?? "") ?? .steadyWeek)
+    guard let rawScenario else { return .live }
+    guard let scenario = WatchMockScenario(rawValue: rawScenario) else {
+      return .invalidMock(rawScenario)
+    }
+    return .mock(scenario)
   }
 
   private static func value(after flag: String, in arguments: [String]) -> String? {
@@ -39,16 +26,143 @@ struct WatchPresentationModel {
     }
     return arguments[index + 1]
   }
+}
 
-  private static func make(scenario: WatchMockScenario) -> Self {
+struct WatchPresentationModel {
+  let dataMode: WatchDataMode
+  let level: Int
+  let vitality: Int
+  let petMood: String
+  let petSymbol: String
+  let outfitID: String?
+  let dayStatus: String
+  let petPrompt: String
+  let metrics: [WatchMetric]
+  let quest: WatchQuest
+  let trends: [WatchTrendDay]
+  let trendSummary: String
+  let trendDetail: String
+  let messages: [WatchMessage]
+  let dataExplanation: String
+
+  var mockScenario: WatchMockScenario? {
+    guard case .mock(let scenario) = dataMode else { return nil }
+    return scenario
+  }
+
+  var isLive: Bool { dataMode == .live }
+  var unreadMessageCount: Int { messages.filter(\.isUnread).count }
+
+  static func initial(arguments: [String] = ProcessInfo.processInfo.arguments) -> Self {
+    switch WatchDataMode.from(arguments: arguments) {
+    case .live: liveNoData()
+    case .mock(let scenario): mock(scenario: scenario)
+    case .invalidMock(let value): invalidMock(value)
+    }
+  }
+
+  static func live(
+    companion: CompanionState,
+    health: HealthSnapshot?,
+    trend: PersonalHealthTrend?,
+    peerValues: [String: String]? = nil
+  ) -> Self {
+    // Health and growth remain Watch-local. Phone sync is currently authoritative only for
+    // management settings such as cosmetics, so delayed peer state cannot override fresh rules.
+    let vitality = companion.growth.vitality
+    let hasHealth = health?.hasAnyMetric == true
+    let trends = makeTrends(from: trend)
+    return WatchPresentationModel(
+      dataMode: .live,
+      level: max(1, vitality / 100 + 1),
+      vitality: min(100, vitality % 100),
+      petMood: moodText(companion.pet.mood, hasHealth: hasHealth),
+      petSymbol: "pawprint.fill",
+      outfitID: peerValues?["outfit"] ?? companion.pet.equippedOutfitID,
+      dayStatus: statusText(companion.activeTheme, hasHealth: hasHealth),
+      petPrompt: promptText(companion.activeTheme, hasHealth: hasHealth),
+      metrics: [
+        WatchMetric(
+          id: "recovery",
+          title: "恢复",
+          shortTitle: "恢复",
+          value: health?.sleepMinutes.map { "睡眠 \($0 / 60) 小时 \($0 % 60) 分" } ?? "尚无可用睡眠",
+          shortValue: health?.sleepMinutes.map { "\($0 / 60)h\($0 % 60)m" } ?? "--",
+          symbol: "moon.stars.fill",
+          color: AdventurePalette.blue
+        ),
+        WatchMetric(
+          id: "activity",
+          title: "活动",
+          shortTitle: "活动",
+          value: health?.steps.map { "\($0) 步" } ?? "尚无今日步数",
+          shortValue: health?.steps.map { shortSteps($0) } ?? "--",
+          symbol: "figure.walk",
+          color: AdventurePalette.mint
+        ),
+        WatchMetric(
+          id: "rhythm",
+          title: "节律",
+          shortTitle: "节律",
+          value: health?.sleepWindowStart == nil ? "需要更多睡眠记录" : trendDetail(trend),
+          shortValue: health?.sleepWindowStart == nil
+            ? "--" : observationText(trend, metric: .sleepTiming),
+          symbol: "waveform.path.ecg",
+          color: AdventurePalette.gold
+        ),
+      ],
+      quest: WatchQuest(
+        title: "点亮营地的第一盏灯",
+        detail: "完成今天的故事片段；健康状态不会阻挡主线。",
+        reward: 10,
+        progress: companion.story.completedBeatIDs.isEmpty ? 0 : 0.5,
+        progressLabel: companion.story.completedBeatIDs.isEmpty ? "0 / 2" : "1 / 2"
+      ),
+      trends: trends,
+      trendSummary: trendSummary(trend),
+      trendDetail: trendDetail(trend),
+      messages: liveMessages(theme: companion.activeTheme, hasHealth: hasHealth),
+      dataExplanation: hasHealth
+        ? "来自本机 HealthKit；规则只与个人历史比较，缺失数据不会扣除生命力。"
+        : "尚无可用 HealthKit 数据。可能尚未授权或今天没有记录；缺失数据保持中性。"
+    )
+  }
+
+  static func liveNoData() -> Self {
+    live(companion: CompanionState(), health: nil, trend: nil)
+  }
+
+  private static func invalidMock(_ value: String) -> Self {
+    let base = liveNoData()
+    return WatchPresentationModel(
+      dataMode: .invalidMock(value),
+      level: base.level,
+      vitality: base.vitality,
+      petMood: "Mock 场景无效，已停止读取真实数据",
+      petSymbol: base.petSymbol,
+      outfitID: nil,
+      dayStatus: "Mock 无效",
+      petPrompt: "请修正启动参数；当前不会访问 HealthKit。",
+      metrics: base.metrics,
+      quest: base.quest,
+      trends: [],
+      trendSummary: "无演示数据",
+      trendDetail: "Mock 场景名称无效。",
+      messages: [],
+      dataExplanation: "为避免测试参数拼错后读取真实数据，当前保持中性且不访问 Apple 能力。"
+    )
+  }
+
+  private static func mock(scenario: WatchMockScenario) -> Self {
     switch scenario {
     case .steadyWeek:
       return WatchPresentationModel(
-        scenario: scenario,
+        dataMode: .mock(scenario),
         level: 7,
         vitality: 76,
         petMood: "精神不错，想陪你把今天走稳",
         petSymbol: "pawprint.fill",
+        outfitID: "leaf",
         dayStatus: "状态平稳",
         petPrompt: "你已经专注很久了。要不要起身走两分钟？",
         metrics: [
@@ -66,15 +180,19 @@ struct WatchPresentationModel {
           title: "点亮营地的第一盏灯", detail: "和 Mori 完成今天的故事片段；健康状态不会阻挡主线。", reward: 10,
           progress: 0.5, progressLabel: "1 / 2"),
         trends: WatchTrendDay.steadyWeek,
-        messages: WatchMessage.samples
+        trendSummary: "节律正在变稳",
+        trendDetail: "近 7 天入睡时间更稳定，节律比上周更连贯。",
+        messages: WatchMessage.samples,
+        dataExplanation: "当前页面使用显式确定性 Mock 数据，不代表医疗建议。"
       )
     case .recoveryLow:
       return WatchPresentationModel(
-        scenario: scenario,
+        dataMode: .mock(scenario),
         level: 7,
         vitality: 58,
         petMood: "我会陪你放慢一点，不需要硬撑",
         petSymbol: "pawprint.fill",
+        outfitID: "scarf",
         dayStatus: "适合恢复",
         petPrompt: "昨晚的恢复比你的平常低一些。今天我们少走一步也没关系。",
         metrics: [
@@ -92,15 +210,19 @@ struct WatchPresentationModel {
           title: "点亮营地的第一盏灯", detail: "和 Mori 完成今天的故事片段；健康状态不会阻挡主线。", reward: 10,
           progress: 0.5, progressLabel: "1 / 2"),
         trends: WatchTrendDay.recoveryLow,
-        messages: WatchMessage.recoverySamples
+        trendSummary: "恢复需要留意",
+        trendDetail: "最近恢复连续走低，今天的主线仍然开放，并建议减轻支线。",
+        messages: WatchMessage.recoverySamples,
+        dataExplanation: "当前页面使用显式确定性 Mock 数据，不代表医疗建议。"
       )
     case .activeDay:
       return WatchPresentationModel(
-        scenario: scenario,
+        dataMode: .mock(scenario),
         level: 8,
         vitality: 88,
         petMood: "今天的冒险能量正在发光",
         petSymbol: "pawprint.fill",
+        outfitID: "star",
         dayStatus: "活动充沛",
         petPrompt: "刚才那段运动很棒！记得补水，我会帮你守住节奏。",
         metrics: [
@@ -118,24 +240,122 @@ struct WatchPresentationModel {
           title: "点亮营地的第一盏灯", detail: "和 Mori 完成今天的故事片段；健康状态不会阻挡主线。", reward: 10,
           progress: 0.5, progressLabel: "1 / 2"),
         trends: WatchTrendDay.activeWeek,
-        messages: WatchMessage.activeSamples
+        trendSummary: "活动明显高于平常",
+        trendDetail: "今天活动很多，完成冒险后记得补水并留出恢复时间。",
+        messages: WatchMessage.activeSamples,
+        dataExplanation: "当前页面使用显式确定性 Mock 数据，不代表医疗建议。"
       )
+    }
+  }
+
+  private static func makeTrends(from trend: PersonalHealthTrend?) -> [WatchTrendDay] {
+    guard let points = trend?.recentDays, !points.isEmpty else { return [] }
+    let maxSleep = max(1, points.compactMap(\.sleepMinutes).max() ?? 1)
+    let maxSteps = max(1, points.compactMap(\.steps).max() ?? 1)
+    return points.enumerated().map { index, point in
+      WatchTrendDay(
+        id: index,
+        weekday: String(point.day.rawValue.suffix(2)),
+        recovery: point.sleepMinutes.map { Double($0) / Double(maxSleep) },
+        activity: point.steps.map { Double($0) / Double(maxSteps) }
+      )
+    }
+  }
+
+  private static func observationText(
+    _ trend: PersonalHealthTrend?,
+    metric: TrendMetric
+  ) -> String {
+    guard let observation = trend?.observations.first(where: { $0.metric == metric }) else {
+      return "积累中"
+    }
+    return switch observation.status {
+    case .belowPersonalRange: "偏低"
+    case .withinPersonalRange: "平稳"
+    case .abovePersonalRange: "偏高"
+    case .insufficientData: "积累中"
+    }
+  }
+
+  private static func trendSummary(_ trend: PersonalHealthTrend?) -> String {
+    guard let trend else { return "需要更多已知天数" }
+    return trend.usableBaselineDayCount < 2
+      ? "已记录 \(trend.usableBaselineDayCount) 天"
+      : "恢复 \(observationText(trend, metric: .sleepDuration)) · 活动 \(observationText(trend, metric: .steps))"
+  }
+
+  private static func trendDetail(_ trend: PersonalHealthTrend?) -> String {
+    guard let trend, trend.usableBaselineDayCount >= 7 else {
+      return "个人基线至少需要 7 个已知日；缺失日不会按零计算。"
+    }
+    return "最近 7 个已知日与最多 30 天个人历史比较，不与其他人比较。"
+  }
+
+  private static func moodText(_ mood: PetMood, hasHealth: Bool) -> String {
+    guard hasHealth else { return "还没有足够的数据，我会安静陪着你" }
+    return switch mood {
+    case .neutral: "今天先按自己的节奏来"
+    case .resting: "我会陪你放慢一点，不需要硬撑"
+    case .curious: "我想听听你今天的故事"
+    case .lively: "今天的冒险能量正在发光"
+    }
+  }
+
+  private static func statusText(_ theme: Theme, hasHealth: Bool) -> String {
+    guard hasHealth else { return "等待数据" }
+    return switch theme {
+    case .recovery: "适合恢复"
+    case .activity: "关注活动"
+    case .rhythm: "关注节律"
+    case .connection: "适合连接"
+    case .neutral: "状态平稳"
+    }
+  }
+
+  private static func promptText(_ theme: Theme, hasHealth: Bool) -> String {
+    guard hasHealth else { return "连接健康数据后，我会用你的个人趋势陪你安排节奏。" }
+    return switch theme {
+    case .recovery: "今天可以慢一点。要不要留十分钟给自己？"
+    case .activity: "如果你愿意，我们可以一起走两分钟。"
+    case .rhythm: "今天也试试守住一个舒服的收尾时间。"
+    case .connection: "要不要和同行者分享一段不含原始数据的关心摘要？"
+    case .neutral: "今天先按自己的节奏来，我会在这里。"
+    }
+  }
+
+  nonisolated private static func shortSteps(_ steps: Int) -> String {
+    steps >= 1_000 ? String(format: "%.1fk", Double(steps) / 1_000) : String(steps)
+  }
+
+  private static func liveMessages(theme: Theme, hasHealth: Bool) -> [WatchMessage] {
+    guard hasHealth else { return [] }
+    switch theme {
+    case .recovery:
+      return [
+        WatchMessage(
+          id: "live-recovery", title: "今天可以慢一点", body: "要不要留十分钟给自己？不完成也不会失去什么。",
+          relativeTime: "待回应", symbol: "moon.zzz.fill", tint: AdventurePalette.rose, isUnread: true
+        )
+      ]
+    case .activity:
+      return [
+        WatchMessage(
+          id: "live-activity", title: "一起动一小会儿？", body: "如果你愿意，我们可以一起走两分钟。",
+          relativeTime: "待回应", symbol: "figure.walk", tint: AdventurePalette.mint, isUnread: true
+        )
+      ]
+    case .rhythm, .connection, .neutral:
+      return []
     }
   }
 }
 
-enum WatchMockScenario: String {
+enum WatchMockScenario: String, Equatable {
   case steadyWeek = "steady_week"
   case recoveryLow = "recovery_low"
   case activeDay = "active_day"
 
-  var displayName: String {
-    switch self {
-    case .steadyWeek: "steady_week"
-    case .recoveryLow: "recovery_low"
-    case .activeDay: "active_day"
-    }
-  }
+  var displayName: String { rawValue }
 }
 
 struct WatchMetric: Identifiable {
@@ -159,8 +379,8 @@ struct WatchQuest {
 struct WatchTrendDay: Identifiable {
   let id: Int
   let weekday: String
-  let recovery: Double
-  let activity: Double
+  let recovery: Double?
+  let activity: Double?
 
   static let steadyWeek = make(
     recovery: [0.62, 0.68, 0.59, 0.74, 0.71, 0.78, 0.76],
@@ -204,7 +424,7 @@ struct WatchMessage: Identifiable {
 
   static let recoverySamples = [
     WatchMessage(
-      id: "recover", title: "今天慢一点", body: "恢复低于个人近况，但这不是惩罚。我们把任务缩小一点。", relativeTime: "刚刚",
+      id: "recover", title: "今天慢一点", body: "恢复低于个人近况，但这不是惩罚。我们把支线缩小一点。", relativeTime: "刚刚",
       symbol: "moon.zzz.fill", tint: AdventurePalette.rose, isUnread: true),
     WatchMessage(
       id: "pause", title: "十分钟也很好", body: "闭眼、呼吸或只是发发呆，都算在照顾自己。", relativeTime: "1 小时前",

@@ -6,6 +6,18 @@ struct MessageInboxView: View {
   var body: some View {
     ScrollView {
       LazyVStack(spacing: AdventureSpacing.small) {
+        if messages.isEmpty {
+          AdventureCard {
+            Label("Mori 还没有来信", systemImage: "envelope.open")
+              .font(.caption.weight(.semibold))
+            Text("有规则允许的合适时机时，它可能主动出现；不会为了打卡而催促你。")
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+              .padding(.top, 4)
+          }
+          .accessibilityIdentifier("watch.messages-empty")
+        }
+
         ForEach(messages) { message in
           AdventureCard {
             HStack(alignment: .top, spacing: AdventureSpacing.small) {

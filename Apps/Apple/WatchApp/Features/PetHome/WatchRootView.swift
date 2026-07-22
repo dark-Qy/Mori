@@ -1,8 +1,11 @@
 import SwiftUI
+import WatchKit
 
 struct WatchRootView: View {
-  private let model = WatchPresentationModel.fromLaunchArguments()
+  @ObservedObject var store: WatchAppStore
   @State private var interactionCount = 0
+
+  private var model: WatchPresentationModel { store.model }
 
   var body: some View {
     NavigationStack {
@@ -15,6 +18,28 @@ struct WatchRootView: View {
           interactionCard
           destinationLinks
           DataSourceCard(model: model)
+          if model.isLive {
+            Button {
+              Task { await store.connectHealth() }
+            } label: {
+              Label(
+                store.isRefreshingHealth ? "读取中…" : "连接健康数据",
+                systemImage: "heart.text.clipboard"
+              )
+              .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(AdventurePalette.mint)
+            .disabled(store.isRefreshingHealth)
+            .accessibilityIdentifier("watch.connect-health")
+          }
+          if let status = store.statusMessage {
+            Text(status)
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .accessibilityIdentifier("watch.status-message")
+          }
         }
         .padding(.horizontal, AdventureSpacing.page)
         .padding(.bottom, AdventureSpacing.large)
@@ -25,11 +50,14 @@ struct WatchRootView: View {
     }
     .tint(AdventurePalette.mint)
     .accessibilityIdentifier("watch.pet-home")
+    .task {
+      await store.start()
+    }
   }
 
   private var statusHeader: some View {
     HStack(spacing: AdventureSpacing.small) {
-      MockBadge(scenarioName: model.scenario.displayName)
+      WatchDataBadge(model: model)
       Spacer(minLength: 4)
       Label(model.dayStatus, systemImage: "sparkles")
         .font(.caption2.weight(.semibold))
@@ -57,6 +85,10 @@ struct WatchRootView: View {
 
         Button {
           interactionCount += 1
+          WKInterfaceDevice.current().play(.click)
+          if model.isLive {
+            Task { await store.interact() }
+          }
         } label: {
           Label(interactionCount == 0 ? "回应 Mori" : "再摸摸它", systemImage: "hand.tap.fill")
             .frame(maxWidth: .infinity)
@@ -113,6 +145,12 @@ private struct PetHeroCard: View {
           .font(.system(size: 34, weight: .semibold))
           .foregroundStyle(AdventurePalette.mint)
           .symbolEffect(.bounce, value: model.vitality)
+        if let accessory = WatchOutfitAccessory.make(for: model.outfitID) {
+          Image(systemName: accessory.symbol)
+            .font(.system(size: 17, weight: .bold))
+            .foregroundStyle(accessory.color)
+            .offset(x: 26, y: -27)
+        }
       }
       .accessibilityHidden(true)
 
@@ -156,6 +194,21 @@ private struct PetHeroCard: View {
     }
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("watch.pet-hero")
+  }
+}
+
+private struct WatchOutfitAccessory {
+  let symbol: String
+  let color: Color
+
+  static func make(for outfitID: String?) -> Self? {
+    switch outfitID {
+    case "scarf": Self(symbol: "wind", color: AdventurePalette.rose)
+    case "leaf": Self(symbol: "leaf.fill", color: AdventurePalette.mint)
+    case "star": Self(symbol: "star.fill", color: AdventurePalette.gold)
+    case "drop": Self(symbol: "drop.fill", color: AdventurePalette.blue)
+    default: nil
+    }
   }
 }
 
@@ -258,5 +311,5 @@ private struct DestinationRow: View {
 }
 
 #Preview {
-  WatchRootView()
+  WatchRootView(store: WatchAppStore(arguments: ["--mock-scenario=steady_week"]))
 }

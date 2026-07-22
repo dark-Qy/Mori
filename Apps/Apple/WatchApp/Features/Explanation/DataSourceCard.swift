@@ -38,7 +38,7 @@ private struct ExplanationView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: AdventureSpacing.medium) {
-        MockBadge(scenarioName: model.scenario.displayName)
+        WatchDataBadge(model: model)
         explanationRow(
           symbol: "moon.stars.fill", title: "恢复", detail: "睡眠时长、睡眠阶段和静息心率相对个人基线。",
           color: AdventurePalette.blue)
@@ -49,9 +49,9 @@ private struct ExplanationView: View {
           symbol: "clock.fill", title: "节律", detail: "近期入睡、起床和活动时间的一致性。",
           color: AdventurePalette.gold)
         Divider()
-        Text("演示模式说明")
+        Text(model.isLive ? "本机数据说明" : "演示模式说明")
           .font(.caption.weight(.bold))
-        Text("当前页面使用确定性 Mock 数据，不代表医疗建议。接入 HealthKit 后仍会显示采集时间和缺失状态。")
+        Text(model.dataExplanation)
           .font(.caption2)
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
