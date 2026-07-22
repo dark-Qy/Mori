@@ -35,15 +35,34 @@ public enum SleepStage: String, Codable, Equatable, Sendable {
   case rem
 }
 
+public struct HealthSampleSource: Codable, Equatable, Hashable, Sendable {
+  public let bundleIdentifier: String
+  public let displayName: String
+  public let productType: String?
+
+  public init(bundleIdentifier: String, displayName: String, productType: String? = nil) {
+    self.bundleIdentifier = bundleIdentifier
+    self.displayName = displayName
+    self.productType = productType
+  }
+}
+
 public struct SleepSample: Codable, Equatable, Sendable {
   public let start: Date
   public let end: Date
   public let stage: SleepStage
+  public let source: HealthSampleSource?
 
-  public init(start: Date, end: Date, stage: SleepStage) {
+  public init(
+    start: Date,
+    end: Date,
+    stage: SleepStage,
+    source: HealthSampleSource? = nil
+  ) {
     self.start = start
     self.end = end
     self.stage = stage
+    self.source = source
   }
 }
 
@@ -51,11 +70,13 @@ public struct TimedQuantity: Codable, Equatable, Sendable {
   public let start: Date
   public let end: Date
   public let value: Double
+  public let source: HealthSampleSource?
 
-  public init(start: Date, end: Date, value: Double) {
+  public init(start: Date, end: Date, value: Double, source: HealthSampleSource? = nil) {
     self.start = start
     self.end = end
     self.value = value
+    self.source = source
   }
 }
 
@@ -75,6 +96,7 @@ public struct WorkoutSample: Codable, Equatable, Sendable {
   public let durationSeconds: TimeInterval
   public let energyKilocalories: Double?
   public let distanceMeters: Double?
+  public let source: HealthSampleSource?
 
   public init(
     id: UUID,
@@ -83,7 +105,8 @@ public struct WorkoutSample: Codable, Equatable, Sendable {
     end: Date,
     durationSeconds: TimeInterval,
     energyKilocalories: Double? = nil,
-    distanceMeters: Double? = nil
+    distanceMeters: Double? = nil,
+    source: HealthSampleSource? = nil
   ) {
     self.id = id
     self.activity = activity
@@ -92,6 +115,7 @@ public struct WorkoutSample: Codable, Equatable, Sendable {
     self.durationSeconds = durationSeconds
     self.energyKilocalories = energyKilocalories
     self.distanceMeters = distanceMeters
+    self.source = source
   }
 }
 

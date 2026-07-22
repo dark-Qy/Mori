@@ -56,16 +56,23 @@ struct HealthAdapterTests {
   }
 
   @Test func workoutActivityUsesAStableDomainValue() {
+    let source = HealthSampleSource(
+      bundleIdentifier: "com.apple.health",
+      displayName: "Mock Watch",
+      productType: "Watch"
+    )
     let workout = WorkoutSample(
       id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
       activity: .soccer,
       start: now,
       end: now.addingTimeInterval(2_700),
-      durationSeconds: 2_700
+      durationSeconds: 2_700,
+      source: source
     )
 
     #expect(workout.activity == .soccer)
     #expect(workout.durationSeconds == 2_700)
+    #expect(workout.source == source)
   }
 
   private var emptySnapshot: HealthSnapshot {

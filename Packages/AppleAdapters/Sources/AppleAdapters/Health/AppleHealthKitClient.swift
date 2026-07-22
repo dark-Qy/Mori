@@ -86,7 +86,12 @@
       let samples: [HKCategorySample] = try await fetchSamples(type: type, predicate: predicate)
       let values = samples.compactMap { sample -> SleepSample? in
         guard let stage = Self.sleepStage(for: sample.value) else { return nil }
-        return SleepSample(start: sample.startDate, end: sample.endDate, stage: stage)
+        return SleepSample(
+          start: sample.startDate,
+          end: sample.endDate,
+          stage: stage,
+          source: Self.source(for: sample)
+        )
       }
       return HealthReading(availability: values.isEmpty ? .noData : .available, values: values)
     }
@@ -107,7 +112,8 @@
         TimedQuantity(
           start: $0.startDate,
           end: $0.endDate,
-          value: $0.quantity.doubleValue(for: unit)
+          value: $0.quantity.doubleValue(for: unit),
+          source: Self.source(for: $0)
         )
       }
       return HealthReading(availability: values.isEmpty ? .noData : .available, values: values)
@@ -128,7 +134,8 @@
           end: $0.endDate,
           durationSeconds: $0.duration,
           energyKilocalories: $0.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
-          distanceMeters: $0.totalDistance?.doubleValue(for: .meter())
+          distanceMeters: $0.totalDistance?.doubleValue(for: .meter()),
+          source: Self.source(for: $0)
         )
       }
       return HealthReading(availability: values.isEmpty ? .noData : .available, values: values)
@@ -178,6 +185,15 @@
       case .cycling: return .cycling
       default: return .other
       }
+    }
+
+    private static func source(for sample: HKSample) -> HealthSampleSource {
+      let revision = sample.sourceRevision
+      return HealthSampleSource(
+        bundleIdentifier: revision.source.bundleIdentifier,
+        displayName: revision.source.name,
+        productType: revision.productType
+      )
     }
   }
 #endif
