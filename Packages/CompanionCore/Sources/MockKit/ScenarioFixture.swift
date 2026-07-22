@@ -43,6 +43,37 @@ public enum JSONValue: Codable, Equatable, Sendable {
   }
 }
 
+extension JSONValue {
+  public var objectValue: [String: JSONValue]? {
+    guard case .object(let value) = self else { return nil }
+    return value
+  }
+
+  public var arrayValue: [JSONValue]? {
+    guard case .array(let value) = self else { return nil }
+    return value
+  }
+
+  public var stringValue: String? {
+    guard case .string(let value) = self else { return nil }
+    return value
+  }
+
+  public var numberValue: Double? {
+    guard case .number(let value) = self else { return nil }
+    return value
+  }
+
+  public var boolValue: Bool? {
+    guard case .bool(let value) = self else { return nil }
+    return value
+  }
+
+  public subscript(key: String) -> JSONValue? {
+    objectValue?[key]
+  }
+}
+
 public struct ScenarioFixture: Codable, Equatable, Sendable {
   public static let currentSchemaVersion = 1
 
@@ -63,6 +94,10 @@ public struct ScenarioFixture: Codable, Equatable, Sendable {
     let decoder = JSONDecoder()
     decoder.dateDecodingStrategy = .iso8601
     self = try decoder.decode(Self.self, from: data)
+  }
+
+  public init(contentsOf url: URL) throws {
+    try self.init(data: Data(contentsOf: url))
   }
 
   public func validationIssues(fileStem: String) -> [String] {

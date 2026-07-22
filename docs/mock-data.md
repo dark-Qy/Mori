@@ -18,21 +18,25 @@ Fixtures use versioned JSON stored separately from user data:
 
 ```json
 {
-  "fixtureVersion": 1,
-  "id": "health_normal",
-  "anchorTime": "2026-01-15T08:00:00+08:00",
-  "timeZone": "Asia/Shanghai",
-  "randomSeed": 42,
-  "capabilities": {
-    "healthKit": "mock",
-    "notifications": "mock",
-    "ai": "offline"
+  "schemaVersion": 1,
+  "scenarioID": "health_normal",
+  "displayName": "Normal recent health data",
+  "clock": {
+    "now": "2026-07-23T09:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
   },
-  "events": []
+  "launchArguments": ["-MockScenario", "health_normal"],
+  "state": {},
+  "expectations": { "primaryState": "petHome", "mockBadgeVisible": true }
 }
 ```
 
-Dates are interpreted relative to `anchorTime` where possible. Fixtures never contain copied health exports, real names, contact details, provider keys, device identifiers, or personal conversations.
+`ScenarioFixture` validates the envelope. `MockScenarioRuntime` converts it into typed health,
+permission, service, wardrobe, and pet state. `MockScenarioRun` owns a deterministic clock, event
+ledger, and replayable reducer. A fixture that cannot enter this executable path fails the core
+test suite.
+
+Dates are interpreted relative to `clock.now` where possible. Fixtures never contain copied health exports, real names, contact details, provider keys, device identifiers, or personal conversations.
 
 ## Required scenarios
 
