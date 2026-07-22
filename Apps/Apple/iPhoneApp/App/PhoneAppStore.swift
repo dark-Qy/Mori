@@ -179,6 +179,7 @@ final class PhoneAppStore: ObservableObject {
   private static func syncText(_ status: RuntimeSyncStatus) -> String {
     switch status {
     case .synced: "已同步到 Apple Watch"
+    case .queued: "已保存；手表同步在后台继续"
     case .waitingForPeer: "已保存，等待 Apple Watch"
     case .unavailable: "已保存；此设备不支持手表同步"
     case .failed: "已保存；手表同步稍后重试"

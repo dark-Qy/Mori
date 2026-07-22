@@ -7,6 +7,7 @@
 
   public enum RuntimeSyncStatus: Equatable, Sendable {
     case synced
+    case queued
     case waitingForPeer
     case unavailable(reason: String)
     case failed(reason: String)
@@ -50,7 +51,7 @@
     private let connectivity: AppleWatchConnectivityClient
     private let events: CompanionEventEngine<FileEventLedgerStorage>
     private let preferences: PreferencesRepository<UserDefaultsPreferencesDataStore>
-    private var lastSyncRevision: UInt64 = 0
+    private var syncRevisionClock = SyncRevisionClock()
     private var pendingPeerSync: PendingPeerSync?
     private var peerSyncTask: Task<Void, Never>?
 
@@ -119,13 +120,13 @@
         state = unlockedState
       }
       let notificationDecision = await scheduleProactiveIfAllowed(for: state, now: now)
-      let syncStatus = await sendDerivedState(state, at: now)
+      enqueuePeerSync(state, at: now)
       return RuntimeHealthRefresh(
         requestState: ingestion.requestState,
         health: ingestion.snapshot,
         companion: state,
         notificationDecision: notificationDecision,
-        syncStatus: syncStatus
+        syncStatus: .queued
       )
     }
 
@@ -296,10 +297,8 @@
         break
       }
 
-      let clockRevision = UInt64(max(0, date.timeIntervalSince1970 * 1_000))
-      let revision = max(lastSyncRevision &+ 1, clockRevision)
       // Reserve before the next suspension point so concurrent actor re-entry cannot reuse it.
-      lastSyncRevision = revision
+      let revision = syncRevisionClock.reserve(at: date)
       let savedPreferences = try? await preferences.load()
       let selectedOutfitID =
         savedPreferences?.selectedOutfitID

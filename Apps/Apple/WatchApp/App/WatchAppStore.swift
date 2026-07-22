@@ -104,7 +104,6 @@ final class WatchAppStore: ObservableObject {
         requestAccessIfNeeded: requestAccessIfNeeded
       )
       latestHealth = refresh.health
-      latestPeerValues = await runtime.latestPeerValues() ?? latestPeerValues
       let trend = try await runtime.personalHealthTrend()
       model = .live(
         companion: refresh.companion,

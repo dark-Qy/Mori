@@ -12,6 +12,32 @@ struct ConnectivityAdapterTests {
     #expect(await client.activationCount == 1)
   }
 
+  @Test func productionActivationGateTimesOutInsteadOfHanging() async {
+    let gate = ConnectivityActivationGate(timeoutNanoseconds: 1_000_000)
+    let result = await gate.wait {}
+    #expect(
+      result
+        == .unavailable(reason: "WatchConnectivity activation timed out")
+    )
+    #expect(gate.pendingWaiterCount() == 0)
+  }
+
+  @Test func productionActivationGateStartsOnceAndResolvesAllWaiters() async {
+    let gate = ConnectivityActivationGate(timeoutNanoseconds: 1_000_000_000)
+    let counter = LockedCounter()
+    async let first = gate.wait { counter.increment() }
+    async let second = gate.wait { counter.increment() }
+
+    while gate.pendingWaiterCount() < 2 {
+      await Task.yield()
+    }
+    gate.resolve(.activated)
+
+    #expect(await first == .activated)
+    #expect(await second == .activated)
+    #expect(counter.value == 1)
+  }
+
   @Test func sendRejectsDuplicateAndStaleRevisions() async throws {
     let client = MockCompanionStateSyncClient(state: .activated)
     try await client.send(syncState(revision: 2))
@@ -56,5 +82,16 @@ struct ConnectivityAdapterTests {
       updatedAt: Date(timeIntervalSince1970: TimeInterval(revision)),
       values: ["outfit": "forest"]
     )
+  }
+}
+
+private final class LockedCounter: @unchecked Sendable {
+  private let lock = NSLock()
+  private var count = 0
+
+  var value: Int { lock.withLock { count } }
+
+  func increment() {
+    lock.withLock { count += 1 }
   }
 }
