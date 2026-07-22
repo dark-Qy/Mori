@@ -23,7 +23,7 @@ let package = Package(
     .target(name: "Rules", dependencies: ["Domain"]),
     .target(name: "Story", dependencies: ["Domain"]),
     .target(name: "Growth", dependencies: ["Domain", "Rules", "Story"]),
-    .target(name: "Persistence", dependencies: ["Domain"]),
+    .target(name: "Persistence", dependencies: ["Domain", "Growth"]),
     .target(name: "Sync", dependencies: ["Domain"]),
     .target(
       name: "MockKit",
