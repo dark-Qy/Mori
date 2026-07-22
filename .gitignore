@@ -1,0 +1,48 @@
+# Xcode user state and local build products
+DerivedData/
+build/
+.build/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.xcworkspace/xcuserdata/
+
+# Test and coverage artifacts
+.artifacts/
+*.xcresult
+*.profdata
+coverage/
+
+# Swift Package Manager local state
+.swiftpm/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+Secrets.xcconfig
+*.private.xcconfig
+
+# Runtime data must never enter source control
+*.healthkit.json
+HealthExports/
+DeviceLogs/
+Recordings/
+
+# Apple and editor metadata
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Service dependencies and caches
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/

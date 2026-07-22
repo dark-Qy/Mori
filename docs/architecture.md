@@ -1,0 +1,139 @@
+# Architecture
+
+## Goals
+
+The architecture must keep the Apple Watch experience functional offline, make product rules deterministic and testable, isolate sensitive platform data, and allow unavailable capabilities to be replaced by clearly labeled mocks without changing domain behavior.
+
+## Product surfaces
+
+| Surface | Responsibility | Non-responsibility |
+|---|---|---|
+| Apple Watch | Pet home, short interactions, habits, story, local notifications, haptics, health event capture | Complex privacy management, a dense health dashboard |
+| iPhone | Simple settings, privacy scopes, history, collections, wardrobe, account recovery | A duplicate pet game or mandatory daily flow |
+| Server | Optional synchronization, social authority, APNs later, bounded AI narration gateway | Owning local rules or receiving all health history by default |
+
+There is no desktop, external-display, ring, or NFC surface.
+
+## Dependency direction
+
+```text
+Watch UI          iPhone UI          Service handlers
+   |                 |                       |
+Platform adapters (HealthKit, notifications, connectivity, HTTP, storage)
+   |                 |                       |
+Application use cases and ports
+   |
+Pure domain: events, reducers, rules, growth, story, context policy
+```
+
+Dependencies point inward. The pure domain does not import SwiftUI, HealthKit, WatchKit, UserNotifications, WatchConnectivity, URLSession, or a concrete database.
+
+## Core abstractions
+
+External concerns are injected behind narrow protocols:
+
+- `Clock` and `CalendarProvider`
+- `RandomSource`
+- `UUIDSource`
+- `HealthDataSource`
+- `NotificationScheduler`
+- `NarrativeProvider`
+- `StateStore`
+- `SyncTransport`
+
+Tests use fixed clocks, calendars, UUIDs, and seeded randomness. Production adapters translate framework objects to domain types at the boundary.
+
+## Versioned event ledger
+
+Every durable input is normalized into an event:
+
+```text
+Event
+  eventID: stable identifier
+  schemaVersion: event payload version
+  occurredAt: source occurrence time
+  recordedAt: local ingestion time
+  source: HealthKit, user, notification, sync, or mock
+  type: typed discriminator
+  payload: validated typed payload
+```
+
+Reducers rebuild `PetState`, `GrowthState`, `StoryState`, and `ThemeProgress`. Required properties:
+
+- replaying the same `eventID` is idempotent;
+- ordering policy is explicit and stable;
+- rule and schema versions are recorded with decisions;
+- migrations are forward tested from every supported schema;
+- derived state is reproducible from the ledger and configuration.
+
+Store raw HealthKit identifiers only as needed for deduplication and provenance. Do not place raw health payloads in general application logs.
+
+## Authoritative decision pipeline
+
+```text
+external sample or action
+  -> validate and normalize
+  -> append idempotent event
+  -> deterministic reducer
+  -> rule eligibility and safety checks
+  -> seeded scheduling for eligible optional events
+  -> state transition and decision trace
+  -> local template or validated AI narration
+  -> presentation
+```
+
+The `DecisionTrace` records relevant rule IDs, rule version, selected theme, rejected alternatives, and reward calculation without copying sensitive raw values into diagnostics.
+
+Rules own:
+
+- health-data freshness and sufficiency;
+- quest eligibility, cooldowns, caps, deduplication, and rewards;
+- story facts and legal transitions;
+- commitment state and repair options;
+- quiet hours, notification budget, and sharing scope.
+
+Randomness chooses only among rule-approved options. It never changes reward amounts, core story order, consent, or safety boundaries.
+
+## Health context
+
+`HealthDataSource` returns typed samples with source, timestamp, freshness, and authorization observability. A normalizer handles overlapping devices, duplicates, units, time zones, and late samples. A context builder selects bounded raw windows plus derived features and rule hits for the current decision.
+
+Missing, stale, unavailable, and unauthorized are distinct states. None is interpreted as a negative health outcome. The core experience remains playable without HealthKit.
+
+## Story and growth
+
+Story facts and branch state are deterministic. The common main story preserves the same key chapters and order for everyone; health context may alter presentation and side stories, not access to the core narrative.
+
+Growth is split into vitality, bond, and experience of the world. Each uses different earning rules, caps, deduplication, and cooldowns. AI never calculates or mutates growth.
+
+## Narration boundary
+
+`NarrativeProvider` accepts a bounded context created after the state transition. It returns structured presentation fields such as message, tone, approved template identifier, optional choices, and safety flags.
+
+The response is schema-validated, length-limited, and checked for forbidden medical or manipulative language. Invalid, slow, filtered, or unavailable AI falls back to deterministic local templates. A provider response never becomes an authoritative event by itself.
+
+The provider credential exists only in a server-side gateway environment. Apple clients receive short-lived user/session authorization for the gateway, never the upstream provider key.
+
+## Watch-iPhone synchronization
+
+The Watch owns moment-to-moment pet actions and queues events while disconnected. The iPhone owns management changes such as wardrobe and privacy settings. Both exchange versioned, idempotent events.
+
+- Growth and story merge by event identity.
+- Wardrobe selection uses a monotonically increasing revision and deterministic conflict resolution.
+- Privacy always resolves to the most restrictive valid state when information is incomplete.
+- Deletion and friendship removal are high-priority tombstone events.
+
+## Capability degradation
+
+| Capability unavailable | Required behavior |
+|---|---|
+| HealthKit or permission | Neutral pet state and synthetic demo only when explicitly selected |
+| AI or network | Local narration template; identical authoritative state |
+| APNs on Personal Team | Local scheduled notification or in-app mock event |
+| Smart alarm not device-verified | Fixed local alarm and post-wake summary |
+| Nearby Interaction unavailable | No proximity claim; bounded mock or mutual short-code flow for testing |
+| Watch-iPhone connectivity | Local queue and later idempotent reconciliation |
+
+## Observability
+
+Use structured logs for event types, rule identifiers, durations, and error categories. Never log raw health values, prompts containing health data, secrets, private messages, or precise social summaries by default. Debug exports must be explicit, redacted, time bounded, and user reviewable.
