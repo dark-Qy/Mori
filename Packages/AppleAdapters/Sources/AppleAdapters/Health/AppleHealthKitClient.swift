@@ -41,10 +41,11 @@
       )
 
       let sleep = try await fetchSleep(predicate: predicate)
-      let steps = try await fetchQuantities(
+      let steps = try await fetchCumulativeSum(
         identifier: .stepCount,
         unit: .count(),
-        predicate: predicate
+        predicate: predicate,
+        window: window
       )
       let restingHeartRate = try await fetchQuantities(
         identifier: .restingHeartRate,
@@ -117,6 +118,49 @@
         )
       }
       return HealthReading(availability: values.isEmpty ? .noData : .available, values: values)
+    }
+
+    /// HealthKit reconciles overlapping iPhone and Watch step samples in a statistics query.
+    /// Summing raw samples in the app can double-count movement recorded by both devices.
+    private func fetchCumulativeSum(
+      identifier: HKQuantityTypeIdentifier,
+      unit: HKUnit,
+      predicate: NSPredicate,
+      window: HealthQueryWindow
+    ) async throws -> HealthReading<[TimedQuantity]> {
+      guard let type = HKObjectType.quantityType(forIdentifier: identifier) else {
+        return HealthReading(
+          availability: .unavailable(reason: "Quantity type is unavailable"),
+          values: []
+        )
+      }
+      return try await withCheckedThrowingContinuation { continuation in
+        let query = HKStatisticsQuery(
+          quantityType: type,
+          quantitySamplePredicate: predicate,
+          options: .cumulativeSum
+        ) { _, statistics, error in
+          if let error {
+            continuation.resume(
+              throwing: HealthAdapterError.queryFailed(error.localizedDescription)
+            )
+            return
+          }
+          guard let value = statistics?.sumQuantity()?.doubleValue(for: unit) else {
+            continuation.resume(
+              returning: HealthReading(availability: .noData, values: [])
+            )
+            return
+          }
+          continuation.resume(
+            returning: HealthReading(
+              availability: .available,
+              values: [TimedQuantity(start: window.start, end: window.end, value: value)]
+            )
+          )
+        }
+        store.execute(query)
+      }
     }
 
     private func fetchWorkouts(
