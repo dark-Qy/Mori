@@ -1,15 +1,17 @@
+import AppRuntime
 import SwiftUI
 
 struct WardrobeView: View {
-  let model: PhonePresentationModel
-  @State private var selectedItemID = "scarf"
+  @ObservedObject var store: PhoneAppStore
 
   private let items = WardrobeItem.samples
+  private var model: PhonePresentationModel { store.model }
+  private var selectedItemID: String { store.preferences.selectedOutfitID }
 
   var body: some View {
     PhonePage {
       VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
-        PhoneMockBadge(scenarioName: model.scenario.displayName)
+        PhoneDataBadge(model: model)
           .padding(.top, CompanionSpacing.small)
 
         VStack(spacing: CompanionSpacing.medium) {
@@ -32,7 +34,7 @@ struct WardrobeView: View {
             "Mori 当前装扮，\(items.first(where: { $0.id == selectedItemID })?.name ?? "无")"
           )
           .accessibilityIdentifier("phone.wardrobe-preview")
-          Text("装扮会在下次同步时出现在手表上")
+          Text("装扮已保存；配对的手表可用时会自动同步")
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
@@ -50,7 +52,7 @@ struct WardrobeView: View {
         ) {
           ForEach(items) { item in
             Button {
-              selectedItemID = item.id
+              store.selectOutfit(item.id)
             } label: {
               VStack(alignment: .leading, spacing: CompanionSpacing.small) {
                 Image(systemName: item.overlaySymbol)

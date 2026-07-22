@@ -56,6 +56,31 @@ struct PhoneMockBadge: View {
   }
 }
 
+struct PhoneDataBadge: View {
+  let model: PhonePresentationModel
+
+  var body: some View {
+    if case .invalidMock(let value) = model.dataMode {
+      Label("Mock 无效", systemImage: "exclamationmark.triangle.fill")
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(CompanionPalette.rose)
+        .accessibilityLabel("Mock 场景无效，\(value)")
+        .accessibilityIdentifier("phone.invalid-mock-badge")
+    } else if let scenario = model.mockScenario {
+      PhoneMockBadge(scenarioName: scenario.displayName)
+    } else {
+      Label("HealthKit · 本机", systemImage: "heart.text.clipboard.fill")
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(CompanionPalette.mint)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(CompanionPalette.mint.opacity(0.10), in: Capsule())
+        .accessibilityLabel("真实模式，本机 HealthKit 数据")
+        .accessibilityIdentifier("phone.live-badge")
+    }
+  }
+}
+
 struct PhonePage<Content: View>: View {
   @ViewBuilder let content: Content
 

@@ -6,7 +6,7 @@ struct HistoryView: View {
   var body: some View {
     PhonePage {
       VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
-        PhoneMockBadge(scenarioName: model.scenario.displayName)
+        PhoneDataBadge(model: model)
           .padding(.top, CompanionSpacing.small)
 
         CompanionCard {
@@ -25,34 +25,50 @@ struct HistoryView: View {
           .font(.caption.weight(.semibold))
           .padding(.top, CompanionSpacing.medium)
 
-          HStack(alignment: .bottom, spacing: 10) {
-            ForEach(model.history) { day in
-              VStack(spacing: 6) {
-                HStack(alignment: .bottom, spacing: 3) {
-                  Capsule()
-                    .fill(CompanionPalette.blue)
-                    .frame(width: 9, height: max(12, day.recovery * 120))
-                  Capsule()
-                    .fill(CompanionPalette.mint)
-                    .frame(width: 9, height: max(12, day.activity * 120))
+          if model.history.isEmpty {
+            ContentUnavailableView(
+              "趋势正在积累",
+              systemImage: "chart.bar.xaxis",
+              description: Text("至少保留两天已知数据后再开始比较；缺失日不会按零计算。")
+            )
+            .frame(height: 150)
+            .accessibilityIdentifier("phone.history-empty")
+          } else {
+            HStack(alignment: .bottom, spacing: 10) {
+              ForEach(model.history) { day in
+                VStack(spacing: 6) {
+                  HStack(alignment: .bottom, spacing: 3) {
+                    historyBar(day.recovery, color: CompanionPalette.blue)
+                    historyBar(day.activity, color: CompanionPalette.mint)
+                  }
+                  Text(day.weekday)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
                 }
-                Text(day.weekday)
-                  .font(.caption2.weight(.medium))
-                  .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilityLabel(for: day))
               }
-              .frame(maxWidth: .infinity)
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel(
-                "星期\(day.weekday)，恢复 \(Int(day.recovery * 100))，活动 \(Int(day.activity * 100))")
             }
+            .frame(height: 150, alignment: .bottom)
+            .accessibilityIdentifier("phone.history-chart")
           }
-          .frame(height: 150, alignment: .bottom)
-          .accessibilityIdentifier("phone.history-chart")
+
+          Text(model.trendSummary)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(CompanionPalette.gold)
         }
 
         Text("最近发生")
           .font(.headline)
           .padding(.top, CompanionSpacing.small)
+
+        if model.activityLog.isEmpty {
+          Text("还没有可显示的事件。完成一次健康同步或宠物互动后会出现在这里。")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.vertical, CompanionSpacing.medium)
+        }
 
         ForEach(model.activityLog) { log in
           CompanionCard {
@@ -80,5 +96,25 @@ struct HistoryView: View {
     }
     .navigationTitle("历史")
     .accessibilityIdentifier("phone.history")
+  }
+
+  private func historyBar(_ value: Double?, color: Color) -> some View {
+    Group {
+      if let value {
+        Capsule()
+          .fill(color)
+          .frame(width: 9, height: max(12, value * 120))
+      } else {
+        Capsule()
+          .stroke(color.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [2]))
+          .frame(width: 9, height: 12)
+      }
+    }
+  }
+
+  private func accessibilityLabel(for day: PhoneHistoryDay) -> String {
+    let recovery = day.recovery.map { String(Int($0 * 100)) } ?? "缺失"
+    let activity = day.activity.map { String(Int($0 * 100)) } ?? "缺失"
+    return "\(day.weekday)日，恢复相对值 \(recovery)，活动相对值 \(activity)"
   }
 }

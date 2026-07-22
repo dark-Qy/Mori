@@ -25,8 +25,31 @@ final class PhoneAppUITests: XCTestCase {
 
     app.tabBars.buttons["隐私"].tap()
     XCTAssertTrue(element("phone.privacy", in: app).waitForExistence(timeout: 5))
-    XCTAssertTrue(app.switches["phone.privacy.care-summary"].exists)
-    XCTAssertTrue(app.switches["phone.privacy.health-summary"].exists)
+    XCTAssertTrue(app.switches["phone.privacy.social-sharing"].exists)
+    XCTAssertTrue(element("phone.privacy.sharing-scope", in: app).exists)
+  }
+
+  func testDefaultLaunchNeverPretendsMockDataIsLive() {
+    let app = XCUIApplication()
+    app.launchArguments = ["-UITesting"]
+    app.launch()
+
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("phone.live-badge", in: app).exists)
+    XCTAssertFalse(element("phone.mock-badge", in: app).exists)
+    XCTAssertTrue(app.buttons["phone.connect-health"].exists)
+  }
+
+  func testNotificationRouteOpensSafeOverviewWithoutSettlingAReward() {
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "-UITesting", "--mock-scenario=recovery_low", "--notification-route=pet/recovery",
+    ]
+    app.launch()
+
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(
+      app.staticTexts["已打开 Mori 的恢复来信；不会自动完成任务或领取奖励"].exists)
   }
 
   private func launchApp(scenario: String) -> XCUIApplication {

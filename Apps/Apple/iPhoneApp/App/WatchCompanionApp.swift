@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct WatchCompanionApp: App {
+  @StateObject private var store = PhoneAppStore()
+
   var body: some Scene {
     WindowGroup {
-      PhoneRootView()
+      PhoneRootView(store: store)
     }
   }
 }

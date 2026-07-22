@@ -1,13 +1,15 @@
 import SwiftUI
 
 struct OverviewView: View {
-  let model: PhonePresentationModel
+  @ObservedObject var store: PhoneAppStore
+
+  private var model: PhonePresentationModel { store.model }
 
   var body: some View {
     PhonePage {
       VStack(spacing: CompanionSpacing.medium) {
         HStack {
-          PhoneMockBadge(scenarioName: model.scenario.displayName)
+          PhoneDataBadge(model: model)
           Spacer()
         }
         .padding(.top, CompanionSpacing.small)
@@ -32,7 +34,7 @@ struct OverviewView: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
             .padding(.top, 2)
-          ProgressView(value: model.scenario == .activeDay ? 0.8 : 0.62)
+          ProgressView(value: model.questProgress)
             .tint(CompanionPalette.gold)
             .padding(.top, CompanionSpacing.small)
         }
@@ -42,12 +44,36 @@ struct OverviewView: View {
           Label("数据说明", systemImage: "info.circle.fill")
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(CompanionPalette.blue)
-          Text("当前为确定性 Mock 数据。恢复、活动和节律只与个人近期状态比较；缺失数据不会造成惩罚。")
+          Text(model.dataExplanation)
             .font(.footnote)
             .foregroundStyle(.secondary)
             .padding(.top, 5)
         }
         .accessibilityIdentifier("phone.data-explanation")
+
+        if model.isLive {
+          Button {
+            Task { await store.connectHealth() }
+          } label: {
+            Label(
+              store.isRefreshingHealth ? "正在读取…" : "连接或刷新健康数据",
+              systemImage: "heart.text.clipboard"
+            )
+            .frame(maxWidth: .infinity)
+          }
+          .buttonStyle(.borderedProminent)
+          .tint(CompanionPalette.mint)
+          .disabled(store.isRefreshingHealth)
+          .accessibilityIdentifier("phone.connect-health")
+        }
+
+        if let status = store.statusMessage {
+          Text(status)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("phone.status-message")
+        }
       }
     }
     .navigationTitle("Mori")

@@ -1,47 +1,61 @@
 import SwiftUI
 
+enum PhoneTab: Hashable {
+  case overview
+  case history
+  case wardrobe
+  case privacy
+}
+
 struct PhoneRootView: View {
-  private let model = PhonePresentationModel.fromLaunchArguments()
+  @ObservedObject var store: PhoneAppStore
 
   var body: some View {
-    TabView {
+    TabView(selection: $store.selectedTab) {
       NavigationStack {
-        OverviewView(model: model)
+        OverviewView(store: store)
       }
       .tabItem {
         Label("概览", systemImage: "house.fill")
       }
       .accessibilityIdentifier("phone.tab.overview")
+      .tag(PhoneTab.overview)
 
       NavigationStack {
-        HistoryView(model: model)
+        HistoryView(model: store.model)
       }
       .tabItem {
         Label("历史", systemImage: "chart.bar.xaxis")
       }
       .accessibilityIdentifier("phone.tab.history")
+      .tag(PhoneTab.history)
 
       NavigationStack {
-        WardrobeView(model: model)
+        WardrobeView(store: store)
       }
       .tabItem {
         Label("衣橱", systemImage: "tshirt.fill")
       }
       .accessibilityIdentifier("phone.tab.wardrobe")
+      .tag(PhoneTab.wardrobe)
 
       NavigationStack {
-        PrivacyView(model: model)
+        PrivacyView(store: store)
       }
       .tabItem {
         Label("隐私", systemImage: "hand.raised.fill")
       }
       .accessibilityIdentifier("phone.tab.privacy")
+      .tag(PhoneTab.privacy)
     }
     .tint(CompanionPalette.mint)
     .accessibilityIdentifier("phone.root")
+    .task {
+      await store.start()
+    }
   }
 }
 
 #Preview {
-  PhoneRootView()
+  PhoneRootView(store: PhoneAppStore(arguments: ["--mock-scenario=steady_week"]))
 }

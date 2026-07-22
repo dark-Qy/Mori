@@ -1,22 +1,22 @@
+import AppRuntime
 import SwiftUI
 
 struct PrivacyView: View {
-  let model: PhonePresentationModel
-  @State private var shareCareSummary = true
-  @State private var shareLimitedHealthSummary = false
-  @State private var proactiveMessages = true
+  @ObservedObject var store: PhoneAppStore
+
+  private var model: PhonePresentationModel { store.model }
 
   var body: some View {
     PhonePage {
       VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
-        PhoneMockBadge(scenarioName: model.scenario.displayName)
+        PhoneDataBadge(model: model)
           .padding(.top, CompanionSpacing.small)
 
         CompanionCard {
           Label("你的健康数据属于你", systemImage: "lock.shield.fill")
             .font(.headline)
             .foregroundStyle(CompanionPalette.mint)
-          Text("默认只在本机用于生成宠物状态。不会向好友暴露睡眠、心率或原始记录。")
+          Text("原始 HealthKit 数据只在本机生成状态与趋势；不会自动向好友发送睡眠阶段、心率数值或原始记录。")
             .font(.subheadline)
             .foregroundStyle(.secondary)
             .padding(.top, 5)
@@ -26,8 +26,11 @@ struct PrivacyView: View {
           .font(.headline)
         settingToggle(
           title: "允许 Mori 主动来信",
-          detail: "遵守安静时段和频率上限，可随时关闭。",
-          isOn: $proactiveMessages,
+          detail: "遵守安静时段和四小时频率上限。通知权限：\(store.notificationStatus)。",
+          isOn: Binding(
+            get: { store.preferences.proactiveMessagesEnabled },
+            set: store.setProactiveMessages
+          ),
           identifier: "phone.privacy.proactive"
         )
 
@@ -35,31 +38,76 @@ struct PrivacyView: View {
           .font(.headline)
           .padding(.top, CompanionSpacing.small)
         settingToggle(
-          title: "关心摘要",
-          detail: "默认开启，只分享“今天适合放慢”等非医疗、非原始数据表达。",
-          isOn: $shareCareSummary,
-          identifier: "phone.privacy.care-summary"
-        )
-        settingToggle(
-          title: "有限健康摘要",
-          detail: "默认关闭。开启后也不会分享睡眠阶段、心率数值或 HealthKit 原始记录。",
-          isOn: $shareLimitedHealthSummary,
-          identifier: "phone.privacy.health-summary"
+          title: "启用好友分享",
+          detail: "默认关闭。当前只保存本地预设，阶段 2 社交上线后才会按此范围发送派生摘要。",
+          isOn: Binding(
+            get: { store.preferences.socialSharingEnabled },
+            set: store.setSocialSharing
+          ),
+          identifier: "phone.privacy.social-sharing"
         )
 
         CompanionCard {
-          Label("演示数据", systemImage: "testtube.2")
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(CompanionPalette.blue)
-          Text("此版本使用 Mock 场景验证产品交互；接入真实权限前，不会读取或上传 HealthKit 数据。")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .padding(.top, 5)
+          VStack(alignment: .leading, spacing: CompanionSpacing.small) {
+            Text("分享范围")
+              .font(.subheadline.weight(.semibold))
+              .accessibilityIdentifier("phone.privacy.sharing-scope")
+            Picker(
+              "分享范围",
+              selection: Binding(
+                get: { store.preferences.healthSharingScope },
+                set: store.setHealthSharingScope
+              )
+            ) {
+              Text("游戏状态").tag(HealthSharingScope.gameStateOnly)
+              Text("关心摘要").tag(HealthSharingScope.careSummary)
+              Text("有限健康摘要").tag(HealthSharingScope.limitedHealthSummary)
+            }
+            .pickerStyle(.navigationLink)
+            .disabled(!store.preferences.socialSharingEnabled)
+            .accessibilityIdentifier("phone.privacy.sharing-scope-picker")
+
+            Text(scopeDescription)
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
+            Text("尚未连接社交服务；这个选择现在不会发送任何数据。")
+              .font(.caption2)
+              .foregroundStyle(CompanionPalette.gold)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+        }
+
+        CompanionCard {
+          Label(
+            model.isLive ? "本机数据模式" : "演示数据", systemImage: model.isLive ? "iphone" : "testtube.2"
+          )
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(CompanionPalette.blue)
+          Text(
+            model.isLive
+              ? "当前只读取本机授权的 HealthKit 数据并保存派生事件；没有服务器上传。"
+              : "此运行使用显式 Mock 场景验证交互，不会把演示值标记为真实健康数据。"
+          )
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .padding(.top, 5)
         }
       }
     }
     .navigationTitle("隐私")
     .accessibilityIdentifier("phone.privacy")
+  }
+
+  private var scopeDescription: String {
+    switch store.preferences.healthSharingScope {
+    case .gameStateOnly:
+      "只分享宠物等级、共同剧情与游戏关系。"
+    case .careSummary:
+      "默认范围：只分享“今天适合放慢”等非医疗、非数值表达。"
+    case .limitedHealthSummary:
+      "可分享用户明确允许的有限摘要；仍不包含睡眠阶段、心率数值或原始记录。"
+    }
   }
 
   private func settingToggle(
