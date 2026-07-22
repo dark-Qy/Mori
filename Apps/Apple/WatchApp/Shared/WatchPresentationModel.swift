@@ -277,11 +277,29 @@ struct WatchPresentationModel {
     guard let observation = trend?.observations.first(where: { $0.metric == metric }) else {
       return "积累中"
     }
-    return switch observation.status {
-    case .belowPersonalRange: "偏低"
-    case .withinPersonalRange: "平稳"
-    case .abovePersonalRange: "偏高"
-    case .insufficientData: "积累中"
+    guard observation.status != .insufficientData else { return "积累中" }
+    return switch metric {
+    case .sleepDuration:
+      switch observation.status {
+      case .belowPersonalRange: "少于近期"
+      case .withinPersonalRange: "接近近期"
+      case .abovePersonalRange: "多于近期"
+      case .insufficientData: "积累中"
+      }
+    case .steps, .activeMinutes:
+      switch observation.status {
+      case .belowPersonalRange: "低于近期"
+      case .withinPersonalRange: "接近近期"
+      case .abovePersonalRange: "高于近期"
+      case .insufficientData: "积累中"
+      }
+    case .sleepTiming:
+      switch observation.status {
+      case .belowPersonalRange: "波动增加"
+      case .withinPersonalRange: "接近近期"
+      case .abovePersonalRange: "更稳定"
+      case .insufficientData: "积累中"
+      }
     }
   }
 

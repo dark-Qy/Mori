@@ -42,6 +42,20 @@ public actor FileEventLedgerStorage: EventLedgerStorage {
       withIntermediateDirectories: true
     )
     try data.write(to: fileURL, options: [.atomic])
+
+    // The ledger can contain health-derived decisions. Keep it out of device backups and use
+    // data protection on Apple mobile platforms while still allowing post-unlock background work.
+    var protectedURL = fileURL
+    var resourceValues = URLResourceValues()
+    resourceValues.isExcludedFromBackup = true
+    try protectedURL.setResourceValues(resourceValues)
+
+    #if os(iOS) || os(watchOS) || os(tvOS)
+      try FileManager.default.setAttributes(
+        [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+        ofItemAtPath: fileURL.path
+      )
+    #endif
   }
 }
 

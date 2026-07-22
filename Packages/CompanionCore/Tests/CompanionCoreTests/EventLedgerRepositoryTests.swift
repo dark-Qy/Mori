@@ -59,6 +59,8 @@ struct EventLedgerRepositoryTests {
     let second = EventLedgerRepository(storage: FileEventLedgerStorage(fileURL: fileURL))
 
     #expect(try await second.currentLedger().events == [event])
+    let resourceValues = try fileURL.resourceValues(forKeys: [.isExcludedFromBackupKey])
+    #expect(resourceValues.isExcludedFromBackup == true)
   }
 
   private func interactionEvent(id: String) -> EventEnvelope {

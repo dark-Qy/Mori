@@ -77,6 +77,11 @@ Before remote storage ships, define and test category-specific retention. At min
 - backups, observability, and tombstone retention are documented honestly;
 - deletion propagates to processors under applicable agreements.
 
+The local event ledger is stored atomically in the app-private Application Support directory. It
+is excluded from device backups and, on iOS/watchOS, uses complete-until-first-authentication file
+protection so a locked device does not expose it before the first unlock. This is storage defense,
+not permission to copy raw HealthKit samples into the ledger.
+
 ## Logging and analytics
 
 Allowed examples:

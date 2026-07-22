@@ -236,11 +236,29 @@ struct PhonePresentationModel {
     guard let observation = trend?.observations.first(where: { $0.metric == metric }) else {
       return "积累中"
     }
-    switch observation.status {
-    case .belowPersonalRange: return "波动"
-    case .withinPersonalRange: return "平稳"
-    case .abovePersonalRange: return "更稳"
-    case .insufficientData: return "积累中"
+    guard observation.status != .insufficientData else { return "积累中" }
+    switch metric {
+    case .sleepDuration:
+      switch observation.status {
+      case .belowPersonalRange: return "少于近期"
+      case .withinPersonalRange: return "接近近期"
+      case .abovePersonalRange: return "多于近期"
+      case .insufficientData: return "积累中"
+      }
+    case .steps, .activeMinutes:
+      switch observation.status {
+      case .belowPersonalRange: return "低于近期"
+      case .withinPersonalRange: return "接近近期"
+      case .abovePersonalRange: return "高于近期"
+      case .insufficientData: return "积累中"
+      }
+    case .sleepTiming:
+      switch observation.status {
+      case .belowPersonalRange: return "波动增加"
+      case .withinPersonalRange: return "接近近期"
+      case .abovePersonalRange: return "更稳定"
+      case .insufficientData: return "积累中"
+      }
     }
   }
 
