@@ -1,0 +1,84 @@
+#!/bin/bash
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
+
+if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer" ]]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
+echo "Checking shell syntax."
+while IFS= read -r script; do
+  /bin/bash -n "$script"
+done < <(find "$REPO_ROOT/Scripts" -maxdepth 1 -type f -print | sort)
+
+echo "Checking JSON fixtures and test plans."
+while IFS= read -r document; do
+  /usr/bin/python3 -m json.tool "$document" >/dev/null
+done < <(find "$REPO_ROOT/Fixtures" "$REPO_ROOT/TestPlans" \( -name '*.json' -o -name '*.xctestplan' \) -type f -print 2>/dev/null | sort)
+
+required_scenarios=(
+  fresh_install
+  permission_not_requested
+  health_no_data
+  health_partial
+  health_normal
+  sleep_stale
+  activity_high
+  soccer_workout
+  notification_denied
+  ai_offline
+  ai_malformed
+  sync_unreachable
+  pet_new
+  outfit_locked
+  outfit_unlocked
+)
+
+for scenario in "${required_scenarios[@]}"; do
+  fixture="$REPO_ROOT/Fixtures/Scenarios/$scenario.json"
+  if [[ ! -f "$fixture" ]]; then
+    echo "error: required mock scenario is missing: $scenario" >&2
+    exit 1
+  fi
+done
+
+source_roots=()
+for candidate in "$REPO_ROOT/Apps" "$REPO_ROOT/Packages" "$REPO_ROOT/Services"; do
+  if [[ -d "$candidate" ]] && find "$candidate" -name '*.swift' -type f -print -quit | grep -q .; then
+    source_roots+=("$candidate")
+  fi
+done
+
+if [[ ${#source_roots[@]} -gt 0 ]]; then
+  if ! xcrun --find swift-format >/dev/null 2>&1; then
+    echo "error: swift-format was not found in the selected Xcode toolchain." >&2
+    exit 1
+  fi
+  echo "Linting Swift sources."
+  xcrun swift-format lint --strict --recursive --parallel "${source_roots[@]}"
+else
+  echo "notice: no Swift sources exist yet; Swift linting was skipped."
+fi
+
+if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Scanning tracked and non-ignored untracked files for common credential patterns."
+  credential_pattern='(sk-[A-Za-z0-9_-]{16,}|Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9_-]{16,})'
+  credential_found=false
+  while IFS= read -r -d '' relative_path; do
+    if [[ "$relative_path" == "Scripts/check" ]]; then
+      continue
+    fi
+    if grep -I -nE "$credential_pattern" "$REPO_ROOT/$relative_path"; then
+      credential_found=true
+    fi
+  done < <(git -C "$REPO_ROOT" ls-files --cached --others --exclude-standard -z)
+  if [[ "$credential_found" == true ]]; then
+    echo "error: a possible credential was found in a repository file." >&2
+    exit 1
+  fi
+fi
+
+echo "Static checks completed."

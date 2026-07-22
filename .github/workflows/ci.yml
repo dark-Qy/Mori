@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Static checks and tests
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      CODE_SIGNING_ALLOWED: "NO"
+      CODE_SIGNING_REQUIRED: "NO"
+      COMPILER_INDEX_STORE_ENABLE: "NO"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Select bundled Xcode
+        run: |
+          selected_developer_dir="$(xcode-select -p 2>/dev/null || true)"
+          if [[ "$selected_developer_dir" != */Contents/Developer ]] && [[ -d /Applications/Xcode.app/Contents/Developer ]]; then
+            selected_developer_dir="/Applications/Xcode.app/Contents/Developer"
+          fi
+          if [[ ! -d "$selected_developer_dir" ]]; then
+            echo "No Xcode installation is available on this runner." >&2
+            exit 1
+          fi
+          echo "DEVELOPER_DIR=$selected_developer_dir" >>"$GITHUB_ENV"
+
+      - name: Bootstrap
+        run: Scripts/bootstrap
+
+      - name: Static checks
+        run: Scripts/check
+
+      - name: Unit and integration tests
+        run: Scripts/test
+
+      - name: Simulator E2E tests
+        run: Scripts/test-e2e
+
+      - name: Upload E2E results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: .artifacts/*.xcresult
+          if-no-files-found: ignore
+          retention-days: 7

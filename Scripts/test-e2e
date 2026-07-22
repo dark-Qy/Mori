@@ -1,0 +1,121 @@
+#!/bin/bash
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
+
+if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer" ]]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
+project_path="$(find "$REPO_ROOT/Apps" -name '*.xcodeproj' -type d -exec test -f '{}/project.pbxproj' \; -print 2>/dev/null | sort | head -n 1 || true)"
+if [[ -z "$project_path" ]]; then
+  echo "error: no complete Xcode project exists; E2E tests cannot run." >&2
+  exit 1
+fi
+
+first_simulator_udid() {
+  local family_prefix="$1"
+  local runtime_marker="$2"
+  local devices_json
+  devices_json="$(mktemp "${TMPDIR:-/tmp}/watch-companion-e2e-devices.XXXXXX")"
+  xcrun simctl list devices available -j >"$devices_json"
+
+  /usr/bin/python3 - "$devices_json" "$family_prefix" "$runtime_marker" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    runtimes = json.load(source).get("devices", {})
+
+family_prefix = sys.argv[2]
+runtime_marker = sys.argv[3]
+
+def version(runtime):
+    match = re.search(r"([0-9]+(?:-[0-9]+)*)$", runtime)
+    return tuple(int(part) for part in match.group(1).split("-")) if match else ()
+
+candidates = []
+for runtime, devices in sorted(runtimes.items(), key=lambda item: version(item[0]), reverse=True):
+    if runtime_marker not in runtime:
+        continue
+    for device in devices:
+        if device.get("isAvailable", True) and device.get("name", "").startswith(family_prefix):
+            candidates.append(device)
+
+selected = next((device for device in candidates if device.get("state") == "Booted"), None)
+selected = selected or (candidates[0] if candidates else None)
+if selected:
+    print(selected["udid"])
+PY
+  rm -f "$devices_json"
+}
+
+phone_destination="${E2E_PHONE_DESTINATION:-}"
+phone_udid=""
+if [[ -z "$phone_destination" ]]; then
+  phone_udid="$(first_simulator_udid "iPhone" ".iOS-")"
+  if [[ -z "$phone_udid" ]]; then
+    echo "error: no available iPhone Simulator was found." >&2
+    exit 1
+  fi
+  phone_destination="platform=iOS Simulator,id=$phone_udid"
+fi
+
+watch_destination="${E2E_WATCH_DESTINATION:-}"
+watch_udid=""
+if [[ -z "$watch_destination" ]]; then
+  watch_udid="$(first_simulator_udid "Apple Watch" ".watchOS-")"
+  if [[ -z "$watch_udid" ]]; then
+    echo "error: no available Apple Watch Simulator was found." >&2
+    exit 1
+  fi
+  watch_destination="platform=watchOS Simulator,id=$watch_udid"
+fi
+
+for simulator_udid in "$phone_udid" "$watch_udid"; do
+  if [[ -n "$simulator_udid" ]]; then
+    xcrun simctl boot "$simulator_udid" >/dev/null 2>&1 || true
+  fi
+done
+
+artifact_directory="$REPO_ROOT/.artifacts"
+mkdir -p "$artifact_directory"
+derived_data_path="${E2E_DERIVED_DATA_PATH:-$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-e2e.XXXXXX")}"
+run_stamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+phone_result="$artifact_directory/e2e-phone-$run_stamp.xcresult"
+watch_result="$artifact_directory/e2e-watch-$run_stamp.xcresult"
+
+phone_scheme="${E2E_PHONE_SCHEME:-WatchCompanion}"
+watch_scheme="${E2E_WATCH_SCHEME:-WatchCompanion-Watch}"
+
+echo "Running iPhone E2E tests for '$phone_scheme' on '$phone_destination'."
+xcodebuild test \
+  -project "$project_path" \
+  -scheme "$phone_scheme" \
+  -testPlan "${E2E_PHONE_TEST_PLAN:-Phase0}" \
+  -destination "$phone_destination" \
+  -derivedDataPath "$derived_data_path" \
+  -resultBundlePath "$phone_result" \
+  -only-testing:PhoneAppUITests \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  COMPILER_INDEX_STORE_ENABLE=NO
+
+echo "Running Watch E2E tests for '$watch_scheme' on '$watch_destination'."
+xcodebuild test \
+  -project "$project_path" \
+  -scheme "$watch_scheme" \
+  -destination "$watch_destination" \
+  -derivedDataPath "$derived_data_path" \
+  -resultBundlePath "$watch_result" \
+  -only-testing:WatchAppUITests \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  COMPILER_INDEX_STORE_ENABLE=NO
+
+echo "E2E result bundles:"
+echo "  $phone_result"
+echo "  $watch_result"

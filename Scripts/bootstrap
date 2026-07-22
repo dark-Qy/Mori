@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
+
+if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer" ]]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
+for tool in git xcodebuild xcrun swift; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "error: required tool '$tool' is not available." >&2
+    exit 1
+  fi
+done
+
+echo "Repository: $REPO_ROOT"
+echo "Developer directory: ${DEVELOPER_DIR:-$(xcode-select -p)}"
+xcodebuild -version
+swift --version
+
+package_manifest="$(find "$REPO_ROOT/Packages" -name Package.swift -type f -print 2>/dev/null | sort | head -n 1 || true)"
+if [[ -n "$package_manifest" ]]; then
+  package_directory="$(dirname "$package_manifest")"
+  echo "Resolving Swift package: ${package_directory#$REPO_ROOT/}"
+  swift package --package-path "$package_directory" resolve
+else
+  echo "notice: no Swift package manifest exists yet; package resolution was skipped."
+fi
+
+project_path="$(find "$REPO_ROOT/Apps" -name '*.xcodeproj' -type d -exec test -f '{}/project.pbxproj' \; -print 2>/dev/null | sort | head -n 1 || true)"
+if [[ -n "$project_path" ]]; then
+  echo "Discovered Xcode project: ${project_path#$REPO_ROOT/}"
+  xcodebuild -list -project "$project_path"
+else
+  echo "notice: no complete Xcode project exists yet; Apple target discovery was skipped."
+fi
+
+echo "Bootstrap checks completed."

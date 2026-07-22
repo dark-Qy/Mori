@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
+
+if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer" ]]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
+if ! xcrun --find swift-format >/dev/null 2>&1; then
+  echo "error: swift-format was not found in the selected Xcode toolchain." >&2
+  exit 1
+fi
+
+source_roots=()
+for candidate in "$REPO_ROOT/Apps" "$REPO_ROOT/Packages" "$REPO_ROOT/Services"; do
+  if [[ -d "$candidate" ]] && find "$candidate" -name '*.swift' -type f -print -quit | grep -q .; then
+    source_roots+=("$candidate")
+  fi
+done
+
+if [[ ${#source_roots[@]} -eq 0 ]]; then
+  echo "notice: no Swift sources exist yet; formatting was skipped."
+  exit 0
+fi
+
+echo "Formatting Swift sources with the selected Xcode toolchain."
+xcrun swift-format format --in-place --recursive --parallel "${source_roots[@]}"
+

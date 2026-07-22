@@ -1,0 +1,85 @@
+#!/bin/bash
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
+
+if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer" ]]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
+first_ios_destination() {
+  local devices_json
+  devices_json="$(mktemp "${TMPDIR:-/tmp}/watch-companion-devices.XXXXXX")"
+  xcrun simctl list devices available -j >"$devices_json"
+
+  /usr/bin/python3 - "$devices_json" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    runtimes = json.load(source).get("devices", {})
+
+def version(runtime):
+    match = re.search(r"iOS[-.]([0-9-]+)$", runtime)
+    if not match:
+        return ()
+    return tuple(int(part) for part in match.group(1).split("-") if part.isdigit())
+
+candidates = []
+for runtime, devices in sorted(runtimes.items(), key=lambda item: version(item[0]), reverse=True):
+    if ".iOS-" not in runtime:
+        continue
+    for device in devices:
+        if device.get("isAvailable", True) and device.get("name", "").startswith("iPhone"):
+            candidates.append(device)
+
+selected = next((device for device in candidates if device.get("state") == "Booted"), None)
+selected = selected or (candidates[0] if candidates else None)
+if selected:
+    print(f"platform=iOS Simulator,id={selected['udid']}")
+PY
+  rm -f "$devices_json"
+}
+
+package_manifest="$(find "$REPO_ROOT/Packages" -name Package.swift -type f -print 2>/dev/null | sort | head -n 1 || true)"
+project_path="$(find "$REPO_ROOT/Apps" -name '*.xcodeproj' -type d -exec test -f '{}/project.pbxproj' \; -print 2>/dev/null | sort | head -n 1 || true)"
+ran_tests=false
+
+if [[ -n "$package_manifest" ]]; then
+  package_directory="$(dirname "$package_manifest")"
+  echo "Running Swift package tests: ${package_directory#$REPO_ROOT/}"
+  swift test --package-path "$package_directory" --parallel
+  ran_tests=true
+fi
+
+if [[ -n "$project_path" ]]; then
+  scheme="${XCODE_SCHEME:-WatchCompanion}"
+  test_plan="${XCODE_TEST_PLAN:-Phase0}"
+
+  destination="${TEST_DESTINATION:-$(first_ios_destination)}"
+  if [[ -z "$destination" ]]; then
+    echo "error: no available iPhone Simulator was found; set TEST_DESTINATION explicitly." >&2
+    exit 1
+  fi
+
+  echo "Running Xcode tests for '$scheme' on '$destination'."
+  derived_data_path="${TEST_DERIVED_DATA_PATH:-$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-tests.XXXXXX")}"
+  xcodebuild test \
+    -project "$project_path" \
+    -scheme "$scheme" \
+    -testPlan "$test_plan" \
+    -destination "$destination" \
+    -derivedDataPath "$derived_data_path" \
+    -only-testing:PhoneAppTests \
+    CODE_SIGNING_ALLOWED=NO \
+    CODE_SIGNING_REQUIRED=NO \
+    COMPILER_INDEX_STORE_ENABLE=NO
+  ran_tests=true
+fi
+
+if [[ "$ran_tests" == false ]]; then
+  echo "notice: no Swift package or complete Xcode project exists yet; tests were skipped."
+fi
