@@ -38,6 +38,45 @@ public struct GrowthState: Codable, Equatable, Sendable {
   }
 }
 
+public enum CommitmentStatus: String, Codable, CaseIterable, Sendable {
+  case active
+  case needsRepair
+  case fulfilled
+  case repaired
+  case released
+}
+
+public struct CommitmentRecord: Codable, Equatable, Sendable {
+  public var commitmentID: UUID
+  public var kind: CommitmentKind
+  public var targetDay: LocalDay
+  public var timeZoneIdentifier: String
+  public var status: CommitmentStatus
+  public var acceptedAt: Date
+  public var lastUpdatedAt: Date
+  public var revision: Int
+
+  public init(
+    commitmentID: UUID,
+    kind: CommitmentKind,
+    targetDay: LocalDay,
+    timeZoneIdentifier: String,
+    status: CommitmentStatus = .active,
+    acceptedAt: Date,
+    lastUpdatedAt: Date? = nil,
+    revision: Int = 1
+  ) {
+    self.commitmentID = commitmentID
+    self.kind = kind
+    self.targetDay = targetDay
+    self.timeZoneIdentifier = timeZoneIdentifier
+    self.status = status
+    self.acceptedAt = acceptedAt
+    self.lastUpdatedAt = lastUpdatedAt ?? acceptedAt
+    self.revision = max(1, revision)
+  }
+}
+
 public struct StoryState: Codable, Equatable, Sendable {
   public var mainlineChapter: Int
   public var completedBeatIDs: Set<String>
@@ -103,6 +142,7 @@ public struct CompanionState: Codable, Equatable, Sendable {
   /// Later snapshots can grant only the positive difference up to the daily cap.
   public var vitalityAwardByDay: [String: Int]
   public var completedHabitDays: Set<LocalDay>
+  public var commitments: [CommitmentRecord]
   public var processedEventIDs: Set<UUID>
 
   public init(
@@ -114,6 +154,7 @@ public struct CompanionState: Codable, Equatable, Sendable {
     lastDecisionTrace: DecisionTrace? = nil,
     vitalityAwardByDay: [String: Int] = [:],
     completedHabitDays: Set<LocalDay> = [],
+    commitments: [CommitmentRecord] = [],
     processedEventIDs: Set<UUID> = []
   ) {
     self.schemaVersion = schemaVersion
@@ -124,6 +165,7 @@ public struct CompanionState: Codable, Equatable, Sendable {
     self.lastDecisionTrace = lastDecisionTrace
     self.vitalityAwardByDay = vitalityAwardByDay.mapValues { max(0, $0) }
     self.completedHabitDays = completedHabitDays
+    self.commitments = commitments
     self.processedEventIDs = processedEventIDs
   }
 
@@ -136,6 +178,7 @@ public struct CompanionState: Codable, Equatable, Sendable {
     case lastDecisionTrace
     case vitalityAwardByDay
     case completedHabitDays
+    case commitments
     case processedEventIDs
   }
 
@@ -158,6 +201,8 @@ public struct CompanionState: Codable, Equatable, Sendable {
     completedHabitDays = Set(
       try container.decodeIfPresent([LocalDay].self, forKey: .completedHabitDays) ?? []
     )
+    commitments =
+      try container.decodeIfPresent([CommitmentRecord].self, forKey: .commitments) ?? []
     processedEventIDs = Set(try container.decode([UUID].self, forKey: .processedEventIDs))
   }
 
@@ -171,6 +216,10 @@ public struct CompanionState: Codable, Equatable, Sendable {
     try container.encodeIfPresent(lastDecisionTrace, forKey: .lastDecisionTrace)
     try container.encode(vitalityAwardByDay, forKey: .vitalityAwardByDay)
     try container.encode(completedHabitDays.sorted(), forKey: .completedHabitDays)
+    try container.encode(
+      commitments.sorted { $0.commitmentID.uuidString < $1.commitmentID.uuidString },
+      forKey: .commitments
+    )
     try container.encode(
       processedEventIDs.sorted { $0.uuidString < $1.uuidString },
       forKey: .processedEventIDs

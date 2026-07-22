@@ -112,6 +112,15 @@ use cases over the event engine; the pure reducer remains authoritative for dedu
 rewards. Random-story selection uses a stable seed, so persistence replay and repeated refreshes
 produce the same answer.
 
+The selective Phase 2 responsibility foundation adds versioned commitment events and a pure state
+machine for explicit controllable actions. A missed target becomes a repairable relationship state,
+never a health judgment or loss of earned growth. The foundation is persisted and replayable but is
+not yet exposed as a Watch or iPhone workflow.
+
+The local initiative planner hashes the approved theme, rule-evaluation timestamp, and canonical
+processed-event identities into a 10–90 minute window. Its output remains subordinate to explicit
+notification consent, quiet hours, and cooldown policy; narration has no access to the schedule.
+
 ## Narration boundary
 
 `NarrativeProvider` accepts a bounded context created after the state transition. It returns structured presentation fields such as message, tone, approved template identifier, optional choices, and safety flags.

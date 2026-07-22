@@ -80,9 +80,61 @@ struct NotificationRuntimeTests {
     #expect(!plan.body.contains("已经记下"))
   }
 
+  @Test("Initiative timing is seeded, bounded, and replayable")
+  func seededInitiativeTiming() throws {
+    var delays = Set<TimeInterval>()
+
+    for index in 1...32 {
+      var state = CompanionState(
+        activeTheme: .recovery,
+        processedEventIDs: [uuid(index)]
+      )
+      state.lastDecisionTrace = DecisionTrace(
+        ruleSetVersion: 1,
+        evaluatedAt: now,
+        selectedTheme: .recovery,
+        vitalityAward: 0,
+        steps: []
+      )
+
+      let first = try #require(ProactiveInteractionPlanner().plan(for: state, now: now))
+      let replay = try #require(ProactiveInteractionPlanner().plan(for: state, now: now))
+      let delay = first.fireDate.timeIntervalSince(now)
+
+      #expect(first == replay)
+      #expect(delay >= ProactiveInteractionPlanner.minimumSeededDelay)
+      #expect(delay <= ProactiveInteractionPlanner.maximumSeededDelay)
+      #expect(delay.truncatingRemainder(dividingBy: 60) == 0)
+      delays.insert(delay)
+    }
+
+    #expect(delays.count > 1)
+  }
+
+  @Test("An explicit delay remains available for deterministic adapters and tests")
+  func explicitDelay() throws {
+    var state = CompanionState(activeTheme: .recovery)
+    state.lastDecisionTrace = DecisionTrace(
+      ruleSetVersion: 1,
+      evaluatedAt: now,
+      selectedTheme: .recovery,
+      vitalityAward: 0,
+      steps: []
+    )
+
+    let plan = try #require(
+      ProactiveInteractionPlanner().plan(for: state, now: now, delay: 75)
+    )
+    #expect(plan.fireDate == now.addingTimeInterval(75))
+  }
+
   private var utcCalendar: Calendar {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!
     return calendar
+  }
+
+  private func uuid(_ value: Int) -> UUID {
+    UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", value))!
   }
 }

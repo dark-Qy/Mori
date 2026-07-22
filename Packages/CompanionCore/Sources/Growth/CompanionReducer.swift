@@ -13,15 +13,18 @@ public enum CompanionReducerError: Error, Equatable, Sendable {
 public struct CompanionReducer: Sendable {
   public var rules: HealthRuleEngine
   public var habitRules: DailyHabitRuleEngine
+  public var commitmentRules: CommitmentRuleEngine
   public var story: StoryReducer
 
   public init(
     rules: HealthRuleEngine = HealthRuleEngine(),
     habitRules: DailyHabitRuleEngine = DailyHabitRuleEngine(),
+    commitmentRules: CommitmentRuleEngine = CommitmentRuleEngine(),
     story: StoryReducer = StoryReducer()
   ) {
     self.rules = rules
     self.habitRules = habitRules
+    self.commitmentRules = commitmentRules
     self.story = story
   }
 
@@ -88,6 +91,32 @@ public struct CompanionReducer: Sendable {
       state.growth.vitality += award
       state.pet.lastInteractionAt = event.occurredAt
       state.pet.mood = .curious
+
+    case .commitmentAccepted(let acceptance):
+      if case .accepted(let record) = commitmentRules.accepting(
+        acceptance,
+        at: event.occurredAt,
+        existing: state.commitments
+      ) {
+        state.commitments.append(record)
+      }
+
+    case .commitmentResolved(let resolution):
+      guard
+        let index = state.commitments.firstIndex(where: {
+          $0.commitmentID == resolution.commitmentID
+        })
+      else { break }
+      if case .updated(let record, let bondAward) = commitmentRules.resolving(
+        resolution,
+        at: event.occurredAt,
+        current: state.commitments[index]
+      ) {
+        state.commitments[index] = record
+        state.growth.bond += bondAward
+        state.pet.lastInteractionAt = event.occurredAt
+        state.pet.mood = .curious
+      }
     }
 
     state.processedEventIDs.insert(event.eventID)

@@ -90,6 +90,19 @@ An unfulfilled commitment has a real, repairable story or relationship consequen
 - the pet is not harmed, sickened, killed, or permanently lost;
 - content is not permanently locked.
 
+### Phase 2 responsibility foundation
+
+- The only supported commitment kinds are beginning wind-down, taking a micro-rest, taking a
+  short walk, and checking in with Mori. They describe actions under the user's control.
+- Acceptance is explicit, records the user's local target day and rule version, and allows only
+  one unresolved commitment at a time. Acceptance itself grants no reward.
+- Fulfilling an active commitment no later than its target day grants 3 bond once.
+- After the target day, the commitment must first become `needsRepair`; this removes no growth.
+  Repair grants 1 bond once, resizing chooses a new non-past target without reward, and release
+  closes the agreement without reward or punishment.
+- Invalid time zones, unknown rule versions, duplicate identities, and illegal transitions fail
+  closed. The current implementation is a tested domain foundation and has no shipped UI yet.
+
 ## Initiative and notification authority
 
 ```text
@@ -99,6 +112,11 @@ Narration: how does the pet express it?
 ```
 
 Quiet hours, active rest, frequency caps, cooldowns, stale-data checks, and user notification settings outrank story urgency. The pet can remain quiet; silence is a valid companion behavior. AI cannot schedule or send a notification directly.
+
+For the current local-notification slice, the seeded scheduler chooses a replay-stable whole-minute
+delay between 10 and 90 minutes from the latest approved state. Different event histories can lead
+to different times. This changes timing only: policy may still suppress the interaction, and
+reopening or replaying the same state cannot reroll it.
 
 ## Health interpretation
 

@@ -27,11 +27,14 @@ struct PersistenceTests {
 
   @Test("Set construction order cannot change persisted bytes")
   func canonicalCollections() throws {
+    let firstCommitment = commitment(id: 4)
+    let secondCommitment = commitment(id: 3)
     let first = CompanionState(
       story: StoryState(
         completedBeatIDs: ["main.day-2.first-step", "main.day-1.awakening"],
         unlockedSideStoryIDs: ["lost_ball", "rain_walk"]
       ),
+      commitments: [firstCommitment, secondCommitment],
       processedEventIDs: [uuid(2), uuid(1)]
     )
     let second = CompanionState(
@@ -39,10 +42,25 @@ struct PersistenceTests {
         completedBeatIDs: ["main.day-1.awakening", "main.day-2.first-step"],
         unlockedSideStoryIDs: ["rain_walk", "lost_ball"]
       ),
+      commitments: [secondCommitment, firstCommitment],
       processedEventIDs: [uuid(1), uuid(2)]
     )
 
     #expect(try codec.encode(first) == codec.encode(second))
+  }
+
+  @Test("State decoding defaults a pre-commitment payload to no commitments")
+  func preCommitmentStateCompatibility() throws {
+    let currentData = try JSONEncoder().encode(CompanionState())
+    var object = try #require(
+      JSONSerialization.jsonObject(with: currentData) as? [String: Any]
+    )
+    object.removeValue(forKey: "commitments")
+    let olderData = try JSONSerialization.data(withJSONObject: object)
+
+    let restored = try JSONDecoder().decode(CompanionState.self, from: olderData)
+
+    #expect(restored.commitments.isEmpty)
   }
 
   @Test("Future schemas fail closed")
@@ -90,6 +108,16 @@ struct PersistenceTests {
 
   private func uuid(_ value: Int) -> UUID {
     UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", value))!
+  }
+
+  private func commitment(id: Int) -> CommitmentRecord {
+    CommitmentRecord(
+      commitmentID: uuid(id),
+      kind: .beginWindDown,
+      targetDay: LocalDay(rawValue: "2025-06-15")!,
+      timeZoneIdentifier: "UTC",
+      acceptedAt: Date(timeIntervalSince1970: 1_750_000_000)
+    )
   }
 }
 

@@ -182,6 +182,229 @@ struct CompanionReducerTests {
     #expect(state.completedHabitDays.isEmpty)
   }
 
+  @Test("A commitment requires explicit acceptance and does not award bond up front")
+  func explicitCommitmentAcceptance() throws {
+    let day = LocalDay(rawValue: "2025-06-15")!
+    let firstID = uuid(40)
+    let first = EventEnvelope(
+      eventID: uuid(41),
+      occurredAt: start,
+      source: .watch,
+      payload: .commitmentAccepted(
+        CommitmentAcceptance(
+          commitmentID: firstID,
+          kind: .beginWindDown,
+          targetDay: day,
+          timeZoneIdentifier: "UTC"
+        )
+      )
+    )
+    let second = EventEnvelope(
+      eventID: uuid(42),
+      occurredAt: start.addingTimeInterval(60),
+      source: .watch,
+      payload: .commitmentAccepted(
+        CommitmentAcceptance(
+          commitmentID: uuid(43),
+          kind: .takeShortWalk,
+          targetDay: day,
+          timeZoneIdentifier: "UTC"
+        )
+      )
+    )
+
+    let state = try reducer.replay([first, second])
+
+    #expect(state.commitments.count == 1)
+    #expect(state.commitments.first?.commitmentID == firstID)
+    #expect(state.commitments.first?.status == .active)
+    #expect(state.growth.bond == 0)
+  }
+
+  @Test("A missed commitment is remembered without loss and can be repaired once")
+  func missedCommitmentRepair() throws {
+    let day = LocalDay(rawValue: "2025-06-15")!
+    let commitmentID = uuid(44)
+    let acceptance = EventEnvelope(
+      eventID: uuid(45),
+      occurredAt: start,
+      source: .watch,
+      payload: .commitmentAccepted(
+        CommitmentAcceptance(
+          commitmentID: commitmentID,
+          kind: .beginWindDown,
+          targetDay: day,
+          timeZoneIdentifier: "UTC"
+        )
+      )
+    )
+    let earlyMiss = EventEnvelope(
+      eventID: uuid(46),
+      occurredAt: start.addingTimeInterval(60),
+      source: .watch,
+      payload: .commitmentResolved(
+        CommitmentResolution(commitmentID: commitmentID, kind: .missed)
+      )
+    )
+    let validMiss = EventEnvelope(
+      eventID: uuid(47),
+      occurredAt: start.addingTimeInterval(86_400),
+      source: .watch,
+      payload: .commitmentResolved(
+        CommitmentResolution(commitmentID: commitmentID, kind: .missed)
+      )
+    )
+    let repair = EventEnvelope(
+      eventID: uuid(48),
+      occurredAt: start.addingTimeInterval(86_460),
+      source: .watch,
+      payload: .commitmentResolved(
+        CommitmentResolution(commitmentID: commitmentID, kind: .repaired)
+      )
+    )
+
+    let missed = try reducer.replay(
+      [acceptance, earlyMiss, validMiss],
+      from: CompanionState(growth: GrowthState(bond: 5))
+    )
+    #expect(missed.commitments.first?.status == .needsRepair)
+    #expect(missed.growth.bond == 5)
+
+    let repaired = try reducer.replay(
+      [acceptance, earlyMiss, validMiss, repair, repair],
+      from: CompanionState(growth: GrowthState(bond: 5))
+    )
+    #expect(repaired.commitments.first?.status == .repaired)
+    #expect(repaired.growth.bond == 6)
+  }
+
+  @Test("Resizing a missed commitment reopens it without a reward")
+  func resizeThenFulfillCommitment() throws {
+    let commitmentID = uuid(49)
+    let accepted = EventEnvelope(
+      eventID: uuid(50),
+      occurredAt: start,
+      source: .watch,
+      payload: .commitmentAccepted(
+        CommitmentAcceptance(
+          commitmentID: commitmentID,
+          kind: .takeMicroRest,
+          targetDay: LocalDay(rawValue: "2025-06-15")!,
+          timeZoneIdentifier: "UTC"
+        )
+      )
+    )
+    let missed = EventEnvelope(
+      eventID: uuid(51),
+      occurredAt: start.addingTimeInterval(86_400),
+      source: .watch,
+      payload: .commitmentResolved(
+        CommitmentResolution(commitmentID: commitmentID, kind: .missed)
+      )
+    )
+    let resized = EventEnvelope(
+      eventID: uuid(52),
+      occurredAt: start.addingTimeInterval(86_460),
+      source: .watch,
+      payload: .commitmentResolved(
+        CommitmentResolution(
+          commitmentID: commitmentID,
+          kind: .resized,
+          newTargetDay: LocalDay(rawValue: "2025-06-17")!
+        )
+      )
+    )
+    let fulfilled = EventEnvelope(
+      eventID: uuid(53),
+      occurredAt: start.addingTimeInterval(90_000),
+      source: .watch,
+      payload: .commitmentResolved(
+        CommitmentResolution(commitmentID: commitmentID, kind: .fulfilled)
+      )
+    )
+
+    let resizedState = try reducer.replay([accepted, missed, resized])
+    #expect(resizedState.commitments.first?.status == .active)
+    #expect(resizedState.commitments.first?.targetDay == LocalDay(rawValue: "2025-06-17"))
+    #expect(resizedState.growth.bond == 0)
+
+    let fulfilledState = try reducer.replay([accepted, missed, resized, fulfilled])
+    #expect(fulfilledState.commitments.first?.status == .fulfilled)
+    #expect(fulfilledState.growth.bond == 3)
+  }
+
+  @Test("Unknown commitment rules fail closed")
+  func invalidCommitmentRule() throws {
+    let event = EventEnvelope(
+      eventID: uuid(54),
+      occurredAt: start,
+      source: .watch,
+      payload: .commitmentAccepted(
+        CommitmentAcceptance(
+          commitmentID: uuid(55),
+          kind: .checkInWithMori,
+          targetDay: LocalDay(rawValue: "2025-06-15")!,
+          timeZoneIdentifier: "UTC",
+          ruleSetVersion: 99
+        )
+      )
+    )
+
+    let state = try reducer.replay([event])
+    #expect(state.commitments.isEmpty)
+    #expect(state.growth.bond == 0)
+  }
+
+  @Test("Invalid commitment time zones fail closed instead of changing the promised day")
+  func invalidCommitmentTimeZone() throws {
+    let event = EventEnvelope(
+      eventID: uuid(56),
+      occurredAt: start,
+      source: .watch,
+      payload: .commitmentAccepted(
+        CommitmentAcceptance(
+          commitmentID: uuid(57),
+          kind: .beginWindDown,
+          targetDay: LocalDay(rawValue: "2025-06-15")!,
+          timeZoneIdentifier: "Not/A-Time-Zone"
+        )
+      )
+    )
+
+    let state = try reducer.replay([event])
+    #expect(state.commitments.isEmpty)
+  }
+
+  @Test("An overdue commitment must enter repair before it can earn bond")
+  func overdueCommitmentCannotBeFulfilledDirectly() throws {
+    let commitmentID = uuid(58)
+    let accepted = EventEnvelope(
+      eventID: uuid(59),
+      occurredAt: start,
+      source: .watch,
+      payload: .commitmentAccepted(
+        CommitmentAcceptance(
+          commitmentID: commitmentID,
+          kind: .takeShortWalk,
+          targetDay: LocalDay(rawValue: "2025-06-15")!,
+          timeZoneIdentifier: "UTC"
+        )
+      )
+    )
+    let overdueFulfillment = EventEnvelope(
+      eventID: uuid(60),
+      occurredAt: start.addingTimeInterval(86_400),
+      source: .watch,
+      payload: .commitmentResolved(
+        CommitmentResolution(commitmentID: commitmentID, kind: .fulfilled)
+      )
+    )
+
+    let state = try reducer.replay([accepted, overdueFulfillment])
+    #expect(state.commitments.first?.status == .active)
+    #expect(state.growth.bond == 0)
+  }
+
   @Test("Mainline reducer rejects chapter jumps")
   func rejectsChapterJump() throws {
     let event = EventEnvelope(

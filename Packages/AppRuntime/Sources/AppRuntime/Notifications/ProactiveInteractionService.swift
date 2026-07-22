@@ -21,12 +21,24 @@ public struct ApprovedProactiveInteraction: Equatable, Sendable {
 /// Rules select whether an interaction is allowed. This planner uses local, reviewed copy only;
 /// AI output cannot create a schedule or bypass policy.
 public struct ProactiveInteractionPlanner: Sendable {
+  public static let minimumSeededDelay: TimeInterval = 10 * 60
+  public static let maximumSeededDelay: TimeInterval = 90 * 60
+
   public init() {}
+
+  /// Chooses a replay-stable minute inside the approved window. Policy still has final authority:
+  /// quiet hours, consent, and cooldowns can suppress the resulting interaction entirely.
+  public func plan(
+    for state: CompanionState,
+    now: Date
+  ) -> ApprovedProactiveInteraction? {
+    plan(for: state, now: now, delay: seededDelay(for: state))
+  }
 
   public func plan(
     for state: CompanionState,
     now: Date,
-    delay: TimeInterval = 30 * 60
+    delay: TimeInterval
   ) -> ApprovedProactiveInteraction? {
     guard state.lastDecisionTrace != nil else { return nil }
     let fireDate = now.addingTimeInterval(max(60, delay))
@@ -56,6 +68,22 @@ public struct ProactiveInteractionPlanner: Sendable {
     case .rhythm, .connection, .neutral:
       return nil
     }
+  }
+
+  private func seededDelay(for state: CompanionState) -> TimeInterval {
+    let eventIdentity = state.processedEventIDs
+      .map(\.uuidString)
+      .sorted()
+      .joined(separator: "|")
+    let evaluatedAt = state.lastDecisionTrace?.evaluatedAt.timeIntervalSinceReferenceDate ?? 0
+    let descriptor = "\(state.activeTheme.rawValue)|\(evaluatedAt)|\(eventIdentity)"
+    let hash = descriptor.utf8.reduce(0xCBF2_9CE4_8422_2325 as UInt64) { hash, byte in
+      (hash ^ UInt64(byte)) &* 0x0000_0100_0000_01B3
+    }
+    let minimumMinutes = Int(Self.minimumSeededDelay / 60)
+    let maximumMinutes = Int(Self.maximumSeededDelay / 60)
+    let minute = minimumMinutes + Int(hash % UInt64(maximumMinutes - minimumMinutes + 1))
+    return TimeInterval(minute * 60)
   }
 }
 

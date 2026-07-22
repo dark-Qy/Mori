@@ -72,12 +72,78 @@ public struct DailyHabitCompletion: Codable, Equatable, Sendable {
   }
 }
 
+/// Commitments are limited to controllable actions. Health outcomes such as sleeping a certain
+/// duration or reaching a heart-rate value are intentionally not representable here.
+public enum CommitmentKind: String, Codable, CaseIterable, Sendable {
+  case beginWindDown
+  case takeMicroRest
+  case takeShortWalk
+  case checkInWithMori
+}
+
+public struct CommitmentAcceptance: Codable, Equatable, Sendable {
+  public var commitmentID: UUID
+  public var kind: CommitmentKind
+  public var targetDay: LocalDay
+  public var timeZoneIdentifier: String
+  public var ruleID: String
+  public var ruleSetVersion: Int
+
+  public init(
+    commitmentID: UUID,
+    kind: CommitmentKind,
+    targetDay: LocalDay,
+    timeZoneIdentifier: String,
+    ruleID: String = "phase2.commitment.controllable-action",
+    ruleSetVersion: Int = 1
+  ) {
+    self.commitmentID = commitmentID
+    self.kind = kind
+    self.targetDay = targetDay
+    self.timeZoneIdentifier = timeZoneIdentifier
+    self.ruleID = ruleID
+    self.ruleSetVersion = ruleSetVersion
+  }
+}
+
+public enum CommitmentResolutionKind: String, Codable, CaseIterable, Sendable {
+  case fulfilled
+  case missed
+  case repaired
+  case resized
+  case released
+}
+
+public struct CommitmentResolution: Codable, Equatable, Sendable {
+  public var commitmentID: UUID
+  public var kind: CommitmentResolutionKind
+  public var newTargetDay: LocalDay?
+  public var ruleID: String
+  public var ruleSetVersion: Int
+
+  public init(
+    commitmentID: UUID,
+    kind: CommitmentResolutionKind,
+    newTargetDay: LocalDay? = nil,
+    ruleID: String = "phase2.commitment.controllable-action",
+    ruleSetVersion: Int = 1
+  ) {
+    self.commitmentID = commitmentID
+    self.kind = kind
+    self.newTargetDay = newTargetDay
+    self.ruleID = ruleID
+    self.ruleSetVersion = ruleSetVersion
+  }
+}
+
 public enum DomainEvent: Codable, Equatable, Sendable {
   case healthSnapshotReceived(HealthSnapshot)
   case storyBeatCompleted(StoryBeatCompletion)
   case sideStoryUnlocked(SideStoryUnlock)
   case petInteracted(PetInteraction)
   case dailyHabitCompleted(DailyHabitCompletion)
+  case commitmentAccepted(CommitmentAcceptance)
+  case commitmentResolved(CommitmentResolution)
 }
 
 public struct EventEnvelope: Codable, Equatable, Sendable {
