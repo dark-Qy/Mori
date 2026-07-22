@@ -36,9 +36,17 @@
       }
       let current = Self.map(session.activationState)
       guard current == .inactive else { return current }
-      return await activationGate.wait { [weak self] in
-        self?.session.activate()
-      }
+      return await activationGate.wait(
+        currentState: { [weak self] in
+          guard let self else {
+            return .unavailable(reason: "WatchConnectivity client was released")
+          }
+          return Self.map(self.session.activationState)
+        },
+        startActivation: { [weak self] in
+          self?.session.activate()
+        }
+      )
     }
 
     public func send(_ state: CompanionSyncState) async throws {

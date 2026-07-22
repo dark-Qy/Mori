@@ -11,17 +11,29 @@ final class ConnectivityActivationGate: @unchecked Sendable {
     self.timeoutNanoseconds = timeoutNanoseconds
   }
 
-  func wait(startActivation: @escaping @Sendable () -> Void) async
+  func wait(
+    currentState: @escaping @Sendable () -> ConnectivityActivationState,
+    startActivation: @escaping @Sendable () -> Void
+  ) async
     -> ConnectivityActivationState
   {
     let waiterID = UUID()
     return await withCheckedContinuation { continuation in
-      let shouldStart = lock.withLock {
+      let registration = lock.withLock { () -> (ConnectivityActivationState?, Bool) in
+        // WCSession updates activationState before its delegate callback. Rechecking while the
+        // gate is locked closes the gap between the caller's optimistic read and registration:
+        // either we observe the terminal state, or resolve() observes this waiter.
+        let observedState = currentState()
+        guard observedState == .inactive else { return (observedState, false) }
         let isFirst = waiters.isEmpty
         waiters[waiterID] = continuation
-        return isFirst
+        return (nil, isFirst)
       }
-      if shouldStart { startActivation() }
+      if let observedState = registration.0 {
+        continuation.resume(returning: observedState)
+        return
+      }
+      if registration.1 { startActivation() }
       let timeout = timeoutNanoseconds
       Task { [weak self] in
         try? await Task.sleep(nanoseconds: timeout)

@@ -14,7 +14,7 @@ struct ConnectivityAdapterTests {
 
   @Test func productionActivationGateTimesOutInsteadOfHanging() async {
     let gate = ConnectivityActivationGate(timeoutNanoseconds: 1_000_000)
-    let result = await gate.wait {}
+    let result = await gate.wait(currentState: { .inactive }, startActivation: {})
     #expect(
       result
         == .unavailable(reason: "WatchConnectivity activation timed out")
@@ -25,8 +25,14 @@ struct ConnectivityAdapterTests {
   @Test func productionActivationGateStartsOnceAndResolvesAllWaiters() async {
     let gate = ConnectivityActivationGate(timeoutNanoseconds: 1_000_000_000)
     let counter = LockedCounter()
-    async let first = gate.wait { counter.increment() }
-    async let second = gate.wait { counter.increment() }
+    async let first = gate.wait(
+      currentState: { .inactive },
+      startActivation: { counter.increment() }
+    )
+    async let second = gate.wait(
+      currentState: { .inactive },
+      startActivation: { counter.increment() }
+    )
 
     while gate.pendingWaiterCount() < 2 {
       await Task.yield()
@@ -36,6 +42,22 @@ struct ConnectivityAdapterTests {
     #expect(await first == .activated)
     #expect(await second == .activated)
     #expect(counter.value == 1)
+  }
+
+  @Test func productionActivationGateRechecksStateBeforeRegisteringWaiter() async {
+    let gate = ConnectivityActivationGate(timeoutNanoseconds: 1_000_000)
+    let counter = LockedCounter()
+
+    // Models WCSession completing after the client's first read but before gate registration.
+    gate.resolve(.activated)
+    let result = await gate.wait(
+      currentState: { .activated },
+      startActivation: { counter.increment() }
+    )
+
+    #expect(result == .activated)
+    #expect(counter.value == 0)
+    #expect(gate.pendingWaiterCount() == 0)
   }
 
   @Test func sendRejectsDuplicateAndStaleRevisions() async throws {
