@@ -134,6 +134,72 @@ struct HealthRuntimeTests {
     #expect(mapped.sleepMinutes == 60)
   }
 
+  @Test("Partially overlapping sleep stages contribute to exactly one stage")
+  func partiallyOverlappingSleepSamples() {
+    let adapter = AppleAdapters.HealthSnapshot(
+      capturedAt: now,
+      sleep: HealthReading(
+        availability: .available,
+        values: [
+          SleepSample(
+            start: now.addingTimeInterval(-7_200),
+            end: now.addingTimeInterval(-3_600),
+            stage: .core
+          ),
+          SleepSample(
+            start: now.addingTimeInterval(-5_400),
+            end: now,
+            stage: .deep
+          ),
+        ]
+      ),
+      steps: HealthReading(availability: .noData, values: []),
+      restingHeartRate: HealthReading(availability: .noData, values: []),
+      workouts: HealthReading(availability: .noData, values: [])
+    )
+
+    let mapped = HealthSnapshotMapper().map(
+      adapter,
+      requestState: .requestCompleted,
+      timeZone: TimeZone(secondsFromGMT: 0)!
+    )
+
+    #expect(mapped.sleepMinutes == 120)
+    #expect(mapped.sleepStages?.coreMinutes == 30)
+    #expect(mapped.sleepStages?.deepMinutes == 90)
+  }
+
+  @Test("Awake intervals subtract from overlapping asleep intervals")
+  func awakeIntervalsOverrideSleep() {
+    let adapter = AppleAdapters.HealthSnapshot(
+      capturedAt: now,
+      sleep: HealthReading(
+        availability: .available,
+        values: [
+          SleepSample(start: now.addingTimeInterval(-3_600), end: now, stage: .core),
+          SleepSample(
+            start: now.addingTimeInterval(-1_800),
+            end: now.addingTimeInterval(-1_200),
+            stage: .awake
+          ),
+        ]
+      ),
+      steps: HealthReading(availability: .noData, values: []),
+      restingHeartRate: HealthReading(availability: .noData, values: []),
+      workouts: HealthReading(availability: .noData, values: [])
+    )
+
+    let mapped = HealthSnapshotMapper().map(
+      adapter,
+      requestState: .requestCompleted,
+      timeZone: TimeZone(secondsFromGMT: 0)!
+    )
+
+    #expect(mapped.sleepMinutes == 50)
+    #expect(mapped.sleepStages?.coreMinutes == 50)
+    #expect(mapped.sleepStages?.awakeMinutes == 10)
+  }
+
   @Test("Repeated ingestion of identical input produces the same event identity")
   func ingestionIsIdempotent() async throws {
     let client = MockHealthDataClient(

@@ -65,18 +65,47 @@ public struct HealthSnapshotMapper: Sendable {
   }
 
   private func canonicalSleepSamples(_ samples: [SleepSample]) -> [SleepSample] {
-    var byIdentity: [String: SleepSample] = [:]
-    for sample in samples {
-      let key = [
-        String(sample.start.timeIntervalSince1970),
-        String(sample.end.timeIntervalSince1970),
-        sample.stage.rawValue,
-      ].joined(separator: "|")
-      if byIdentity[key] == nil { byIdentity[key] = sample }
+    let valid = samples.filter { $0.end > $0.start }
+    let boundaries = Set(valid.flatMap { [$0.start, $0.end] }).sorted()
+    guard boundaries.count > 1 else { return [] }
+
+    var result: [SleepSample] = []
+    for (start, end) in zip(boundaries, boundaries.dropFirst()) where end > start {
+      let candidates = valid.filter { sample in
+        sample.start < end && sample.end > start
+      }
+      guard let winner = candidates.sorted(by: prefersSleepSample).first else { continue }
+      result.append(
+        SleepSample(start: start, end: end, stage: winner.stage, source: winner.source)
+      )
     }
-    return byIdentity.values.sorted { lhs, rhs in
-      if lhs.start != rhs.start { return lhs.start < rhs.start }
-      return lhs.end < rhs.end
+    return result
+  }
+
+  /// HealthKit can return overlapping intervals from several sources. Each instant must contribute
+  /// to at most one stage. Awake wins to avoid claiming sleep through a reported wake interval;
+  /// explicit stages win over unspecified/in-bed, then the more granular interval wins.
+  private func prefersSleepSample(_ lhs: SleepSample, _ rhs: SleepSample) -> Bool {
+    let lhsPriority = sleepStagePriority(lhs.stage)
+    let rhsPriority = sleepStagePriority(rhs.stage)
+    if lhsPriority != rhsPriority { return lhsPriority > rhsPriority }
+    let lhsDuration = lhs.end.timeIntervalSince(lhs.start)
+    let rhsDuration = rhs.end.timeIntervalSince(rhs.start)
+    if lhsDuration != rhsDuration { return lhsDuration < rhsDuration }
+    if lhs.start != rhs.start { return lhs.start > rhs.start }
+    let lhsSource = lhs.source?.bundleIdentifier ?? ""
+    let rhsSource = rhs.source?.bundleIdentifier ?? ""
+    return lhsSource < rhsSource
+  }
+
+  private func sleepStagePriority(_ stage: AppleAdapters.SleepStage) -> Int {
+    switch stage {
+    case .awake: 6
+    case .deep: 5
+    case .rem: 4
+    case .core: 3
+    case .asleepUnspecified: 2
+    case .inBed: 1
     }
   }
 
@@ -85,9 +114,10 @@ public struct HealthSnapshotMapper: Sendable {
     allSamples: [SleepSample]
   ) -> SleepStageSummary {
     func minutes(_ samples: [SleepSample]) -> Int {
-      samples.reduce(0) { result, sample in
-        result + max(0, Int(sample.end.timeIntervalSince(sample.start) / 60))
+      let duration = samples.reduce(0.0) { result, sample in
+        result + max(0, sample.end.timeIntervalSince(sample.start))
       }
+      return Int(duration / 60)
     }
     return SleepStageSummary(
       coreMinutes: minutes(asleepSamples.filter { $0.stage == .core }),
