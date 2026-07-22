@@ -12,13 +12,16 @@ public enum CompanionReducerError: Error, Equatable, Sendable {
 /// Pure event reducer. `reducing` canonicalizes a batch; `reduce` assumes callers supply one event at a time.
 public struct CompanionReducer: Sendable {
   public var rules: HealthRuleEngine
+  public var habitRules: DailyHabitRuleEngine
   public var story: StoryReducer
 
   public init(
     rules: HealthRuleEngine = HealthRuleEngine(),
+    habitRules: DailyHabitRuleEngine = DailyHabitRuleEngine(),
     story: StoryReducer = StoryReducer()
   ) {
     self.rules = rules
+    self.habitRules = habitRules
     self.story = story
   }
 
@@ -63,12 +66,26 @@ public struct CompanionReducer: Sendable {
       state.lastDecisionTrace = decision.trace
 
     case .storyBeatCompleted(let completion):
+      let previousCount = state.story.completedBeatIDs.count
       state.story = story.completing(completion, in: state.story)
+      if state.story.completedBeatIDs.count > previousCount {
+        state.growth.insight += 10
+      }
 
     case .sideStoryUnlocked(let unlock):
       state.story = story.unlocking(unlock, in: state.story)
 
     case .petInteracted:
+      state.pet.lastInteractionAt = event.occurredAt
+      state.pet.mood = .curious
+
+    case .dailyHabitCompleted(let completion):
+      guard
+        !state.completedHabitDays.contains(completion.localDay),
+        let award = habitRules.vitalityAward(for: completion)
+      else { break }
+      state.completedHabitDays.insert(completion.localDay)
+      state.growth.vitality += award
       state.pet.lastInteractionAt = event.occurredAt
       state.pet.mood = .curious
     }

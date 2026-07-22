@@ -99,9 +99,11 @@ struct PhonePresentationModel {
           symbol: "waveform.path.ecg"
         ),
       ],
-      questTitle: "点亮营地的第一盏灯",
-      questDetail: "和 Mori 完成今天的故事片段；健康状态不会阻挡主线。",
-      questProgress: companion.story.completedBeatIDs.isEmpty ? 0 : 0.5,
+      questTitle: mainStoryTitle(companion.story),
+      questDetail: companion.story.completedBeatIDs.count >= 7
+        ? "七日主线已完成；可以继续探索日常与随机支线。"
+        : "和 Mori 完成今天的故事片段；健康状态不会阻挡主线，每天推进一次。",
+      questProgress: min(1, Double(companion.story.completedBeatIDs.count) / 7),
       history: points,
       trendSummary: trendSummary(trend),
       activityLog: liveActivityLog(health: health, companion: companion),
@@ -261,6 +263,20 @@ struct PhonePresentationModel {
     }
   }
 
+  private static func mainStoryTitle(_ story: StoryState) -> String {
+    let titles = [
+      "点亮营地的第一盏灯",
+      "迈出荒野的第一步",
+      "听懂今天的天气",
+      "为彼此搭一处庇护",
+      "点亮信号塔",
+      "画下同行地图",
+      "从营地一起启程",
+    ]
+    let index = min(story.completedBeatIDs.count, titles.count)
+    return index == titles.count ? "七日启程已经完成" : titles[index]
+  }
+
   nonisolated private static func sleepText(_ minutes: Int) -> String {
     "\(minutes / 60)h\(minutes % 60)m"
   }
@@ -282,6 +298,17 @@ struct PhonePresentationModel {
           detail: "持续 \(workout.durationMinutes) 分钟",
           time: "来自 HealthKit",
           symbol: workout.activity == .soccer ? "figure.soccer" : "figure.run"
+        )
+      )
+    }
+    if companion.story.unlockedSideStoryIDs.contains("lost_ball") {
+      result.append(
+        PhoneActivityLog(
+          id: "side-story-lost-ball",
+          title: "随机支线已出现",
+          detail: "失踪的足球：由明确记录的足球训练触发资格",
+          time: "规则与固定种子选择",
+          symbol: "figure.soccer"
         )
       )
     }

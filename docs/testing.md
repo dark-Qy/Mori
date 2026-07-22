@@ -109,6 +109,11 @@ Follow `docs/device-runbook.md`. Record exact device and OS versions, build revi
 - AI/network disabled still provides a complete local flow.
 - Restart, migration, connectivity failure, and wardrobe sync are covered.
 
+The simulator and package suites may validate the deterministic mainline, daily-opportunity gate,
+and soccer-side-story eligibility before device access. They do not validate that a physical Watch
+delivers HealthKit samples in the background; that evidence remains `UNVERIFIED` until the device
+runbook is completed.
+
 ## Test evidence template
 
 ```text

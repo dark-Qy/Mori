@@ -14,7 +14,12 @@ struct WatchRootView: View {
           statusHeader
           PetHeroCard(model: model)
           HealthPillRow(metrics: model.metrics)
-          TodayQuestCard(quest: model.quest)
+          TodayQuestCard(
+            quest: model.quest,
+            isAdvancing: store.isAdvancingStory,
+            showsAction: model.isLive,
+            onAdvance: { Task { await store.advanceMainStory() } }
+          )
           interactionCard
           destinationLinks
           DataSourceCard(model: model)
@@ -69,7 +74,7 @@ struct WatchRootView: View {
   private var interactionCard: some View {
     AdventureCard {
       VStack(alignment: .leading, spacing: AdventureSpacing.small) {
-        if interactionCount == 0 {
+        if interactionCount == 0 && !store.actionCompleted {
           Text(model.petPrompt)
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -84,17 +89,22 @@ struct WatchRootView: View {
         }
 
         Button {
-          interactionCount += 1
           WKInterfaceDevice.current().play(.click)
           if model.isLive {
-            Task { await store.interact() }
+            Task { await store.completeSuggestedAction() }
+          } else {
+            interactionCount += 1
           }
         } label: {
-          Label(interactionCount == 0 ? "回应 Mori" : "再摸摸它", systemImage: "hand.tap.fill")
-            .frame(maxWidth: .infinity)
+          Label(
+            interactionCount == 0 && !store.actionCompleted ? model.actionTitle : "今天已回应",
+            systemImage: "hand.tap.fill"
+          )
+          .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
         .tint(AdventurePalette.mint)
+        .disabled(store.isCompletingAction || store.actionCompleted)
         .accessibilityIdentifier("watch.interact")
       }
     }
@@ -244,6 +254,9 @@ private struct HealthPillRow: View {
 
 private struct TodayQuestCard: View {
   let quest: WatchQuest
+  let isAdvancing: Bool
+  let showsAction: Bool
+  let onAdvance: () -> Void
 
   var body: some View {
     AdventureCard {
@@ -270,6 +283,21 @@ private struct TodayQuestCard: View {
           Text(quest.progressLabel)
             .font(.caption2.monospacedDigit())
             .foregroundStyle(.secondary)
+        }
+        if let sideStoryTitle = quest.sideStoryTitle {
+          Label(sideStoryTitle, systemImage: "sparkles")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(AdventurePalette.mint)
+            .accessibilityIdentifier("watch.side-story")
+        }
+        if showsAction {
+          Button(action: onAdvance) {
+            Label(isAdvancing ? "保存中…" : "继续今日主线", systemImage: "book.pages.fill")
+              .frame(maxWidth: .infinity)
+          }
+          .buttonStyle(.bordered)
+          .disabled(isAdvancing)
+          .accessibilityIdentifier("watch.advance-story")
         }
       }
     }

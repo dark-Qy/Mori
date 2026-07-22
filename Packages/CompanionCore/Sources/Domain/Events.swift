@@ -46,11 +46,38 @@ public struct PetInteraction: Codable, Equatable, Sendable {
   }
 }
 
+public enum DailyHabitKind: String, Codable, CaseIterable, Sendable {
+  case microRest
+  case shortWalk
+  case windDown
+  case companionCheckIn
+}
+
+public struct DailyHabitCompletion: Codable, Equatable, Sendable {
+  public var kind: DailyHabitKind
+  public var localDay: LocalDay
+  public var ruleID: String
+  public var ruleSetVersion: Int
+
+  public init(
+    kind: DailyHabitKind,
+    localDay: LocalDay,
+    ruleID: String = "phase1.habit.daily-opportunity",
+    ruleSetVersion: Int = 1
+  ) {
+    self.kind = kind
+    self.localDay = localDay
+    self.ruleID = ruleID
+    self.ruleSetVersion = ruleSetVersion
+  }
+}
+
 public enum DomainEvent: Codable, Equatable, Sendable {
   case healthSnapshotReceived(HealthSnapshot)
   case storyBeatCompleted(StoryBeatCompletion)
   case sideStoryUnlocked(SideStoryUnlock)
   case petInteracted(PetInteraction)
+  case dailyHabitCompleted(DailyHabitCompletion)
 }
 
 public struct EventEnvelope: Codable, Equatable, Sendable {

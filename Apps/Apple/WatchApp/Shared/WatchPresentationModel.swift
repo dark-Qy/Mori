@@ -37,6 +37,7 @@ struct WatchPresentationModel {
   let outfitID: String?
   let dayStatus: String
   let petPrompt: String
+  let actionTitle: String
   let metrics: [WatchMetric]
   let quest: WatchQuest
   let trends: [WatchTrendDay]
@@ -81,6 +82,7 @@ struct WatchPresentationModel {
       outfitID: peerValues?["outfit"] ?? companion.pet.equippedOutfitID,
       dayStatus: statusText(companion.activeTheme, hasHealth: hasHealth),
       petPrompt: promptText(companion.activeTheme, hasHealth: hasHealth),
+      actionTitle: actionTitle(companion.activeTheme, hasHealth: hasHealth),
       metrics: [
         WatchMetric(
           id: "recovery",
@@ -112,11 +114,13 @@ struct WatchPresentationModel {
         ),
       ],
       quest: WatchQuest(
-        title: "点亮营地的第一盏灯",
-        detail: "完成今天的故事片段；健康状态不会阻挡主线。",
+        title: mainStoryTitle(companion.story),
+        detail: mainStoryDetail(companion.story),
         reward: 10,
-        progress: companion.story.completedBeatIDs.isEmpty ? 0 : 0.5,
-        progressLabel: companion.story.completedBeatIDs.isEmpty ? "0 / 2" : "1 / 2"
+        progress: min(1, Double(companion.story.completedBeatIDs.count) / 7),
+        progressLabel: "\(companion.story.completedBeatIDs.count) / 7",
+        sideStoryTitle: companion.story.unlockedSideStoryIDs.contains("lost_ball")
+          ? "随机支线：失踪的足球" : nil
       ),
       trends: trends,
       trendSummary: trendSummary(trend),
@@ -143,6 +147,7 @@ struct WatchPresentationModel {
       outfitID: nil,
       dayStatus: "Mock 无效",
       petPrompt: "请修正启动参数；当前不会访问 HealthKit。",
+      actionTitle: "不可用",
       metrics: base.metrics,
       quest: base.quest,
       trends: [],
@@ -165,6 +170,7 @@ struct WatchPresentationModel {
         outfitID: "leaf",
         dayStatus: "状态平稳",
         petPrompt: "你已经专注很久了。要不要起身走两分钟？",
+        actionTitle: "一起走两分钟",
         metrics: [
           WatchMetric(
             id: "recovery", title: "恢复", shortTitle: "恢复", value: "接近个人近况", shortValue: "平稳",
@@ -195,6 +201,7 @@ struct WatchPresentationModel {
         outfitID: "scarf",
         dayStatus: "适合恢复",
         petPrompt: "昨晚的恢复比你的平常低一些。今天我们少走一步也没关系。",
+        actionTitle: "留十分钟休息",
         metrics: [
           WatchMetric(
             id: "recovery", title: "恢复", shortTitle: "恢复", value: "比个人近况偏低", shortValue: "偏低",
@@ -225,6 +232,7 @@ struct WatchPresentationModel {
         outfitID: "star",
         dayStatus: "活动充沛",
         petPrompt: "刚才那段运动很棒！记得补水，我会帮你守住节奏。",
+        actionTitle: "回应 Mori",
         metrics: [
           WatchMetric(
             id: "recovery", title: "恢复", shortTitle: "恢复", value: "接近个人近况", shortValue: "平稳",
@@ -323,6 +331,36 @@ struct WatchPresentationModel {
     }
   }
 
+  private static func actionTitle(_ theme: Theme, hasHealth: Bool) -> String {
+    guard hasHealth else { return "回应 Mori" }
+    return switch theme {
+    case .recovery: "留十分钟休息"
+    case .activity: "一起走两分钟"
+    case .rhythm: "开始今晚收尾"
+    case .connection, .neutral: "回应 Mori"
+    }
+  }
+
+  private static func mainStoryTitle(_ story: StoryState) -> String {
+    let titles = [
+      "点亮营地的第一盏灯",
+      "迈出荒野的第一步",
+      "听懂今天的天气",
+      "为彼此搭一处庇护",
+      "点亮信号塔",
+      "画下同行地图",
+      "从营地一起启程",
+    ]
+    let index = min(story.completedBeatIDs.count, titles.count)
+    return index == titles.count ? "七日启程已经完成" : titles[index]
+  }
+
+  private static func mainStoryDetail(_ story: StoryState) -> String {
+    story.completedBeatIDs.count >= 7
+      ? "主线的关键章节已完成；接下来可以自由探索支线。"
+      : "完成今天的故事片段；健康状态不会阻挡主线，每天推进一次。"
+  }
+
   nonisolated private static func shortSteps(_ steps: Int) -> String {
     steps >= 1_000 ? String(format: "%.1fk", Double(steps) / 1_000) : String(steps)
   }
@@ -374,6 +412,7 @@ struct WatchQuest {
   let reward: Int
   let progress: Double
   let progressLabel: String
+  var sideStoryTitle: String? = nil
 }
 
 struct WatchTrendDay: Identifiable {

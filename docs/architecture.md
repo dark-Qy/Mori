@@ -106,6 +106,12 @@ Story facts and branch state are deterministic. The common main story preserves 
 
 Growth is split into vitality, bond, and experience of the world. Each uses different earning rules, caps, deduplication, and cooldowns. AI never calculates or mutates growth.
 
+The current Phase 1 vertical slice implements a seven-beat common mainline, one daily opportunity
+settlement, and an explicit-soccer random side-story rule. `PhaseOneProgression` coordinates these
+use cases over the event engine; the pure reducer remains authoritative for deduplication and
+rewards. Random-story selection uses a stable seed, so persistence replay and repeated refreshes
+produce the same answer.
+
 ## Narration boundary
 
 `NarrativeProvider` accepts a bounded context created after the state transition. It returns structured presentation fields such as message, tone, approved template identifier, optional choices, and safety flags.

@@ -58,6 +58,20 @@ For example, a saved soccer workout can make a football story eligible if minimu
 
 Randomness decides whether and when an eligible side story appears. It never invents a world fact, changes the main-story sequence, or calculates a reward.
 
+### Phase 1 playable loop
+
+- The shared launch story contains seven ordered beats. A user may complete at most one new beat
+  per local calendar day, and each accepted beat awards 10 world-experience points exactly once.
+- The Watch presents one theme-appropriate daily opportunity. Completing it awards vitality once
+  per local calendar day; repeating or relaunching cannot farm the reward.
+- The first random side story, `lost_ball`, is eligible only when HealthKit contains an explicit,
+  fresh, read-authorized soccer workout lasting at least 20 minutes. Steps, heart rate, or an
+  inferred activity never satisfy this prerequisite.
+- Eligibility does not guarantee appearance. A stable seed derived from the workout, day, and
+  story identifier performs the probability check, so refresh and replay cannot reroll the result.
+- The story and reward events are appended to the versioned ledger before the UI reports success.
+  A failed write is not shown as a completed action.
+
 ## Responsibility and consequences
 
 There are two kinds of task:

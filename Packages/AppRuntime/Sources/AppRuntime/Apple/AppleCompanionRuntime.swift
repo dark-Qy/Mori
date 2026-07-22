@@ -101,7 +101,16 @@
         timeZone: timeZone,
         requestAccessIfNeeded: requestAccessIfNeeded
       )
-      let state = try await events.append(ingestion.event)
+      var state = try await events.append(ingestion.event)
+      let soccerOutcome = try await events.evaluateSoccerSideStory(
+        snapshot: ingestion.snapshot,
+        triggerEventID: ingestion.event.eventID,
+        at: now,
+        source: source
+      )
+      if case .unlocked(let unlockedState) = soccerOutcome {
+        state = unlockedState
+      }
       let notificationDecision = await scheduleProactiveIfAllowed(for: state, now: now)
       let syncStatus = await sendDerivedState(state, at: now)
       return RuntimeHealthRefresh(
@@ -128,6 +137,35 @@
       )
       _ = await sendDerivedState(state, at: date)
       return state
+    }
+
+    public func completeTodayMainStory(
+      at date: Date = Date(),
+      timeZone: TimeZone = .current
+    ) async throws -> DailyMainStoryOutcome {
+      let outcome = try await events.completeTodayMainStory(
+        at: date,
+        timeZone: timeZone,
+        source: source
+      )
+      _ = await sendDerivedState(outcome.state, at: date)
+      return outcome
+    }
+
+    public func completeSuggestedHabit(
+      at date: Date = Date(),
+      timeZone: TimeZone = .current
+    ) async throws -> DailyHabitOutcome {
+      let current = try await events.currentState()
+      let kind = DailyHabitRuleEngine().suggestedHabit(for: current.activeTheme)
+      let outcome = try await events.completeDailyHabit(
+        kind: kind,
+        at: date,
+        timeZone: timeZone,
+        source: source
+      )
+      _ = await sendDerivedState(outcome.state, at: date)
+      return outcome
     }
 
     public func loadPreferences() async throws -> AppPreferences {

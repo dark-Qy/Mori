@@ -138,6 +138,48 @@ struct CompanionReducerTests {
     #expect(state.story.mainlineChapter == 2)
     #expect(state.story.completedBeatIDs.count == 2)
     #expect(state.story.memories == ["We took the first step."])
+    #expect(state.growth.insight == 20)
+  }
+
+  @Test("One explicit daily habit awards once and never punishes another choice")
+  func dailyHabitSettlesOnce() throws {
+    let day = LocalDay(rawValue: "2025-06-15")!
+    let first = EventEnvelope(
+      eventID: uuid(30),
+      occurredAt: start,
+      source: .watch,
+      payload: .dailyHabitCompleted(DailyHabitCompletion(kind: .microRest, localDay: day))
+    )
+    let secondChoice = EventEnvelope(
+      eventID: uuid(31),
+      occurredAt: start.addingTimeInterval(60),
+      source: .watch,
+      payload: .dailyHabitCompleted(DailyHabitCompletion(kind: .shortWalk, localDay: day))
+    )
+
+    let state = try reducer.replay([first, secondChoice])
+
+    #expect(state.growth.vitality == 2)
+    #expect(state.completedHabitDays == [day])
+    #expect(state.processedEventIDs.contains(first.eventID))
+    #expect(state.processedEventIDs.contains(secondChoice.eventID))
+  }
+
+  @Test("Unknown habit rule versions fail closed without an award")
+  func invalidHabitRule() throws {
+    let day = LocalDay(rawValue: "2025-06-15")!
+    let event = EventEnvelope(
+      eventID: uuid(32),
+      occurredAt: start,
+      source: .watch,
+      payload: .dailyHabitCompleted(
+        DailyHabitCompletion(kind: .windDown, localDay: day, ruleSetVersion: 99)
+      )
+    )
+
+    let state = try reducer.replay([event])
+    #expect(state.growth.vitality == 0)
+    #expect(state.completedHabitDays.isEmpty)
   }
 
   @Test("Mainline reducer rejects chapter jumps")

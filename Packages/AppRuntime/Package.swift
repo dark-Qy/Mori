@@ -25,6 +25,7 @@ let package = Package(
         .product(name: "Growth", package: "CompanionCore"),
         .product(name: "Persistence", package: "CompanionCore"),
         .product(name: "Rules", package: "CompanionCore"),
+        .product(name: "Story", package: "CompanionCore"),
       ]
     ),
     .testTarget(
@@ -36,6 +37,7 @@ let package = Package(
         .product(name: "Growth", package: "CompanionCore"),
         .product(name: "Persistence", package: "CompanionCore"),
         .product(name: "Rules", package: "CompanionCore"),
+        .product(name: "Story", package: "CompanionCore"),
       ]
     ),
   ]

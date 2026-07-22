@@ -6,6 +6,35 @@ import Testing
 
 @Suite("Phase 1 health rules")
 struct HealthRuleEngineTests {
+  @Test("Only an explicit fresh soccer workout can qualify the soccer side story")
+  func soccerEligibilityUsesWorkoutTypeAndDuration() {
+    let now = Date(timeIntervalSince1970: 1_750_000_000)
+    let shortSoccer = WorkoutSummary(
+      id: UUID(), activity: .soccer, startedAt: now, durationMinutes: 10)
+    let longRun = WorkoutSummary(
+      id: UUID(), activity: .running, startedAt: now, durationMinutes: 60)
+    let qualifying = WorkoutSummary(
+      id: UUID(), activity: .soccer, startedAt: now, durationMinutes: 25)
+    let rule = SoccerSideStoryRule(minimumDurationMinutes: 20)
+
+    let snapshot = HealthSnapshot(
+      capturedAt: now,
+      freshness: .fresh,
+      requestState: .requestCompleted,
+      availability: .available,
+      workouts: [shortSoccer, longRun, qualifying]
+    )
+    #expect(rule.qualifyingWorkout(in: snapshot)?.id == qualifying.id)
+
+    let unavailable = HealthSnapshot(
+      capturedAt: now,
+      freshness: .fresh,
+      requestState: .notRequested,
+      availability: .available,
+      workouts: [qualifying]
+    )
+    #expect(rule.qualifyingWorkout(in: unavailable) == nil)
+  }
   private let now = Date(timeIntervalSince1970: 1_750_000_000)
   private let engine = HealthRuleEngine()
 

@@ -9,6 +9,9 @@ final class WatchAppStore: ObservableObject {
   @Published private(set) var model: WatchPresentationModel
   @Published private(set) var isRefreshingHealth = false
   @Published private(set) var statusMessage: String?
+  @Published private(set) var isCompletingAction = false
+  @Published private(set) var actionCompleted = false
+  @Published private(set) var isAdvancingStory = false
 
   let dataMode: WatchDataMode
   private let runtime: AppleCompanionRuntime
@@ -54,6 +57,9 @@ final class WatchAppStore: ObservableObject {
         try? await runtime.applyPeerPreferences(latestPeerValues)
       }
       let state = try await runtime.currentState()
+      actionCompleted = state.completedHabitDays.contains(
+        LocalDay.containing(Date(), in: .current)
+      )
       let trend = try await runtime.personalHealthTrend()
       model = .live(
         companion: state,
@@ -94,18 +100,55 @@ final class WatchAppStore: ObservableObject {
     }
   }
 
-  func interact() async {
+  func completeSuggestedAction() async {
+    guard dataMode == .live, !isCompletingAction else { return }
+    isCompletingAction = true
+    defer { isCompletingAction = false }
     do {
-      let state = try await runtime.recordPetInteraction(kind: "pet")
+      let outcome = try await runtime.completeSuggestedHabit()
       let trend = try await runtime.personalHealthTrend()
       model = .live(
-        companion: state,
+        companion: outcome.state,
         health: latestHealth,
         trend: trend,
         peerValues: latestPeerValues
       )
+      switch outcome {
+      case .completed:
+        actionCompleted = true
+        statusMessage = "今天的小行动已记下；奖励只结算一次"
+      case .alreadyCompletedToday:
+        actionCompleted = true
+        statusMessage = "今天已经完成过一个小行动，继续休息也很好"
+      }
     } catch {
       statusMessage = "互动暂时没能保存"
+    }
+  }
+
+  func advanceMainStory() async {
+    guard dataMode == .live, !isAdvancingStory else { return }
+    isAdvancingStory = true
+    defer { isAdvancingStory = false }
+    do {
+      let outcome = try await runtime.completeTodayMainStory()
+      let trend = try await runtime.personalHealthTrend()
+      model = .live(
+        companion: outcome.state,
+        health: latestHealth,
+        trend: trend,
+        peerValues: latestPeerValues
+      )
+      switch outcome {
+      case .completed:
+        statusMessage = "今日主线已推进，获得 10 点世界经验"
+      case .alreadyCompletedToday:
+        statusMessage = "今天的主线已经完成，明天继续"
+      case .storyComplete:
+        statusMessage = "七日主线已完成，可以自由探索支线"
+      }
+    } catch {
+      statusMessage = "主线进度暂时没能保存"
     }
   }
 
@@ -113,6 +156,9 @@ final class WatchAppStore: ObservableObject {
     guard dataMode == .live else { return }
     do {
       let state = try await runtime.currentState()
+      actionCompleted = state.completedHabitDays.contains(
+        LocalDay.containing(Date(), in: .current)
+      )
       let trend = try await runtime.personalHealthTrend()
       model = .live(
         companion: state,

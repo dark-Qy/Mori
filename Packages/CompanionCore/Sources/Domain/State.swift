@@ -102,6 +102,7 @@ public struct CompanionState: Codable, Equatable, Sendable {
   /// Highest settled vitality award for each normalized local calendar day.
   /// Later snapshots can grant only the positive difference up to the daily cap.
   public var vitalityAwardByDay: [String: Int]
+  public var completedHabitDays: Set<LocalDay>
   public var processedEventIDs: Set<UUID>
 
   public init(
@@ -112,6 +113,7 @@ public struct CompanionState: Codable, Equatable, Sendable {
     activeTheme: Theme = .neutral,
     lastDecisionTrace: DecisionTrace? = nil,
     vitalityAwardByDay: [String: Int] = [:],
+    completedHabitDays: Set<LocalDay> = [],
     processedEventIDs: Set<UUID> = []
   ) {
     self.schemaVersion = schemaVersion
@@ -121,6 +123,7 @@ public struct CompanionState: Codable, Equatable, Sendable {
     self.activeTheme = activeTheme
     self.lastDecisionTrace = lastDecisionTrace
     self.vitalityAwardByDay = vitalityAwardByDay.mapValues { max(0, $0) }
+    self.completedHabitDays = completedHabitDays
     self.processedEventIDs = processedEventIDs
   }
 
@@ -132,6 +135,7 @@ public struct CompanionState: Codable, Equatable, Sendable {
     case activeTheme
     case lastDecisionTrace
     case vitalityAwardByDay
+    case completedHabitDays
     case processedEventIDs
   }
 
@@ -146,7 +150,14 @@ public struct CompanionState: Codable, Equatable, Sendable {
       DecisionTrace.self,
       forKey: .lastDecisionTrace
     )
-    vitalityAwardByDay = try container.decode([String: Int].self, forKey: .vitalityAwardByDay)
+    vitalityAwardByDay =
+      try container.decodeIfPresent(
+        [String: Int].self,
+        forKey: .vitalityAwardByDay
+      ) ?? [:]
+    completedHabitDays = Set(
+      try container.decodeIfPresent([LocalDay].self, forKey: .completedHabitDays) ?? []
+    )
     processedEventIDs = Set(try container.decode([UUID].self, forKey: .processedEventIDs))
   }
 
@@ -159,6 +170,7 @@ public struct CompanionState: Codable, Equatable, Sendable {
     try container.encode(activeTheme, forKey: .activeTheme)
     try container.encodeIfPresent(lastDecisionTrace, forKey: .lastDecisionTrace)
     try container.encode(vitalityAwardByDay, forKey: .vitalityAwardByDay)
+    try container.encode(completedHabitDays.sorted(), forKey: .completedHabitDays)
     try container.encode(
       processedEventIDs.sorted { $0.uuidString < $1.uuidString },
       forKey: .processedEventIDs
