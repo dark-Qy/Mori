@@ -45,6 +45,27 @@ struct HealthAdapterTests {
     #expect(await client.fetchInvocationCount == 0)
   }
 
+  @Test func overnightSleepCanBeginBeforeDailyActivity() {
+    let window = HealthQueryWindow(
+      start: now,
+      sleepStart: now.addingTimeInterval(-12 * 3_600),
+      end: now.addingTimeInterval(12 * 3_600)
+    )
+
+    #expect(window.isValid)
+    #expect(window.sleepStart < window.start)
+  }
+
+  @Test func sleepCannotBeginAfterDailyActivity() {
+    let window = HealthQueryWindow(
+      start: now,
+      sleepStart: now.addingTimeInterval(1),
+      end: now.addingTimeInterval(12 * 3_600)
+    )
+
+    #expect(!window.isValid)
+  }
+
   @Test func unavailableFallbackIsNeutral() async throws {
     let client = UnavailableHealthDataClient(reason: "test host")
     #expect(await client.requestAccess() == .unavailable(reason: "test host"))

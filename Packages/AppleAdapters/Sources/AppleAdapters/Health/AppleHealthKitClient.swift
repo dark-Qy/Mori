@@ -34,25 +34,30 @@
 
     public func fetchSnapshot(in window: HealthQueryWindow) async throws -> HealthSnapshot {
       guard window.isValid else { throw HealthAdapterError.invalidQueryWindow }
-      let predicate = HKQuery.predicateForSamples(
+      let dailyPredicate = HKQuery.predicateForSamples(
         withStart: window.start,
         end: window.end,
         options: .strictStartDate
       )
+      let sleepPredicate = HKQuery.predicateForSamples(
+        withStart: window.sleepStart,
+        end: window.end,
+        options: .strictStartDate
+      )
 
-      let sleep = try await fetchSleep(predicate: predicate)
+      let sleep = try await fetchSleep(predicate: sleepPredicate)
       let steps = try await fetchCumulativeSum(
         identifier: .stepCount,
         unit: .count(),
-        predicate: predicate,
+        predicate: dailyPredicate,
         window: window
       )
       let restingHeartRate = try await fetchQuantities(
         identifier: .restingHeartRate,
         unit: HKUnit.count().unitDivided(by: .minute()),
-        predicate: predicate
+        predicate: dailyPredicate
       )
-      let workouts = try await fetchWorkouts(predicate: predicate)
+      let workouts = try await fetchWorkouts(predicate: dailyPredicate)
 
       return HealthSnapshot(
         capturedAt: Date(),

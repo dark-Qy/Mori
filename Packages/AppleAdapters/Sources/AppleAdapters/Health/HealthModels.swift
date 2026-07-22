@@ -15,15 +15,19 @@ public enum HealthDataAvailability: Equatable, Sendable {
 }
 
 public struct HealthQueryWindow: Equatable, Sendable {
+  /// Start of the calendar day used for activity metrics such as steps and workouts.
   public let start: Date
+  /// Earlier boundary used for overnight sleep that ends during the calendar day.
+  public let sleepStart: Date
   public let end: Date
 
-  public init(start: Date, end: Date) {
+  public init(start: Date, sleepStart: Date? = nil, end: Date) {
     self.start = start
+    self.sleepStart = sleepStart ?? start
     self.end = end
   }
 
-  public var isValid: Bool { start <= end }
+  public var isValid: Bool { sleepStart <= start && start <= end }
 }
 
 public enum SleepStage: String, Codable, Equatable, Sendable {
