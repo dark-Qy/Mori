@@ -36,7 +36,11 @@ Run at least 1,000 deterministic timelines across fixed seeds. Include:
 - overlapping random-story eligibility;
 - persistence and migration after every event.
 
-Persist failing seeds so failures are reproducible.
+The CompanionCore product-timeline suite parameterizes fixed seeds `0...999`. Every invariant
+assertion includes `seed=<n>`, and Swift Testing associates unexpected throws with the failing seed
+argument, so a timeline is reproducible without writing artifacts into the worktree. The corpus
+distributes the scenarios above across those seeds; each seed need not contain every scenario, but
+aggregate coverage is itself asserted.
 
 ### Adapter contract tests
 

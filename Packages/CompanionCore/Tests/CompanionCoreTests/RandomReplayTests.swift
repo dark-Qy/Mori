@@ -17,8 +17,8 @@ struct RandomReplayTests {
     #expect(firstValues.allSatisfy { (0..<1).contains($0) })
   }
 
-  @Test("One thousand seeded lottery timelines replay across candidate ordering")
-  func thousandStableCandidateTimelines() {
+  @Test("One thousand seeded lottery draw sequences replay across candidate ordering")
+  func thousandStableCandidateDrawSequences() {
     let candidates = [
       SideStoryCandidate(id: "soccer", probability: 0.35),
       SideStoryCandidate(id: "rain-walk", probability: 0.5),
