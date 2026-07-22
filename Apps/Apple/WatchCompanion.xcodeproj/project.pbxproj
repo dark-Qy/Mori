@@ -12,10 +12,12 @@
 		D00200000000000000000002 /* Growth in Frameworks */ = {isa = PBXBuildFile; productRef = D00200000000000000000001 /* Growth */; };
 		D00300000000000000000002 /* Persistence in Frameworks */ = {isa = PBXBuildFile; productRef = D00300000000000000000001 /* Persistence */; };
 		D00400000000000000000002 /* Sync in Frameworks */ = {isa = PBXBuildFile; productRef = D00400000000000000000001 /* Sync */; };
+		D10100000000000000000002 /* AppRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = D10100000000000000000001 /* AppRuntime */; };
 		D01100000000000000000002 /* Domain in Frameworks */ = {isa = PBXBuildFile; productRef = D01100000000000000000001 /* Domain */; };
 		D01200000000000000000002 /* Growth in Frameworks */ = {isa = PBXBuildFile; productRef = D01200000000000000000001 /* Growth */; };
 		D01300000000000000000002 /* Persistence in Frameworks */ = {isa = PBXBuildFile; productRef = D01300000000000000000001 /* Persistence */; };
 		D01400000000000000000002 /* Sync in Frameworks */ = {isa = PBXBuildFile; productRef = D01400000000000000000001 /* Sync */; };
+		D11100000000000000000002 /* AppRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = D11100000000000000000001 /* AppRuntime */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -125,6 +127,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D10100000000000000000002 /* AppRuntime in Frameworks */,
 				D00100000000000000000002 /* Domain in Frameworks */,
 				D00200000000000000000002 /* Growth in Frameworks */,
 				D00300000000000000000002 /* Persistence in Frameworks */,
@@ -136,6 +139,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D11100000000000000000002 /* AppRuntime in Frameworks */,
 				D01100000000000000000002 /* Domain in Frameworks */,
 				D01200000000000000000002 /* Growth in Frameworks */,
 				D01300000000000000000002 /* Persistence in Frameworks */,
@@ -269,6 +273,7 @@
 			);
 			name = WatchCompanion;
 			packageProductDependencies = (
+				D10100000000000000000001 /* AppRuntime */,
 			);
 			productName = WatchCompanion;
 			productReference = 39ED9AE3300FD7CF00649CAA /* WatchCompanion.app */;
@@ -291,6 +296,7 @@
 			);
 			name = "WatchCompanion Watch App";
 			packageProductDependencies = (
+				D11100000000000000000001 /* AppRuntime */,
 			);
 			productName = "WatchCompanion Watch App";
 			productReference = 39ED9AF0300FD7D000649CAA /* WatchCompanion Watch App.app */;
@@ -339,6 +345,7 @@
 			productRefGroup = 39ED9AE4300FD7CF00649CAA /* Products */;
 			packageReferences = (
 				D00000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/CompanionCore" */,
+				D10000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AppRuntime" */,
 			);
 			projectDirPath = "";
 			projectRoot = "";
@@ -676,10 +683,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = WatchApp/Resources/WatchCompanionWatch.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = WatchCompanion;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Mori uses sleep, activity, heart-rate, and workout data to explain your personal trends and grow your companion.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = org.watchcompanion.app;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -708,10 +717,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = WatchApp/Resources/WatchCompanionWatch.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = WatchCompanion;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Mori uses sleep, activity, heart-rate, and workout data to explain your personal trends and grow your companion.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = org.watchcompanion.app;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -741,10 +752,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = iPhoneApp/Resources/WatchCompanion.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = WatchCompanion;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Mori uses sleep, activity, heart-rate, and workout data to explain your personal trends and grow your companion.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -775,10 +788,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = iPhoneApp/Resources/WatchCompanion.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = WatchCompanion;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Mori uses sleep, activity, heart-rate, and workout data to explain your personal trends and grow your companion.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -868,6 +883,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../Packages/CompanionCore;
 		};
+		D10000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AppRuntime" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../Packages/AppRuntime;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -910,6 +929,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D00000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/CompanionCore" */;
 			productName = Sync;
+		};
+		D10100000000000000000001 /* AppRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D10000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AppRuntime" */;
+			productName = AppRuntime;
+		};
+		D11100000000000000000001 /* AppRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D10000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AppRuntime" */;
+			productName = AppRuntime;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

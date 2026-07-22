@@ -11,3 +11,5 @@ product domain. It owns mapping, local proactive-interaction orchestration, and 
   create or schedule a notification.
 - Social sharing is off by default. If a user later enables it, care summary is the default scope.
 - Clothing is stored as a cosmetic preference only.
+- Apple-platform composition keeps HealthKit, notifications, WatchConnectivity, and durable event
+  storage outside SwiftUI views.
