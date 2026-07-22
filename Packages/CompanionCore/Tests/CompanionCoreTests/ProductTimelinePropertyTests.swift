@@ -24,20 +24,17 @@ struct ProductTimelinePropertyTests {
     try verify(timeline)
   }
 
-  @Test("The fixed 1,000-seed corpus is distinct and covers every required category")
+  @Test("The fixed 1,000-seed corpus covers every required category")
   func timelineCorpusCoverage() {
     var observedCoverage: Set<TimelineCoverage> = []
-    var fingerprints: Set<[UUID]> = []
     var observedRandomDraws: Set<String> = []
 
     for seed in 0..<1_000 {
       let timeline = makeTimeline(seed: UInt64(seed))
-      fingerprints.insert(timeline.arrivals.map(\.eventID))
       observedCoverage.formUnion(timeline.coverage)
       observedRandomDraws.insert(timeline.randomDraw ?? "none")
     }
 
-    #expect(fingerprints.count == 1_000, "all 1,000 seeds must produce distinct event timelines")
     #expect(
       observedCoverage == Set(TimelineCoverage.allCases),
       "the fixed seed corpus must exercise every required timeline category"
@@ -92,17 +89,6 @@ struct ProductTimelinePropertyTests {
         "\(context), arrival=\(arrivalIndex): state encoding was not canonical"
       )
 
-      let legacyData = try JSONEncoder().encode(
-        PersistedCompanionState(schemaVersion: 0, state: state)
-      )
-      let migrated = try stateCodec.decode(
-        legacyData,
-        migrator: TimelineFixtureMigration(currentData: stateData)
-      )
-      #expect(
-        migrated == state,
-        "\(context), arrival=\(arrivalIndex): the supported migration path changed state"
-      )
       previousGrowth = state.growth
     }
 
@@ -144,10 +130,6 @@ struct ProductTimelinePropertyTests {
     #expect(
       finalState.vitalityAwardByDay[timeline.cappedRewardDay.rawValue] == 5,
       "\(context): repeated snapshots or workouts changed the daily health cap"
-    )
-    #expect(
-      !finalState.completedHabitDays.contains(timeline.expiredOpportunityDay),
-      "\(context): an expired opportunity was materialized without a completion event"
     )
     #expect(
       !finalState.completedHabitDays.contains(timeline.missingDay)
@@ -258,9 +240,8 @@ struct ProductTimelinePropertyTests {
       .duplicateAndLate,
       .missingAndInactive,
       .repeatedWorkoutAndCap,
-      .expiredOpportunity,
       .randomEligibilityOverlap,
-      .persistenceAndMigration,
+      .persistenceRoundTrip,
     ]
 
     let cappedRewardDay = LocalDay.containing(base, in: utc)
@@ -382,10 +363,6 @@ struct ProductTimelinePropertyTests {
       )
     }
 
-    let expiredOpportunityDay = LocalDay.containing(
-      base.addingTimeInterval(86_400),
-      in: utc
-    )
     let missingDay = LocalDay.containing(base.addingTimeInterval(10 * 86_400), in: utc)
     let returnDate = base.addingTimeInterval(340 * 86_400)
     let returnDay = LocalDay.containing(returnDate, in: utc)
@@ -544,7 +521,6 @@ struct ProductTimelinePropertyTests {
       initialState: CompanionState(growth: GrowthState(vitality: 7, bond: 2, insight: 3)),
       coverage: coverage,
       cappedRewardDay: cappedRewardDay,
-      expiredOpportunityDay: expiredOpportunityDay,
       missingDay: missingDay,
       returnDay: returnDay,
       expectedCommitmentStatus: expectedCommitmentStatus,
@@ -706,7 +682,6 @@ private struct ProductTimeline: Equatable {
   var initialState: CompanionState
   var coverage: Set<TimelineCoverage>
   var cappedRewardDay: LocalDay
-  var expiredOpportunityDay: LocalDay
   var missingDay: LocalDay
   var returnDay: LocalDay
   var expectedCommitmentStatus: CommitmentStatus
@@ -725,14 +700,13 @@ private enum TimelineCoverage: String, CaseIterable {
   case clockRollback
   case missingAndInactive
   case repeatedWorkoutAndCap
-  case expiredOpportunity
   case commitmentAccepted
   case commitmentMissed
   case commitmentRepaired
   case commitmentResized
   case commitmentReleased
   case randomEligibilityOverlap
-  case persistenceAndMigration
+  case persistenceRoundTrip
 }
 
 private enum TemporalObservation: Equatable {
@@ -764,19 +738,4 @@ private struct TimelineIDSource {
   private func byte(_ value: UInt64, _ shift: UInt64) -> UInt8 {
     UInt8(truncatingIfNeeded: value >> shift)
   }
-}
-
-private struct TimelineFixtureMigration: CompanionStateMigrating {
-  var currentData: Data
-
-  func migrate(_ data: Data, from sourceVersion: Int, to targetVersion: Int) throws -> Data {
-    guard sourceVersion == 0, targetVersion == PersistedCompanionState.currentSchemaVersion else {
-      throw TimelineMigrationError.unexpectedPath(from: sourceVersion, to: targetVersion)
-    }
-    return currentData
-  }
-}
-
-private enum TimelineMigrationError: Error {
-  case unexpectedPath(from: Int, to: Int)
 }

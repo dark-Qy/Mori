@@ -31,16 +31,27 @@ Run at least 1,000 deterministic timelines across fixed seeds. Include:
 - midnight, daylight-saving transitions, time-zone changes, and clock rollback;
 - missing days and long inactivity;
 - repeated workouts and reward caps;
-- expired opportunities;
+- opportunity expiry once issuance and expiry exist as an event or durable domain record;
 - accepted, missed, repaired, resized, and released commitments;
 - overlapping random-story eligibility;
-- persistence and migration after every event.
+- persistence after every event;
+- fixed legacy fixtures for every migration that the product actually supports.
 
 The CompanionCore product-timeline suite parameterizes fixed seeds `0...999`. Every invariant
 assertion includes `seed=<n>`, and Swift Testing associates unexpected throws with the failing seed
 argument, so a timeline is reproducible without writing artifacts into the worktree. The corpus
 distributes the scenarios above across those seeds; each seed need not contain every scenario, but
 aggregate coverage is itself asserted.
+
+The current event and state schemas both started at version 1, so there is no historical production
+payload to migrate. The suite verifies fail-closed migration dispatch separately, but must not
+fabricate a schema-0 transformer and call it migration coverage. When a real schema 2 is introduced,
+the release that adds it must retain a sanitized schema-1 fixture and verify its actual transformer.
+
+Likewise, Phase 1 stores completed daily actions but has no issued-opportunity entity. Missing days
+therefore remain absent and neutral; the suite does not label that absence as an expiration test. An
+explicit opportunity lifecycle must add issuance, expiry, and late-completion cases before it can be
+claimed as covered.
 
 ### Adapter contract tests
 
