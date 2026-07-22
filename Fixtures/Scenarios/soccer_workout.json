@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "soccer_workout",
+  "displayName": "Completed soccer workout",
+  "clock": {
+    "now": "2026-07-23T19:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "soccer_workout"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": {
+      "source": "mock",
+      "dataState": "available",
+      "samples": [
+        {
+          "id": "workout-soccer-2026-07-23-a",
+          "type": "workout",
+          "activityType": "soccer",
+          "start": "2026-07-23T17:45:00+08:00",
+          "end": "2026-07-23T18:30:00+08:00",
+          "durationSeconds": 2700,
+          "activeEnergy": { "value": 410, "unit": "kcal" },
+          "source": "Mock Watch"
+        }
+      ]
+    },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": { "lifecycle": "active", "level": 3 },
+    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "eligibleRandomStory": "lost_ball",
+    "eventProcessedAtMostOnce": true
+  }
+}

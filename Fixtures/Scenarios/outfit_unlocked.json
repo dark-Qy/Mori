@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "outfit_unlocked",
+  "displayName": "Unlocked outfit",
+  "clock": {
+    "now": "2026-07-23T14:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "outfit_unlocked"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": { "source": "mock", "dataState": "available", "samples": [] },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": { "lifecycle": "active", "level": 3 },
+    "wardrobe": {
+      "selectedOutfitID": "default",
+      "unlockedOutfitIDs": ["default", "soccer_scarf"],
+      "previewOutfitID": "soccer_scarf"
+    }
+  },
+  "expectations": {
+    "primaryState": "wardrobe",
+    "mockBadgeVisible": true,
+    "equipEnabled": true,
+    "statModifierCount": 0
+  }
+}

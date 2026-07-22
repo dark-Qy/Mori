@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "health_no_data",
+  "displayName": "Health access requested with no available samples",
+  "clock": {
+    "now": "2026-07-23T09:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "health_no_data"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": { "source": "mock", "dataState": "noData", "samples": [] },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": { "lifecycle": "active", "level": 1 },
+    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "healthStatusCopy": "noAvailableData",
+    "petMood": "neutral"
+  }
+}

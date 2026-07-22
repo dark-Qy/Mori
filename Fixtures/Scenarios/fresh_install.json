@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "fresh_install",
+  "displayName": "Fresh install",
+  "clock": {
+    "now": "2026-07-23T08:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "fresh_install"],
+  "state": {
+    "installation": { "hasLaunchedBefore": false },
+    "permissions": { "healthRequest": "notRequested", "notifications": "notDetermined" },
+    "health": { "source": "mock", "dataState": "unavailable", "samples": [] },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": { "lifecycle": "notCreated", "level": 0 },
+    "wardrobe": { "selectedOutfitID": null, "unlockedOutfitIDs": [] }
+  },
+  "expectations": {
+    "primaryState": "onboarding",
+    "mockBadgeVisible": true,
+    "healthStatusCopy": "notRequested"
+  }
+}

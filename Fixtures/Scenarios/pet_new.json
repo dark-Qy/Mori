@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "pet_new",
+  "displayName": "Newly created pet",
+  "clock": {
+    "now": "2026-07-23T08:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "pet_new"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "notRequested", "notifications": "notDetermined" },
+    "health": { "source": "mock", "dataState": "unavailable", "samples": [] },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": { "lifecycle": "new", "level": 1, "vitality": 0, "bond": 0, "insight": 0 },
+    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+  },
+  "expectations": {
+    "primaryState": "petIntroduction",
+    "mockBadgeVisible": true,
+    "mainlineChapter": 1,
+    "growthAwarded": 0
+  }
+}

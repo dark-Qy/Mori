@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "ai_malformed",
+  "displayName": "Malformed AI response",
+  "clock": {
+    "now": "2026-07-23T14:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "ai_malformed"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": { "source": "mock", "dataState": "available", "samples": [] },
+    "services": { "ai": "malformedResponse", "sync": "reachable" },
+    "pet": { "lifecycle": "active", "level": 2 },
+    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "narrationSource": "localTemplate",
+    "invalidResponseRejected": true,
+    "ruleOutcomeUnchanged": true
+  }
+}

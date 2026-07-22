@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "sync_unreachable",
+  "displayName": "Companion device unreachable",
+  "clock": {
+    "now": "2026-07-23T14:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "sync_unreachable"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": { "source": "mock", "dataState": "available", "samples": [] },
+    "services": { "ai": "available", "sync": "unreachable" },
+    "pet": { "lifecycle": "active", "level": 2 },
+    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] },
+    "pendingEvents": [
+      { "id": "outfit-change-001", "type": "outfitChanged", "revision": 4 }
+    ]
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "pendingEventCount": 1,
+    "localInteractionAvailable": true
+  }
+}

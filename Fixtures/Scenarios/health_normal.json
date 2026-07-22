@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "health_normal",
+  "displayName": "Normal recent health data",
+  "clock": {
+    "now": "2026-07-23T09:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "health_normal"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": {
+      "source": "mock",
+      "dataState": "available",
+      "samples": [
+        {
+          "id": "sleep-core-2026-07-23-a",
+          "type": "sleepAnalysis",
+          "start": "2026-07-22T23:20:00+08:00",
+          "end": "2026-07-23T03:10:00+08:00",
+          "value": "core",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "sleep-deep-2026-07-23-a",
+          "type": "sleepAnalysis",
+          "start": "2026-07-23T03:10:00+08:00",
+          "end": "2026-07-23T04:35:00+08:00",
+          "value": "deep",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "sleep-rem-2026-07-23-a",
+          "type": "sleepAnalysis",
+          "start": "2026-07-23T04:35:00+08:00",
+          "end": "2026-07-23T06:50:00+08:00",
+          "value": "rem",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "steps-2026-07-23",
+          "type": "stepCount",
+          "start": "2026-07-23T00:00:00+08:00",
+          "end": "2026-07-23T09:00:00+08:00",
+          "value": 3250,
+          "unit": "count",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "rhr-2026-07-23",
+          "type": "restingHeartRate",
+          "start": "2026-07-23T06:45:00+08:00",
+          "end": "2026-07-23T06:46:00+08:00",
+          "value": 58,
+          "unit": "count/min",
+          "source": "Mock Watch"
+        }
+      ]
+    },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": { "lifecycle": "active", "level": 2 },
+    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "healthStatusCopy": "recentDataAvailable",
+    "eligibleThemes": ["recovery", "activity"]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "permission_not_requested",
+  "displayName": "Health permission not requested",
+  "clock": {
+    "now": "2026-07-23T09:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "permission_not_requested"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "notRequested", "notifications": "authorized" },
+    "health": { "source": "mock", "dataState": "unavailable", "samples": [] },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": { "lifecycle": "active", "level": 1 },
+    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "healthStatusCopy": "permissionInvitation",
+    "petMood": "neutral"
+  }
+}
