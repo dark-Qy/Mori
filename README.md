@@ -52,6 +52,10 @@ docs/                    Architecture, privacy, testing, and operating decisions
 
 Directories are added only when their implementation begins; this document does not imply every planned component already exists.
 
+The selective Phase 2 narration service is documented in
+[`Services/NarrationGateway/README.md`](Services/NarrationGateway/README.md). It is optional: a
+missing provider key produces a deterministic local fallback and never blocks the core Watch loop.
+
 ## Development phases
 
 ### Phase 0: prove foundations and device capabilities
@@ -78,13 +82,25 @@ AI and network access are enhancements. The core pet loop must remain functional
 
 ## Secrets and local configuration
 
-Never put provider secrets in the iPhone or Watch application bundle. Copy `.env.example` to a local `.env` only for a server-side service, then supply a newly issued key through your secret manager or shell environment. Do not reuse keys posted in chat, logs, issues, or screenshots.
+Never put provider secrets in the iPhone or Watch application bundle. Copy the narration service's `.env.example` to its local `.env` only for server-side development, then supply a newly issued key through your secret manager or shell environment. Do not reuse keys posted in chat, logs, issues, or screenshots.
 
 ```sh
-cp .env.example .env
+cp Services/NarrationGateway/.env.example Services/NarrationGateway/.env
 ```
 
 The real `.env` must remain untracked. Before every commit, inspect the staged diff and run a secret scan.
+
+## Local validation
+
+Bootstrap resolves Swift packages and creates an ignored Python environment for the optional
+narration gateway. The same commands are used in CI:
+
+```sh
+Scripts/bootstrap
+Scripts/check
+Scripts/test
+Scripts/test-e2e
+```
 
 ## Contributing
 

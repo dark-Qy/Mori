@@ -63,9 +63,21 @@ else
   echo "notice: no Swift sources exist yet; Swift linting was skipped."
 fi
 
+narration_service="$REPO_ROOT/Services/NarrationGateway"
+narration_venv="$REPO_ROOT/.artifacts/narration-gateway-venv"
+if [[ -f "$narration_service/pyproject.toml" ]]; then
+  if [[ ! -x "$narration_venv/bin/ruff" ]]; then
+    echo "error: Narration Gateway tools are missing; run Scripts/bootstrap first." >&2
+    exit 1
+  fi
+  echo "Linting and formatting-checking Narration Gateway sources."
+  "$narration_venv/bin/ruff" check "$narration_service"
+  "$narration_venv/bin/ruff" format --check "$narration_service"
+fi
+
 if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "Scanning tracked and non-ignored untracked files for common credential patterns."
-  credential_pattern='(sk-[A-Za-z0-9_-]{16,}|Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9_-]{16,})'
+  credential_pattern='(sk-[A-Za-z0-9_-]{16,}|Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{16,}|AKIA[0-9A-Z]{16})'
   credential_found=false
   while IFS= read -r -d '' relative_path; do
     if [[ "$relative_path" == "Scripts/check" ]]; then
@@ -74,7 +86,9 @@ if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     if [[ ! -f "$REPO_ROOT/$relative_path" ]]; then
       continue
     fi
-    if grep -I -nE "$credential_pattern" "$REPO_ROOT/$relative_path"; then
+    if grep -I -qE "$credential_pattern" "$REPO_ROOT/$relative_path"; then
+      line_numbers="$(grep -I -nE "$credential_pattern" "$REPO_ROOT/$relative_path" | cut -d: -f1 | sort -nu | paste -sd, -)"
+      echo "possible credential: $relative_path:$line_numbers"
       credential_found=true
     fi
   done < <(git -C "$REPO_ROOT" ls-files --cached --others --exclude-standard -z)

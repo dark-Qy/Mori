@@ -23,9 +23,18 @@ done
 
 if [[ ${#source_roots[@]} -eq 0 ]]; then
   echo "notice: no Swift sources exist yet; formatting was skipped."
-  exit 0
+else
+  echo "Formatting Swift sources with the selected Xcode toolchain."
+  xcrun swift-format format --in-place --recursive --parallel "${source_roots[@]}"
 fi
 
-echo "Formatting Swift sources with the selected Xcode toolchain."
-xcrun swift-format format --in-place --recursive --parallel "${source_roots[@]}"
-
+narration_service="$REPO_ROOT/Services/NarrationGateway"
+narration_venv="$REPO_ROOT/.artifacts/narration-gateway-venv"
+if [[ -f "$narration_service/pyproject.toml" ]]; then
+  if [[ ! -x "$narration_venv/bin/ruff" ]]; then
+    echo "error: Narration Gateway tools are missing; run Scripts/bootstrap first." >&2
+    exit 1
+  fi
+  echo "Formatting Narration Gateway sources."
+  "$narration_venv/bin/ruff" format "$narration_service"
+fi

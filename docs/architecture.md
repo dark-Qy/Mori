@@ -123,11 +123,18 @@ notification consent, quiet hours, and cooldown policy; narration has no access 
 
 ## Narration boundary
 
-`NarrativeProvider` accepts a bounded context created after the state transition. It returns structured presentation fields such as message, tone, approved template identifier, optional choices, and safety flags.
+`NarrativeProvider` accepts a bounded context created after the state transition. In the current
+Phase 2 foundation, the upstream model may select only an approved tone; the gateway renders the
+actual narration from a reviewed local template.
 
-The response is schema-validated, length-limited, and checked for forbidden medical or manipulative language. Invalid, slow, filtered, or unavailable AI falls back to deterministic local templates. A provider response never becomes an authoritative event by itself.
+The decision is schema-validated and the rendered output is length-limited. Direct model-written
+health copy, invalid output, a wall-clock timeout, or an unavailable provider falls back to a
+deterministic local template. A provider response never becomes an authoritative event by itself.
 
-The provider credential exists only in a server-side gateway environment. Apple clients receive short-lived user/session authorization for the gateway, never the upstream provider key.
+The provider credential exists only in a server-side gateway environment. The local Phase 2
+foundation requires a separate gateway token and an in-process quota. A multi-user deployment must
+replace that development token with short-lived user/session authorization and a distributed quota;
+Apple clients never receive the upstream provider key.
 
 ## Watch-iPhone synchronization
 

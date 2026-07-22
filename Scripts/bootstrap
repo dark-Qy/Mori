@@ -16,6 +16,11 @@ for tool in git xcodebuild xcrun swift; do
   fi
 done
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "error: required tool 'python3' is not available." >&2
+  exit 1
+fi
+
 echo "Repository: $REPO_ROOT"
 echo "Developer directory: ${DEVELOPER_DIR:-$(xcode-select -p)}"
 xcodebuild -version
@@ -41,6 +46,18 @@ if [[ -n "$project_path" ]]; then
   xcodebuild -list -project "$project_path"
 else
   echo "notice: no complete Xcode project exists yet; Apple target discovery was skipped."
+fi
+
+narration_service="$REPO_ROOT/Services/NarrationGateway"
+if [[ -f "$narration_service/pyproject.toml" ]]; then
+  narration_venv="$REPO_ROOT/.artifacts/narration-gateway-venv"
+  if [[ ! -x "$narration_venv/bin/python" ]]; then
+    echo "Creating Narration Gateway test environment."
+    python3 -m venv "$narration_venv"
+  fi
+  echo "Installing Narration Gateway and its test tools."
+  "$narration_venv/bin/python" -m pip install --disable-pip-version-check --upgrade pip
+  "$narration_venv/bin/python" -m pip install --disable-pip-version-check -e "$narration_service[test]"
 fi
 
 echo "Bootstrap checks completed."

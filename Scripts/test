@@ -58,6 +58,18 @@ for package_manifest in "${package_manifests[@]}"; do
   ran_tests=true
 done
 
+narration_service="$REPO_ROOT/Services/NarrationGateway"
+narration_venv="$REPO_ROOT/.artifacts/narration-gateway-venv"
+if [[ -f "$narration_service/pyproject.toml" ]]; then
+  if [[ ! -x "$narration_venv/bin/python" ]]; then
+    echo "error: Narration Gateway environment is missing; run Scripts/bootstrap first." >&2
+    exit 1
+  fi
+  echo "Running Narration Gateway unit and integration tests."
+  "$narration_venv/bin/python" -m pytest "$narration_service"
+  ran_tests=true
+fi
+
 if [[ -n "$project_path" ]]; then
   scheme="${XCODE_SCHEME:-WatchCompanion}"
   test_plan="${XCODE_TEST_PLAN:-Phase0}"

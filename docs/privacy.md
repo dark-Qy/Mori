@@ -56,6 +56,11 @@ The gateway must:
 - delete transient request content after processing unless a declared purpose requires retention;
 - provide deterministic local fallback on the client.
 
+The selective Phase 2 gateway enforces a separate development bearer token, a per-process quota,
+an overall upstream deadline, `Cache-Control: no-store`, and server-owned final templates. This is
+not production identity: multi-user deployment still requires short-lived session authorization,
+a distributed quota, and reviewed provider retention/data-use terms.
+
 ## Social summaries
 
 Friendship does not imply health access. The data owner chooses one directional scope for each friend, with a global default that can be overridden.
