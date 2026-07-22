@@ -14,7 +14,7 @@ final class WatchAppStore: ObservableObject {
   @Published private(set) var isAdvancingStory = false
 
   let dataMode: WatchDataMode
-  private let runtime: AppleCompanionRuntime
+  private let runtime: AppleCompanionRuntime?
   private let notificationRouteObserver: RuntimeNotificationRouteObserver?
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private var hasStarted = false
@@ -26,10 +26,13 @@ final class WatchAppStore: ObservableObject {
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
     dataMode = WatchDataMode.from(arguments: arguments)
     model = WatchPresentationModel.initial(arguments: arguments)
-    runtime = AppleCompanionRuntime(
-      source: .watch,
-      storageDirectory: Self.applicationSupportDirectory()
-    )
+    runtime =
+      dataMode == .live
+      ? AppleCompanionRuntime(
+        source: .watch,
+        storageDirectory: Self.applicationSupportDirectory(arguments: arguments)
+      )
+      : nil
     notificationRouteObserver = dataMode == .live ? RuntimeNotificationRouteObserver() : nil
     launchNotificationRoute = Self.notificationRoute(from: arguments)
   }
@@ -41,14 +44,14 @@ final class WatchAppStore: ObservableObject {
     if let launchNotificationRoute {
       handleNotificationRoute(launchNotificationRoute)
     }
-    guard dataMode == .live else { return }
+    guard let runtime else { return }
     do {
       let peerUpdates = await runtime.peerValueUpdates()
       peerUpdateTask = Task { [weak self] in
         for await values in peerUpdates {
           guard let self else { return }
           self.latestPeerValues = values
-          try? await self.runtime.applyPeerPreferences(values)
+          try? await runtime.applyPeerPreferences(values)
           await self.rebuildModel()
         }
       }
@@ -78,7 +81,7 @@ final class WatchAppStore: ObservableObject {
   }
 
   func refreshHealth(requestAccessIfNeeded: Bool = false) async {
-    guard dataMode == .live, !isRefreshingHealth else { return }
+    guard let runtime, !isRefreshingHealth else { return }
     isRefreshingHealth = true
     defer { isRefreshingHealth = false }
     do {
@@ -101,7 +104,7 @@ final class WatchAppStore: ObservableObject {
   }
 
   func completeSuggestedAction() async {
-    guard dataMode == .live, !isCompletingAction else { return }
+    guard let runtime, !isCompletingAction else { return }
     isCompletingAction = true
     defer { isCompletingAction = false }
     do {
@@ -127,7 +130,7 @@ final class WatchAppStore: ObservableObject {
   }
 
   func advanceMainStory() async {
-    guard dataMode == .live, !isAdvancingStory else { return }
+    guard let runtime, !isAdvancingStory else { return }
     isAdvancingStory = true
     defer { isAdvancingStory = false }
     do {
@@ -153,7 +156,7 @@ final class WatchAppStore: ObservableObject {
   }
 
   private func rebuildModel() async {
-    guard dataMode == .live else { return }
+    guard let runtime else { return }
     do {
       let state = try await runtime.currentState()
       actionCompleted = state.completedHabitDays.contains(
@@ -202,8 +205,26 @@ final class WatchAppStore: ObservableObject {
     return RuntimeNotificationRoute(route: value)
   }
 
-  private static func applicationSupportDirectory() -> URL {
-    FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+  private static func applicationSupportDirectory(arguments: [String]) -> URL {
+    let base =
+      FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
       ?? FileManager.default.temporaryDirectory.appendingPathComponent("WatchCompanionWatch")
+    guard
+      arguments.contains("-UITesting"),
+      let identifier = arguments.first(where: { $0.hasPrefix("--e2e-storage-id=") })?
+        .replacingOccurrences(of: "--e2e-storage-id=", with: ""),
+      !identifier.isEmpty,
+      identifier.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }
+      )
+    else { return base }
+
+    let directory =
+      base
+      .appendingPathComponent("UITests", isDirectory: true)
+      .appendingPathComponent(identifier, isDirectory: true)
+    if arguments.contains("--reset-e2e-storage") {
+      try? FileManager.default.removeItem(at: directory)
+    }
+    return directory
   }
 }
