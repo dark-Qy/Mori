@@ -44,16 +44,19 @@ PY
   rm -f "$devices_json"
 }
 
-package_manifest="$(find "$REPO_ROOT/Packages" -name Package.swift -type f -print 2>/dev/null | sort | head -n 1 || true)"
 project_path="$(find "$REPO_ROOT/Apps" -name '*.xcodeproj' -type d -exec test -f '{}/project.pbxproj' \; -print 2>/dev/null | sort | head -n 1 || true)"
 ran_tests=false
 
-if [[ -n "$package_manifest" ]]; then
+package_manifests=()
+while IFS= read -r manifest; do
+  package_manifests+=("$manifest")
+done < <(find "$REPO_ROOT/Packages" -name Package.swift -type f -print 2>/dev/null | sort)
+for package_manifest in "${package_manifests[@]}"; do
   package_directory="$(dirname "$package_manifest")"
   echo "Running Swift package tests: ${package_directory#$REPO_ROOT/}"
   swift test --package-path "$package_directory" --parallel
   ran_tests=true
-fi
+done
 
 if [[ -n "$project_path" ]]; then
   scheme="${XCODE_SCHEME:-WatchCompanion}"
