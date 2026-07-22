@@ -1,0 +1,40 @@
+{
+  "configurations" : [
+    {
+      "id" : "2D40913D-6101-4C5D-A40E-B42513892D5F",
+      "name" : "Phase 0",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "MOCK_SCENARIO",
+            "value" : "health_normal"
+          }
+        ],
+        "language" : "en",
+        "region" : "US"
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:WatchCompanion.xcodeproj",
+        "identifier" : "C00100000000000000000006",
+        "name" : "PhoneAppTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:WatchCompanion.xcodeproj",
+        "identifier" : "C00200000000000000000006",
+        "name" : "PhoneAppUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
