@@ -22,6 +22,8 @@ let package = Package(
       dependencies: [
         .product(name: "AppleAdapters", package: "AppleAdapters"),
         .product(name: "Domain", package: "CompanionCore"),
+        .product(name: "Growth", package: "CompanionCore"),
+        .product(name: "Persistence", package: "CompanionCore"),
       ]
     ),
     .testTarget(
@@ -30,6 +32,8 @@ let package = Package(
         "AppRuntime",
         .product(name: "AppleAdapters", package: "AppleAdapters"),
         .product(name: "Domain", package: "CompanionCore"),
+        .product(name: "Growth", package: "CompanionCore"),
+        .product(name: "Persistence", package: "CompanionCore"),
       ]
     ),
   ]
