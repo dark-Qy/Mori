@@ -1,5 +1,6 @@
 import Domain
 import Foundation
+import Growth
 import Persistence
 import Testing
 
@@ -11,9 +12,12 @@ struct EventLedgerRepositoryTests {
     let first = EventLedgerRepository(storage: storage)
     let event = interactionEvent(id: "00000000-0000-0000-0000-000000000101")
 
-    let appendedState = try await first.append(event)
+    let appendedLedger = try await first.append(event)
     let second = EventLedgerRepository(storage: storage)
-    let reloadedState = try await second.currentState()
+    let reloadedLedger = try await second.currentLedger()
+    let reducer = CompanionReducer()
+    let appendedState = try reducer.replay(appendedLedger.events)
+    let reloadedState = try reducer.replay(reloadedLedger.events)
 
     #expect(reloadedState == appendedState)
     #expect(reloadedState.pet.lastInteractionAt == event.occurredAt)

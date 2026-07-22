@@ -1,6 +1,5 @@
 import Domain
 import Foundation
-import Growth
 
 public protocol EventLedgerStorage: Sendable {
   func load() async throws -> Data?
@@ -46,45 +45,32 @@ public actor FileEventLedgerStorage: EventLedgerStorage {
   }
 }
 
-/// Serializes append, persistence, and state replay so Watch and phone callers cannot observe a
-/// persisted event that is missing from the returned state (or the inverse).
+/// Serializes append and persistence so concurrent Watch and phone callbacks cannot overwrite
+/// one another. State replay remains in the Growth layer to preserve dependency direction.
 public actor EventLedgerRepository<Storage: EventLedgerStorage> {
   private let storage: Storage
   private let codec: EventLedgerCodec
-  private let reducer: CompanionReducer
   private var ledger: EventLedger?
 
   public init(
     storage: Storage,
-    codec: EventLedgerCodec = EventLedgerCodec(),
-    reducer: CompanionReducer = CompanionReducer()
+    codec: EventLedgerCodec = EventLedgerCodec()
   ) {
     self.storage = storage
     self.codec = codec
-    self.reducer = reducer
   }
 
   public func currentLedger() async throws -> EventLedger {
     try await loadIfNeeded()
   }
 
-  public func currentState(from initialState: CompanionState = CompanionState()) async throws
-    -> CompanionState
-  {
-    let ledger = try await loadIfNeeded()
-    return try reducer.replay(ledger.events, from: initialState)
-  }
-
   @discardableResult
-  public func append(
-    _ event: EventEnvelope,
-    from initialState: CompanionState = CompanionState()
-  ) async throws -> CompanionState {
+  public func append(_ event: EventEnvelope) async throws -> EventLedger {
     var updatedLedger = try await loadIfNeeded()
     try updatedLedger.append(event)
     try await storage.save(codec.encode(updatedLedger))
     ledger = updatedLedger
-    return try reducer.replay(updatedLedger.events, from: initialState)
+    return updatedLedger
   }
 
   public func replace(with replacement: EventLedger) async throws {
