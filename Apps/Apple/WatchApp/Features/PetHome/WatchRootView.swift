@@ -12,14 +12,21 @@ struct WatchRootView: View {
       ScrollView {
         VStack(spacing: AdventureSpacing.medium) {
           statusHeader
-          PetHeroCard(model: model)
-          HealthPillRow(metrics: model.metrics)
+          if let status = store.statusMessage {
+            Text(status)
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .accessibilityIdentifier("watch.status-message")
+          }
           TodayQuestCard(
             quest: model.quest,
             isAdvancing: store.isAdvancingStory,
             showsAction: model.isLive,
             onAdvance: { Task { await store.advanceMainStory() } }
           )
+          PetHeroCard(model: model)
+          HealthPillRow(metrics: model.metrics)
           interactionCard
           destinationLinks
           DataSourceCard(model: model)
@@ -37,13 +44,6 @@ struct WatchRootView: View {
             .tint(AdventurePalette.mint)
             .disabled(store.isRefreshingHealth)
             .accessibilityIdentifier("watch.connect-health")
-          }
-          if let status = store.statusMessage {
-            Text(status)
-              .font(.caption2)
-              .foregroundStyle(.secondary)
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .accessibilityIdentifier("watch.status-message")
           }
         }
         .padding(.horizontal, AdventureSpacing.page)
@@ -270,6 +270,15 @@ private struct TodayQuestCard: View {
             .font(.caption2.monospacedDigit().weight(.bold))
             .foregroundStyle(AdventurePalette.mint)
         }
+        if showsAction {
+          Button(action: onAdvance) {
+            Label(isAdvancing ? "保存中…" : "继续今日主线", systemImage: "book.pages.fill")
+              .frame(maxWidth: .infinity)
+          }
+          .buttonStyle(.bordered)
+          .disabled(isAdvancing)
+          .accessibilityIdentifier("watch.advance-story")
+        }
         Text(quest.title)
           .font(.subheadline.weight(.semibold))
           .accessibilityIdentifier("watch.quest-title")
@@ -289,15 +298,6 @@ private struct TodayQuestCard: View {
             .font(.caption2.weight(.semibold))
             .foregroundStyle(AdventurePalette.mint)
             .accessibilityIdentifier("watch.side-story")
-        }
-        if showsAction {
-          Button(action: onAdvance) {
-            Label(isAdvancing ? "保存中…" : "继续今日主线", systemImage: "book.pages.fill")
-              .frame(maxWidth: .infinity)
-          }
-          .buttonStyle(.bordered)
-          .disabled(isAdvancing)
-          .accessibilityIdentifier("watch.advance-story")
         }
       }
     }

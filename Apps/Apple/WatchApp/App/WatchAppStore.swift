@@ -17,6 +17,7 @@ final class WatchAppStore: ObservableObject {
   private let runtime: AppleCompanionRuntime?
   private let notificationRouteObserver: RuntimeNotificationRouteObserver?
   private let launchNotificationRoute: RuntimeNotificationRoute?
+  private let usesE2EOfflineRuntime: Bool
   private var hasStarted = false
   private var latestHealth: HealthSnapshot?
   private var latestPeerValues: [String: String]?
@@ -35,6 +36,8 @@ final class WatchAppStore: ObservableObject {
       : nil
     notificationRouteObserver = dataMode == .live ? RuntimeNotificationRouteObserver() : nil
     launchNotificationRoute = Self.notificationRoute(from: arguments)
+    usesE2EOfflineRuntime =
+      arguments.contains("-UITesting") && arguments.contains("--e2e-offline-runtime")
   }
 
   func start() async {
@@ -46,19 +49,6 @@ final class WatchAppStore: ObservableObject {
     }
     guard let runtime else { return }
     do {
-      let peerUpdates = await runtime.peerValueUpdates()
-      peerUpdateTask = Task { [weak self] in
-        for await values in peerUpdates {
-          guard let self else { return }
-          self.latestPeerValues = values
-          try? await runtime.applyPeerPreferences(values)
-          await self.rebuildModel()
-        }
-      }
-      latestPeerValues = await runtime.latestPeerValues()
-      if let latestPeerValues {
-        try? await runtime.applyPeerPreferences(latestPeerValues)
-      }
       let state = try await runtime.currentState()
       actionCompleted = state.completedHabitDays.contains(
         LocalDay.containing(Date(), in: .current)
@@ -70,9 +60,34 @@ final class WatchAppStore: ObservableObject {
         trend: trend,
         peerValues: latestPeerValues
       )
+      statusMessage =
+        usesE2EOfflineRuntime
+        ? "本地进度已载入；离线测试不会读取健康数据"
+        : "本地进度已载入，健康数据正在更新"
+      guard !usesE2EOfflineRuntime else { return }
+      beginPeerUpdates(runtime: runtime)
       await refreshHealth(requestAccessIfNeeded: false)
     } catch {
       statusMessage = "载入失败，请稍后重试"
+    }
+  }
+
+  private func beginPeerUpdates(runtime: AppleCompanionRuntime) {
+    peerUpdateTask = Task { [weak self] in
+      let peerUpdates = await runtime.peerValueUpdates()
+      if let self {
+        self.latestPeerValues = await runtime.latestPeerValues()
+        if let latestPeerValues = self.latestPeerValues {
+          try? await runtime.applyPeerPreferences(latestPeerValues)
+          await self.rebuildModel()
+        }
+      }
+      for await values in peerUpdates {
+        guard let self else { return }
+        self.latestPeerValues = values
+        try? await runtime.applyPeerPreferences(values)
+        await self.rebuildModel()
+      }
     }
   }
 

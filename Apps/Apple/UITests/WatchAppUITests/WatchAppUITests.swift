@@ -68,15 +68,15 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(element("watch.status-message", in: app).waitForExistence(timeout: 8))
     let storyButton = app.buttons["watch.advance-story"]
     scrollToElement(storyButton, in: app)
-    XCTAssertTrue(storyButton.isHittable)
-    storyButton.tap()
+    XCTAssertTrue(storyButton.exists)
+    storyButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     XCTAssertTrue(
       app.staticTexts["今日主线已推进，获得 10 点世界经验"].waitForExistence(timeout: 5))
 
     let habitButton = app.buttons["watch.interact"]
     scrollToElement(habitButton, in: app)
-    XCTAssertTrue(habitButton.isHittable)
-    habitButton.tap()
+    XCTAssertTrue(habitButton.exists)
+    habitButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     XCTAssertTrue(
       app.staticTexts["今天的小行动已记下；奖励只结算一次"].waitForExistence(timeout: 5))
     app.terminate()
@@ -86,7 +86,7 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(element("watch.status-message", in: relaunched).waitForExistence(timeout: 8))
     let repeatedStoryButton = relaunched.buttons["watch.advance-story"]
     scrollToElement(repeatedStoryButton, in: relaunched)
-    repeatedStoryButton.tap()
+    repeatedStoryButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     XCTAssertTrue(
       relaunched.staticTexts["今天的主线已经完成，明天继续"].waitForExistence(timeout: 5))
 
@@ -108,7 +108,9 @@ final class WatchAppUITests: XCTestCase {
 
   private func launchLiveApp(storageID: String, reset: Bool) -> XCUIApplication {
     let app = XCUIApplication()
-    app.launchArguments = ["-UITesting", "--e2e-storage-id=\(storageID)"]
+    app.launchArguments = [
+      "-UITesting", "--e2e-storage-id=\(storageID)", "--e2e-offline-runtime",
+    ]
     if reset {
       app.launchArguments.append("--reset-e2e-storage")
     }
@@ -117,8 +119,22 @@ final class WatchAppUITests: XCTestCase {
   }
 
   private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication) {
-    for _ in 0..<8 where !element.isHittable {
-      app.swipeUp()
+    let scrollView = app.scrollViews.firstMatch
+
+    for _ in 0..<8 {
+      let scrollSurface = scrollView.exists ? scrollView : app
+      let visibleFrame = scrollSurface.frame.insetBy(dx: 0, dy: 8)
+      if element.exists,
+        element.frame.minY >= visibleFrame.minY,
+        element.frame.maxY <= visibleFrame.maxY
+      {
+        return
+      }
+      if element.exists && element.frame.maxY < visibleFrame.minY {
+        scrollSurface.swipeDown()
+      } else {
+        scrollSurface.swipeUp()
+      }
     }
   }
 

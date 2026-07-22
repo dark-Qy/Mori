@@ -9,13 +9,19 @@
     private let lock = NSLock()
     private var latest: CompanionSyncState?
     private var lastSentRevision: UInt64?
-    private var activationWaiters: [CheckedContinuation<ConnectivityActivationState, Never>] = []
+    private var activationWaiters: [UUID: CheckedContinuation<ConnectivityActivationState, Never>] =
+      [:]
     private var observers: [UUID: AsyncStream<CompanionSyncState>.Continuation] = [:]
+    private let activationTimeoutNanoseconds: UInt64
 
     public override convenience init() { self.init(session: .default) }
 
-    init(session: WCSession) {
+    init(
+      session: WCSession,
+      activationTimeoutNanoseconds: UInt64 = 5_000_000_000
+    ) {
       self.session = session
+      self.activationTimeoutNanoseconds = activationTimeoutNanoseconds
       super.init()
       session.delegate = self
     }
@@ -30,17 +36,26 @@
       }
       let current = Self.map(session.activationState)
       guard current == .inactive else { return current }
+      let waiterID = UUID()
       return await withCheckedContinuation { continuation in
-        let shouldActivate = lock.withLock { () -> Bool in
+        let activation = lock.withLock { () -> (shouldActivate: Bool, isWaiting: Bool) in
           let latestState = Self.map(session.activationState)
           guard latestState == .inactive else {
             continuation.resume(returning: latestState)
-            return false
+            return (false, false)
           }
-          activationWaiters.append(continuation)
-          return true
+          let shouldActivate = activationWaiters.isEmpty
+          activationWaiters[waiterID] = continuation
+          return (shouldActivate, true)
         }
-        if shouldActivate { session.activate() }
+        if activation.shouldActivate { session.activate() }
+        if activation.isWaiting {
+          let timeoutNanoseconds = activationTimeoutNanoseconds
+          Task { [weak self] in
+            try? await Task.sleep(nanoseconds: timeoutNanoseconds)
+            self?.timeoutActivation(waiterID)
+          }
+        }
       }
     }
 
@@ -101,13 +116,20 @@
         } ?? Self.map(activationState)
       let waiters = lock.withLock {
         () -> [CheckedContinuation<ConnectivityActivationState, Never>] in
-        let values = activationWaiters
+        let values = Array(activationWaiters.values)
         activationWaiters.removeAll()
         return values
       }
       for waiter in waiters {
         waiter.resume(returning: result)
       }
+    }
+
+    private func timeoutActivation(_ waiterID: UUID) {
+      let waiter = lock.withLock { activationWaiters.removeValue(forKey: waiterID) }
+      waiter?.resume(
+        returning: .unavailable(reason: "WatchConnectivity activation timed out")
+      )
     }
 
     public func session(_ session: WCSession, didReceiveApplicationContext context: [String: Any]) {

@@ -51,6 +51,13 @@
     private let events: CompanionEventEngine<FileEventLedgerStorage>
     private let preferences: PreferencesRepository<UserDefaultsPreferencesDataStore>
     private var lastSyncRevision: UInt64 = 0
+    private var pendingPeerSync: PendingPeerSync?
+    private var peerSyncTask: Task<Void, Never>?
+
+    private struct PendingPeerSync: Sendable {
+      let state: CompanionState
+      let date: Date
+    }
 
     public init(
       source: EventSource,
@@ -135,7 +142,7 @@
           payload: .petInteracted(PetInteraction(kind: kind))
         )
       )
-      _ = await sendDerivedState(state, at: date)
+      enqueuePeerSync(state, at: date)
       return state
     }
 
@@ -148,7 +155,7 @@
         timeZone: timeZone,
         source: source
       )
-      _ = await sendDerivedState(outcome.state, at: date)
+      enqueuePeerSync(outcome.state, at: date)
       return outcome
     }
 
@@ -164,7 +171,7 @@
         timeZone: timeZone,
         source: source
       )
-      _ = await sendDerivedState(outcome.state, at: date)
+      enqueuePeerSync(outcome.state, at: date)
       return outcome
     }
 
@@ -175,7 +182,7 @@
     public func savePreferences(_ value: AppPreferences) async throws {
       try await preferences.save(value)
       let state = try await events.currentState()
-      _ = await sendDerivedState(state, at: Date())
+      enqueuePeerSync(state, at: Date())
     }
 
     public func notificationPermissionState() async -> NotificationPermissionState {
@@ -323,6 +330,24 @@
       } catch {
         return .failed(reason: String(describing: error))
       }
+    }
+
+    /// Local progression must never wait for a paired device. Coalescing keeps only the newest
+    /// derived state while a prior sync is in flight, and the actor drains updates in order.
+    private func enqueuePeerSync(_ state: CompanionState, at date: Date) {
+      pendingPeerSync = PendingPeerSync(state: state, date: date)
+      guard peerSyncTask == nil else { return }
+      peerSyncTask = Task { [weak self] in
+        await self?.drainPeerSyncQueue()
+      }
+    }
+
+    private func drainPeerSyncQueue() async {
+      while let pending = pendingPeerSync {
+        pendingPeerSync = nil
+        _ = await sendDerivedState(pending.state, at: pending.date)
+      }
+      peerSyncTask = nil
     }
   }
 #endif

@@ -68,6 +68,11 @@ Use launch arguments and synthetic fixture IDs. Test both Watch and iPhone surfa
 
 Use stable accessibility identifiers for actions and semantic state. Do not test implementation hierarchy.
 
+The Watch persistence E2E uses `--e2e-offline-runtime` together with `-UITesting`. This keeps the
+real event ledger and reducers while intentionally suppressing HealthKit refresh and
+WatchConnectivity startup, so the test proves offline main-story/habit settlement without being
+coupled to Simulator framework latency. The argument has no effect without `-UITesting`.
+
 ### Visual and functional review
 
 For UI changes, use Computer Use or an equivalent visible simulator/device session after automated tests pass. Inspect small and large supported Watch sizes, iPhone sizes, light/dark appearance where applicable, largest text, Reduce Motion, truncation, tap targets, navigation, loading, empty, error, and offline states.
