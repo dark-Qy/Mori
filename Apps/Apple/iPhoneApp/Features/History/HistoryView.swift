@@ -17,9 +17,9 @@ struct HistoryView: View {
             .foregroundStyle(.secondary)
 
           HStack {
-            Label("恢复", systemImage: "circle.fill")
+            Label("恢复", systemImage: "moon.fill")
               .foregroundStyle(CompanionPalette.blue)
-            Label("活动", systemImage: "circle.fill")
+            Label("活动", systemImage: "figure.walk")
               .foregroundStyle(CompanionPalette.mint)
           }
           .font(.caption.weight(.semibold))
@@ -38,8 +38,8 @@ struct HistoryView: View {
               ForEach(model.history) { day in
                 VStack(spacing: 6) {
                   HStack(alignment: .bottom, spacing: 3) {
-                    historyBar(day.recovery, color: CompanionPalette.blue)
-                    historyBar(day.activity, color: CompanionPalette.mint)
+                    historyBar(day.recovery, color: CompanionPalette.blue, style: .recovery)
+                    historyBar(day.activity, color: CompanionPalette.mint, style: .activity)
                   }
                   Text(day.weekday)
                     .font(.caption2.weight(.medium))
@@ -98,16 +98,24 @@ struct HistoryView: View {
     .accessibilityIdentifier("phone.history")
   }
 
-  private func historyBar(_ value: Double?, color: Color) -> some View {
+  private enum BarStyle {
+    case recovery
+    case activity
+
+    var width: CGFloat { self == .recovery ? 7 : 11 }
+    var cornerRadius: CGFloat { self == .recovery ? 4 : 2 }
+  }
+
+  private func historyBar(_ value: Double?, color: Color, style: BarStyle) -> some View {
     Group {
       if let value {
-        Capsule()
+        RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
           .fill(color)
-          .frame(width: 9, height: max(12, value * 120))
+          .frame(width: style.width, height: max(12, value * 120))
       } else {
-        Capsule()
+        RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
           .stroke(color.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [2]))
-          .frame(width: 9, height: 12)
+          .frame(width: style.width, height: 12)
       }
     }
   }

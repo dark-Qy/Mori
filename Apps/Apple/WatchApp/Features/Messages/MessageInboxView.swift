@@ -43,7 +43,7 @@ struct MessageInboxView: View {
                   .foregroundStyle(.secondary)
                   .fixedSize(horizontal: false, vertical: true)
                 Text(message.relativeTime)
-                  .font(.system(size: 9, weight: .medium))
+                  .font(.caption2.weight(.medium))
                   .foregroundStyle(.tertiary)
               }
             }

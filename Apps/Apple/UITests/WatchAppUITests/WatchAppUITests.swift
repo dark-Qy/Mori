@@ -50,6 +50,21 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(connectButton.exists)
   }
 
+  func testInvalidMockFailsClosedAndDisablesInteraction() {
+    let app = launchApp(scenario: "not_allowlisted")
+
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("watch.invalid-mock-badge", in: app).exists)
+    XCTAssertFalse(element("watch.mock-badge", in: app).exists)
+    XCTAssertFalse(element("watch.live-badge", in: app).exists)
+
+    let interaction = app.buttons["watch.interact"]
+    scrollToElement(interaction, in: app)
+    XCTAssertTrue(interaction.exists)
+    XCTAssertFalse(interaction.isEnabled)
+    XCTAssertFalse(app.buttons["watch.connect-health"].exists)
+  }
+
   func testNotificationRouteShowsSafeOptionalAction() {
     let app = launchApp(
       scenario: "recovery_low",

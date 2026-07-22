@@ -52,6 +52,10 @@ struct WatchPresentationModel {
   }
 
   var isLive: Bool { dataMode == .live }
+  var allowsInteraction: Bool {
+    if case .invalidMock = dataMode { return false }
+    return true
+  }
   var unreadMessageCount: Int { messages.filter(\.isUnread).count }
 
   static func initial(arguments: [String] = ProcessInfo.processInfo.arguments) -> Self {

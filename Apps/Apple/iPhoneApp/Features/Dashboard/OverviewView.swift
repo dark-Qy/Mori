@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OverviewView: View {
   @ObservedObject var store: PhoneAppStore
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
   private var model: PhonePresentationModel { store.model }
 
@@ -16,11 +17,7 @@ struct OverviewView: View {
 
         PetOverviewCard(model: model)
 
-        HStack(spacing: CompanionSpacing.small) {
-          ForEach(model.metrics) { metric in
-            MetricTile(metric: metric)
-          }
-        }
+        metricTiles
 
         CompanionCard {
           Label("今日主线", systemImage: "map.fill")
@@ -37,6 +34,8 @@ struct OverviewView: View {
           ProgressView(value: model.questProgress)
             .tint(CompanionPalette.gold)
             .padding(.top, CompanionSpacing.small)
+            .accessibilityLabel("今日主线进度")
+            .accessibilityValue("\(Int(model.questProgress * 100))%")
         }
         .accessibilityIdentifier("phone.today-quest")
 
@@ -79,6 +78,22 @@ struct OverviewView: View {
     .navigationTitle("Mori")
     .accessibilityIdentifier("phone.overview")
   }
+
+  @ViewBuilder private var metricTiles: some View {
+    if dynamicTypeSize.isAccessibilitySize {
+      VStack(spacing: CompanionSpacing.small) {
+        ForEach(model.metrics) { metric in
+          MetricTile(metric: metric)
+        }
+      }
+    } else {
+      HStack(spacing: CompanionSpacing.small) {
+        ForEach(model.metrics) { metric in
+          MetricTile(metric: metric)
+        }
+      }
+    }
+  }
 }
 
 private struct PetOverviewCard: View {
@@ -117,6 +132,8 @@ private struct PetOverviewCard: View {
         .font(.subheadline.weight(.semibold))
         ProgressView(value: Double(model.vitality), total: 100)
           .tint(.white)
+          .accessibilityLabel("生命力")
+          .accessibilityValue("\(model.vitality)/100")
       }
 
       Label(model.syncStatus, systemImage: "applewatch.radiowaves.left.and.right")

@@ -104,7 +104,7 @@ struct WatchRootView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(AdventurePalette.mint)
-        .disabled(store.isCompletingAction || store.actionCompleted)
+        .disabled(store.isCompletingAction || store.actionCompleted || !model.allowsInteraction)
         .accessibilityIdentifier("watch.interact")
       }
     }
@@ -141,6 +141,7 @@ struct WatchRootView: View {
 
 private struct PetHeroCard: View {
   let model: WatchPresentationModel
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
     VStack(spacing: AdventureSpacing.medium) {
@@ -154,7 +155,7 @@ private struct PetHeroCard: View {
         Image(systemName: model.petSymbol)
           .font(.system(size: 34, weight: .semibold))
           .foregroundStyle(AdventurePalette.mint)
-          .symbolEffect(.bounce, value: model.vitality)
+          .symbolEffect(.bounce, value: reduceMotion ? 0 : model.vitality)
         if let accessory = WatchOutfitAccessory.make(for: model.outfitID) {
           Image(systemName: accessory.symbol)
             .font(.system(size: 17, weight: .bold))
@@ -185,6 +186,8 @@ private struct PetHeroCard: View {
         ProgressView(value: Double(model.vitality), total: 100)
           .tint(AdventurePalette.mint)
           .accessibilityIdentifier("watch.vitality-progress")
+          .accessibilityLabel("生命力")
+          .accessibilityValue("\(model.vitality)/100")
       }
     }
     .padding(AdventureSpacing.medium)
@@ -224,31 +227,66 @@ private struct WatchOutfitAccessory {
 
 private struct HealthPillRow: View {
   let metrics: [WatchMetric]
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
   var body: some View {
-    HStack(spacing: 5) {
-      ForEach(metrics) { metric in
-        VStack(spacing: 3) {
-          Image(systemName: metric.symbol)
+    Group {
+      if dynamicTypeSize.isAccessibilitySize {
+        VStack(spacing: 5) {
+          ForEach(metrics) { metric in
+            metricPill(metric, horizontal: true)
+          }
+        }
+      } else {
+        HStack(spacing: 5) {
+          ForEach(metrics) { metric in
+            metricPill(metric, horizontal: false)
+          }
+        }
+      }
+    }
+  }
+
+  @ViewBuilder private func metricPill(_ metric: WatchMetric, horizontal: Bool) -> some View {
+    Group {
+      if horizontal {
+        HStack(spacing: AdventureSpacing.small) {
+          metricIcon(metric)
+          Text(metric.shortTitle)
             .font(.caption2)
-            .foregroundStyle(metric.color)
+            .foregroundStyle(.secondary)
+          Spacer(minLength: 2)
+          Text(metric.shortValue)
+            .font(.caption2.weight(.bold))
+            .monospacedDigit()
+        }
+      } else {
+        VStack(spacing: 3) {
+          metricIcon(metric)
           Text(metric.shortValue)
             .font(.caption2.weight(.bold))
             .monospacedDigit()
           Text(metric.shortTitle)
-            .font(.system(size: 9))
+            .font(.caption2)
             .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(
-          AdventurePalette.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(metric.title)，\(metric.value)")
-        .accessibilityIdentifier("watch.metric.\(metric.id)")
       }
     }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 8)
+    .padding(.horizontal, horizontal ? 8 : 2)
+    .background(
+      AdventurePalette.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+    )
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("\(metric.title)，\(metric.value)")
+    .accessibilityIdentifier("watch.metric.\(metric.id)")
+  }
+
+  private func metricIcon(_ metric: WatchMetric) -> some View {
+    Image(systemName: metric.symbol)
+      .font(.caption2)
+      .foregroundStyle(metric.color)
   }
 }
 
@@ -289,6 +327,8 @@ private struct TodayQuestCard: View {
         HStack(spacing: 6) {
           ProgressView(value: quest.progress)
             .tint(AdventurePalette.gold)
+            .accessibilityLabel("今日主线进度")
+            .accessibilityValue(quest.progressLabel)
           Text(quest.progressLabel)
             .font(.caption2.monospacedDigit())
             .foregroundStyle(.secondary)

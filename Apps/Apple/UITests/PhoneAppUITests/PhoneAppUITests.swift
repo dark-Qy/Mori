@@ -40,6 +40,16 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(app.buttons["phone.connect-health"].exists)
   }
 
+  func testInvalidMockFailsClosedWithoutHealthKitControls() {
+    let app = launchApp(scenario: "not_allowlisted")
+
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("phone.invalid-mock-badge", in: app).exists)
+    XCTAssertFalse(element("phone.mock-badge", in: app).exists)
+    XCTAssertFalse(element("phone.live-badge", in: app).exists)
+    XCTAssertFalse(app.buttons["phone.connect-health"].exists)
+  }
+
   func testNotificationRouteOpensSafeOverviewWithoutSettlingAReward() {
     let app = XCUIApplication()
     app.launchArguments = [

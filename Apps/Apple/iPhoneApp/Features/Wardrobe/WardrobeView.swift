@@ -3,6 +3,7 @@ import SwiftUI
 
 struct WardrobeView: View {
   @ObservedObject var store: PhoneAppStore
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
   private let items = WardrobeItem.samples
   private var model: PhonePresentationModel { store.model }
@@ -48,7 +49,7 @@ struct WardrobeView: View {
           .font(.headline)
 
         LazyVGrid(
-          columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: CompanionSpacing.medium
+          columns: wardrobeColumns, spacing: CompanionSpacing.medium
         ) {
           ForEach(items) { item in
             Button {
@@ -93,6 +94,13 @@ struct WardrobeView: View {
     }
     .navigationTitle("衣橱")
     .accessibilityIdentifier("phone.wardrobe")
+  }
+
+  private var wardrobeColumns: [GridItem] {
+    if dynamicTypeSize.isAccessibilitySize {
+      return [GridItem(.flexible())]
+    }
+    return [GridItem(.flexible()), GridItem(.flexible())]
   }
 }
 

@@ -1,14 +1,57 @@
 import SwiftUI
+import UIKit
 
 enum CompanionPalette {
-  static let ink = Color(red: 0.08, green: 0.12, blue: 0.15)
-  static let background = Color(red: 0.95, green: 0.97, blue: 0.96)
-  static let surface = Color.white
-  static let mint = Color(red: 0.10, green: 0.63, blue: 0.45)
-  static let mintSoft = Color(red: 0.86, green: 0.96, blue: 0.91)
-  static let blue = Color(red: 0.20, green: 0.50, blue: 0.90)
-  static let gold = Color(red: 0.88, green: 0.56, blue: 0.10)
-  static let rose = Color(red: 0.88, green: 0.28, blue: 0.42)
+  static let ink = Color(uiColor: .label)
+  static let background = Color(uiColor: .systemGroupedBackground)
+  static let surface = Color(uiColor: .secondarySystemGroupedBackground)
+  static let mint = adaptive(
+    light: UIColor(red: 0.00, green: 0.38, blue: 0.26, alpha: 1),
+    dark: UIColor(red: 0.36, green: 0.95, blue: 0.70, alpha: 1),
+    highContrastLight: UIColor(red: 0.00, green: 0.28, blue: 0.19, alpha: 1),
+    highContrastDark: UIColor(red: 0.55, green: 1.00, blue: 0.80, alpha: 1)
+  )
+  static let mintSoft = adaptive(
+    light: UIColor(red: 0.85, green: 0.95, blue: 0.90, alpha: 1),
+    dark: UIColor(red: 0.08, green: 0.24, blue: 0.18, alpha: 1),
+    highContrastLight: UIColor(red: 0.78, green: 0.92, blue: 0.85, alpha: 1),
+    highContrastDark: UIColor(red: 0.05, green: 0.30, blue: 0.21, alpha: 1)
+  )
+  static let blue = adaptive(
+    light: UIColor(red: 0.00, green: 0.32, blue: 0.70, alpha: 1),
+    dark: UIColor(red: 0.42, green: 0.72, blue: 1.00, alpha: 1),
+    highContrastLight: UIColor(red: 0.00, green: 0.22, blue: 0.58, alpha: 1),
+    highContrastDark: UIColor(red: 0.60, green: 0.82, blue: 1.00, alpha: 1)
+  )
+  static let gold = adaptive(
+    light: UIColor(red: 0.50, green: 0.28, blue: 0.00, alpha: 1),
+    dark: UIColor(red: 1.00, green: 0.76, blue: 0.34, alpha: 1),
+    highContrastLight: UIColor(red: 0.38, green: 0.19, blue: 0.00, alpha: 1),
+    highContrastDark: UIColor(red: 1.00, green: 0.86, blue: 0.58, alpha: 1)
+  )
+  static let rose = adaptive(
+    light: UIColor(red: 0.68, green: 0.08, blue: 0.25, alpha: 1),
+    dark: UIColor(red: 1.00, green: 0.48, blue: 0.61, alpha: 1),
+    highContrastLight: UIColor(red: 0.52, green: 0.02, blue: 0.17, alpha: 1),
+    highContrastDark: UIColor(red: 1.00, green: 0.66, blue: 0.74, alpha: 1)
+  )
+
+  private static func adaptive(
+    light: UIColor,
+    dark: UIColor,
+    highContrastLight: UIColor,
+    highContrastDark: UIColor
+  ) -> Color {
+    Color(
+      uiColor: UIColor { traits in
+        switch (traits.userInterfaceStyle, traits.accessibilityContrast) {
+        case (.dark, .high): highContrastDark
+        case (.dark, _): dark
+        case (_, .high): highContrastLight
+        default: light
+        }
+      })
+  }
 }
 
 enum CompanionSpacing {
@@ -36,7 +79,7 @@ struct CompanionCard<Content: View>: View {
       )
       .overlay {
         RoundedRectangle(cornerRadius: CompanionRadius.card, style: .continuous)
-          .stroke(Color.black.opacity(0.045), lineWidth: 1)
+          .stroke(Color.primary.opacity(0.08), lineWidth: 1)
       }
   }
 }

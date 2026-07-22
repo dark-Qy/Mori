@@ -29,9 +29,9 @@ struct TrendView: View {
           AdventureCard {
             VStack(alignment: .leading, spacing: AdventureSpacing.small) {
               HStack {
-                Label("恢复", systemImage: "circle.fill")
+                Label("恢复", systemImage: "moon.fill")
                   .foregroundStyle(AdventurePalette.blue)
-                Label("活动", systemImage: "circle.fill")
+                Label("活动", systemImage: "figure.walk")
                   .foregroundStyle(AdventurePalette.mint)
               }
               .font(.caption2.weight(.semibold))
@@ -40,11 +40,11 @@ struct TrendView: View {
                 ForEach(model.trends) { day in
                   VStack(spacing: 4) {
                     HStack(alignment: .bottom, spacing: 2) {
-                      trendBar(day.recovery, color: AdventurePalette.blue)
-                      trendBar(day.activity, color: AdventurePalette.mint)
+                      trendBar(day.recovery, color: AdventurePalette.blue, style: .recovery)
+                      trendBar(day.activity, color: AdventurePalette.mint, style: .activity)
                     }
                     Text(day.weekday)
-                      .font(.system(size: 9, weight: .medium))
+                      .font(.caption2.weight(.medium))
                       .foregroundStyle(.secondary)
                   }
                   .frame(maxWidth: .infinity)
@@ -77,16 +77,24 @@ struct TrendView: View {
     .accessibilityIdentifier("watch.trends")
   }
 
-  private func trendBar(_ value: Double?, color: Color) -> some View {
+  private enum BarStyle {
+    case recovery
+    case activity
+
+    var width: CGFloat { self == .recovery ? 4 : 7 }
+    var cornerRadius: CGFloat { self == .recovery ? 3 : 1 }
+  }
+
+  private func trendBar(_ value: Double?, color: Color, style: BarStyle) -> some View {
     Group {
       if let value {
-        Capsule()
+        RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
           .fill(color)
-          .frame(width: 5, height: max(8, value * 68))
+          .frame(width: style.width, height: max(8, value * 68))
       } else {
-        Capsule()
+        RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
           .stroke(color.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [2]))
-          .frame(width: 5, height: 8)
+          .frame(width: style.width, height: 8)
       }
     }
   }

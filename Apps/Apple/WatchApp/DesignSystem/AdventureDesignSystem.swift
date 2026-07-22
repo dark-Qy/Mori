@@ -40,7 +40,7 @@ struct MockBadge: View {
 
   var body: some View {
     Label("Mock · \(scenarioName)", systemImage: "testtube.2")
-      .font(.system(size: 9, weight: .bold, design: .rounded))
+      .font(.caption2.weight(.bold))
       .foregroundStyle(AdventurePalette.blue)
       .padding(.horizontal, 7)
       .padding(.vertical, 4)
@@ -56,7 +56,7 @@ struct WatchDataBadge: View {
   var body: some View {
     if case .invalidMock(let value) = model.dataMode {
       Label("Mock 无效", systemImage: "exclamationmark.triangle.fill")
-        .font(.system(size: 9, weight: .bold, design: .rounded))
+        .font(.caption2.weight(.bold))
         .foregroundStyle(AdventurePalette.rose)
         .accessibilityLabel("Mock 场景无效，\(value)")
         .accessibilityIdentifier("watch.invalid-mock-badge")
@@ -64,7 +64,7 @@ struct WatchDataBadge: View {
       MockBadge(scenarioName: scenario.displayName)
     } else {
       Label("HealthKit", systemImage: "heart.fill")
-        .font(.system(size: 9, weight: .bold, design: .rounded))
+        .font(.caption2.weight(.bold))
         .foregroundStyle(AdventurePalette.mint)
         .padding(.horizontal, 7)
         .padding(.vertical, 4)
