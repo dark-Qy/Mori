@@ -71,6 +71,9 @@ if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     if [[ "$relative_path" == "Scripts/check" ]]; then
       continue
     fi
+    if [[ ! -f "$REPO_ROOT/$relative_path" ]]; then
+      continue
+    fi
     if grep -I -nE "$credential_pattern" "$REPO_ROOT/$relative_path"; then
       credential_found=true
     fi
