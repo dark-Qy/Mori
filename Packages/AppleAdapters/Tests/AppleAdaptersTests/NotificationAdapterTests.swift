@@ -72,6 +72,34 @@ struct NotificationAdapterTests {
     #expect(await client.pending.count == 1)
   }
 
+  @Test func cooldownSurvivesClientRecreation() async throws {
+    let cooldownStore = InMemoryNotificationCooldownStore()
+    let first = MockLocalNotificationClient(
+      state: .authorized,
+      calendar: utcCalendar,
+      cooldownStore: cooldownStore
+    )
+    #expect(
+      try await first.schedule(
+        notification(id: "first", offset: 0),
+        policy: NotificationPolicy(minimumCooldown: 60)
+      ) == .allow
+    )
+
+    let relaunched = MockLocalNotificationClient(
+      state: .authorized,
+      calendar: utcCalendar,
+      cooldownStore: cooldownStore
+    )
+    #expect(
+      try await relaunched.schedule(
+        notification(id: "after-relaunch", offset: 10),
+        policy: NotificationPolicy(minimumCooldown: 60)
+      ) == .suppressCooldown(remainingSeconds: 50)
+    )
+    #expect(await relaunched.pending.isEmpty)
+  }
+
   @Test func deepLinkRoundTripsAndCancelWorks() async throws {
     let client = MockLocalNotificationClient(state: .authorized, calendar: utcCalendar)
     let value = notification(id: "route", offset: 0)

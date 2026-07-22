@@ -5,14 +5,17 @@
   public actor AppleLocalNotificationClient: LocalNotificationClient {
     private let center: UNUserNotificationCenter
     private let evaluator: NotificationPolicyEvaluator
+    private let cooldownStore: any NotificationCooldownStore
     private var lastScheduledDate: Date?
 
     public init(
       center: UNUserNotificationCenter = .current(),
-      calendar: Calendar = .current
+      calendar: Calendar = .current,
+      cooldownStore: any NotificationCooldownStore = UserDefaultsNotificationCooldownStore()
     ) {
       self.center = center
       evaluator = NotificationPolicyEvaluator(calendar: calendar)
+      self.cooldownStore = cooldownStore
     }
 
     public func permissionState() async -> NotificationPermissionState {
@@ -39,9 +42,11 @@
       guard state == .authorized || state == .provisional || state == .ephemeral else {
         throw NotificationAdapterError.permissionDenied
       }
+      let persistedDate = await cooldownStore.load()
+      let effectiveLastDate = [lastScheduledDate, persistedDate].compactMap { $0 }.max()
       let decision = evaluator.evaluate(
         fireDate: notification.fireDate,
-        lastScheduledDate: lastScheduledDate,
+        lastScheduledDate: effectiveLastDate,
         policy: policy
       )
       guard decision == .allow else { return decision }
@@ -58,13 +63,17 @@
       }
       let interval = max(1, notification.fireDate.timeIntervalSinceNow)
       let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+      lastScheduledDate = notification.fireDate
       do {
         try await center.add(
           UNNotificationRequest(identifier: notification.id, content: content, trigger: trigger)
         )
-        lastScheduledDate = notification.fireDate
+        await cooldownStore.save(notification.fireDate)
         return .allow
       } catch {
+        if lastScheduledDate == notification.fireDate {
+          lastScheduledDate = effectiveLastDate
+        }
         throw NotificationAdapterError.schedulingFailed(error.localizedDescription)
       }
     }
@@ -76,6 +85,7 @@
     public func cancelAll() async {
       center.removeAllPendingNotificationRequests()
       lastScheduledDate = nil
+      await cooldownStore.save(nil)
     }
 
     private static func map(_ status: UNAuthorizationStatus) -> NotificationPermissionState {
