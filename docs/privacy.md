@@ -16,6 +16,11 @@ This document is an engineering policy, not the final public privacy policy. Sto
 6. **Neutral absence:** never infer denial or poor health from missing data.
 7. **No secret clients:** third-party provider credentials stay server-side.
 
+Notification consent is also fail-closed. The proactive-message preference defaults off, stores a
+separate consent version when explicitly enabled, and treats older implicit opt-ins as disabled.
+Turning it off cancels pending Mori check-ins. A notification tap may navigate to an optional
+in-app action, but cannot settle a task or reward.
+
 ## Data categories
 
 | Category | Examples | Default location | Remote use |

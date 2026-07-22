@@ -5,6 +5,14 @@ import Testing
 
 @Suite("Local notification adapter contract")
 struct NotificationAdapterTests {
+  @Test func responseParserRejectsMissingRouteAndPreservesParameters() {
+    #expect(NotificationResponseParser.deepLink(from: [:]) == nil)
+    #expect(
+      NotificationResponseParser.deepLink(
+        from: ["route": "pet/recovery", "parameters": ["source": "local"]]
+      ) == NotificationDeepLink(route: "pet/recovery", parameters: ["source": "local"])
+    )
+  }
   private var utcCalendar: Calendar {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!

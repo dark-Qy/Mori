@@ -11,6 +11,10 @@ Mocks make deterministic development possible when HealthKit history, physical h
 - Debug diagnostics identify the fixture and random seed.
 - Release builds do not expose fixture selection or silently substitute synthetic health data.
 - If production data is unavailable, production UI uses a neutral no-data state rather than a fake successful state.
+- An unknown Mock scenario fails closed into a labeled neutral error state and never falls back to
+  live HealthKit or other Apple capabilities.
+- Mock application stores use in-memory presentation state only; changing a Mock wardrobe or
+  privacy control must not mutate live UserDefaults, notifications, files, or WatchConnectivity.
 
 ## Fixture format
 

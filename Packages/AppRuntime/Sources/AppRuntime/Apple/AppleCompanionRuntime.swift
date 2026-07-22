@@ -3,12 +3,20 @@
   import Domain
   import Foundation
   import Persistence
+  import Rules
 
   public enum RuntimeSyncStatus: Equatable, Sendable {
     case synced
     case waitingForPeer
     case unavailable(reason: String)
     case failed(reason: String)
+  }
+
+  public enum RuntimeNotificationPermissionStatus: Equatable, Sendable {
+    case notRequested
+    case allowed
+    case denied
+    case unavailable
   }
 
   public struct RuntimeHealthRefresh: Sendable {
@@ -67,6 +75,15 @@
       try await events.currentState()
     }
 
+    public func personalHealthTrend(at date: Date = Date()) async throws -> PersonalHealthTrend {
+      let snapshots: [Domain.HealthSnapshot] = try await events.currentEvents().compactMap {
+        event -> Domain.HealthSnapshot? in
+        guard case .healthSnapshotReceived(let snapshot) = event.payload else { return nil }
+        return snapshot
+      }
+      return PersonalTrendAnalyzer().analyze(snapshots, at: date)
+    }
+
     public func refreshHealth(
       now: Date = Date(),
       calendar: Calendar = .current,
@@ -119,6 +136,8 @@
 
     public func savePreferences(_ value: AppPreferences) async throws {
       try await preferences.save(value)
+      let state = try await events.currentState()
+      _ = await sendDerivedState(state, at: Date())
     }
 
     public func notificationPermissionState() async -> NotificationPermissionState {
@@ -129,9 +148,57 @@
       await notifications.requestPermission()
     }
 
+    public func notificationPermissionStatus() async -> RuntimeNotificationPermissionStatus {
+      Self.mapNotificationPermission(await notificationPermissionState())
+    }
+
+    public func requestNotificationPermissionStatus() async -> RuntimeNotificationPermissionStatus {
+      Self.mapNotificationPermission(await requestNotificationPermission())
+    }
+
+    public func cancelProactiveNotifications() async {
+      await notifications.cancel(id: "pet.recovery.check-in")
+      await notifications.cancel(id: "pet.activity.check-in")
+    }
+
     public func latestPeerState() async -> CompanionSyncState? {
       _ = await connectivity.activate()
       return await connectivity.latestReceivedState()
+    }
+
+    public func latestPeerValues() async -> [String: String]? {
+      await latestPeerState()?.values
+    }
+
+    public func peerValueUpdates() async -> AsyncStream<[String: String]> {
+      let states = await connectivity.receivedStates()
+      return AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
+        let task = Task {
+          for await state in states {
+            guard !Task.isCancelled else { break }
+            continuation.yield(state.values)
+          }
+          continuation.finish()
+        }
+        continuation.onTermination = { _ in task.cancel() }
+      }
+    }
+
+    public func applyPeerPreferences(_ values: [String: String]) async throws {
+      var current = try await preferences.load()
+      if let enabled = values["proactiveMessagesEnabled"].flatMap(Bool.init) {
+        current.proactiveMessagesEnabled = enabled
+      }
+      if let consentVersion = values["proactiveNotificationConsentVersion"].flatMap(Int.init) {
+        current.proactiveNotificationConsentVersion = consentVersion
+      }
+      if let quietStart = values["quietHoursStartMinute"].flatMap(Int.init) {
+        current.quietHoursStartMinute = max(0, min(1_439, quietStart))
+      }
+      if let quietEnd = values["quietHoursEndMinute"].flatMap(Int.init) {
+        current.quietHoursEndMinute = max(0, min(1_439, quietEnd))
+      }
+      try await preferences.save(current)
     }
 
     private func scheduleProactiveIfAllowed(
@@ -141,6 +208,8 @@
       guard
         let saved = try? await preferences.load(),
         saved.proactiveMessagesEnabled,
+        saved.proactiveNotificationConsentVersion
+          >= AppPreferences.currentNotificationConsentVersion,
         let interaction = ProactiveInteractionPlanner().plan(for: state, now: now)
       else { return nil }
       let permission = await notifications.permissionState()
@@ -158,6 +227,17 @@
       )
     }
 
+    private static func mapNotificationPermission(
+      _ status: NotificationPermissionState
+    ) -> RuntimeNotificationPermissionStatus {
+      switch status {
+      case .notRequested: .notRequested
+      case .authorized, .provisional, .ephemeral: .allowed
+      case .denied: .denied
+      case .unavailable: .unavailable
+      }
+    }
+
     private func sendDerivedState(_ state: CompanionState, at date: Date) async
       -> RuntimeSyncStatus
     {
@@ -173,6 +253,11 @@
 
       let clockRevision = UInt64(max(0, date.timeIntervalSince1970 * 1_000))
       let revision = max(lastSyncRevision &+ 1, clockRevision)
+      let selectedOutfitID =
+        (try? await preferences.load().selectedOutfitID)
+        ?? state.pet.equippedOutfitID
+        ?? "default"
+      let savedPreferences = try? await preferences.load()
       do {
         try await connectivity.send(
           CompanionSyncState(
@@ -184,7 +269,14 @@
               "theme": state.activeTheme.rawValue,
               "vitality": String(state.growth.vitality),
               "chapter": String(state.story.mainlineChapter),
-              "outfit": state.pet.equippedOutfitID ?? "default",
+              "outfit": selectedOutfitID,
+              "proactiveMessagesEnabled": String(
+                savedPreferences?.proactiveMessagesEnabled ?? false),
+              "proactiveNotificationConsentVersion": String(
+                savedPreferences?.proactiveNotificationConsentVersion ?? 0),
+              "quietHoursStartMinute": String(
+                savedPreferences?.quietHoursStartMinute ?? 1_320),
+              "quietHoursEndMinute": String(savedPreferences?.quietHoursEndMinute ?? 420),
             ]
           )
         )

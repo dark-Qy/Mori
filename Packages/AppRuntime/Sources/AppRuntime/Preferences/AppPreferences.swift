@@ -8,9 +8,11 @@ public enum HealthSharingScope: String, Codable, CaseIterable, Sendable {
 
 public struct AppPreferences: Codable, Equatable, Sendable {
   public static let currentSchemaVersion = 1
+  public static let currentNotificationConsentVersion = 1
 
   public var schemaVersion: Int
   public var proactiveMessagesEnabled: Bool
+  public var proactiveNotificationConsentVersion: Int
   public var socialSharingEnabled: Bool
   public var healthSharingScope: HealthSharingScope
   public var selectedOutfitID: String
@@ -19,7 +21,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
 
   public init(
     schemaVersion: Int = AppPreferences.currentSchemaVersion,
-    proactiveMessagesEnabled: Bool = true,
+    proactiveMessagesEnabled: Bool = false,
+    proactiveNotificationConsentVersion: Int? = nil,
     socialSharingEnabled: Bool = false,
     healthSharingScope: HealthSharingScope = .careSummary,
     selectedOutfitID: String = "default",
@@ -28,11 +31,65 @@ public struct AppPreferences: Codable, Equatable, Sendable {
   ) {
     self.schemaVersion = schemaVersion
     self.proactiveMessagesEnabled = proactiveMessagesEnabled
+    self.proactiveNotificationConsentVersion =
+      proactiveNotificationConsentVersion
+      ?? (proactiveMessagesEnabled ? Self.currentNotificationConsentVersion : 0)
     self.socialSharingEnabled = socialSharingEnabled
     self.healthSharingScope = healthSharingScope
     self.selectedOutfitID = selectedOutfitID
     self.quietHoursStartMinute = max(0, min(1_439, quietHoursStartMinute))
     self.quietHoursEndMinute = max(0, min(1_439, quietHoursEndMinute))
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case schemaVersion
+    case proactiveMessagesEnabled
+    case proactiveNotificationConsentVersion
+    case socialSharingEnabled
+    case healthSharingScope
+    case selectedOutfitID
+    case quietHoursStartMinute
+    case quietHoursEndMinute
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+    let consentVersion =
+      try container.decodeIfPresent(
+        Int.self,
+        forKey: .proactiveNotificationConsentVersion
+      ) ?? 0
+    proactiveNotificationConsentVersion = consentVersion
+    let storedProactive =
+      try container.decodeIfPresent(
+        Bool.self,
+        forKey: .proactiveMessagesEnabled
+      ) ?? false
+    proactiveMessagesEnabled =
+      storedProactive
+      && consentVersion >= Self.currentNotificationConsentVersion
+    socialSharingEnabled =
+      try container.decodeIfPresent(
+        Bool.self,
+        forKey: .socialSharingEnabled
+      ) ?? false
+    healthSharingScope =
+      try container.decodeIfPresent(
+        HealthSharingScope.self,
+        forKey: .healthSharingScope
+      ) ?? .careSummary
+    selectedOutfitID =
+      try container.decodeIfPresent(String.self, forKey: .selectedOutfitID)
+      ?? "default"
+    quietHoursStartMinute = max(
+      0,
+      min(1_439, try container.decodeIfPresent(Int.self, forKey: .quietHoursStartMinute) ?? 1_320)
+    )
+    quietHoursEndMinute = max(
+      0,
+      min(1_439, try container.decodeIfPresent(Int.self, forKey: .quietHoursEndMinute) ?? 420)
+    )
   }
 }
 

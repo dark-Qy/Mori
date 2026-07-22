@@ -3,6 +3,7 @@ import Foundation
 public actor MockCompanionStateSyncClient: CompanionStateSyncClient {
   private var state: ConnectivityActivationState
   private var latest: CompanionSyncState?
+  private var observers: [UUID: AsyncStream<CompanionSyncState>.Continuation] = [:]
   public private(set) var sentStates: [CompanionSyncState] = []
   public private(set) var activationCount = 0
 
@@ -38,8 +39,26 @@ public actor MockCompanionStateSyncClient: CompanionStateSyncClient {
 
   public func latestReceivedState() -> CompanionSyncState? { latest }
 
+  public func receivedStates() -> AsyncStream<CompanionSyncState> {
+    let observerID = UUID()
+    return AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
+      observers[observerID] = continuation
+      if let latest { continuation.yield(latest) }
+      continuation.onTermination = { [weak self] _ in
+        Task { await self?.removeObserver(observerID) }
+      }
+    }
+  }
+
   public func receive(_ newState: CompanionSyncState) {
     guard latest.map({ newState.revision > $0.revision }) ?? true else { return }
     latest = newState
+    for observer in observers.values {
+      observer.yield(newState)
+    }
+  }
+
+  private func removeObserver(_ id: UUID) {
+    observers[id] = nil
   }
 }

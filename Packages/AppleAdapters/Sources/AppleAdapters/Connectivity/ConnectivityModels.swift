@@ -23,6 +23,7 @@ public protocol CompanionStateSyncClient: Sendable {
   func activate() async -> ConnectivityActivationState
   func send(_ state: CompanionSyncState) async throws
   func latestReceivedState() async -> CompanionSyncState?
+  func receivedStates() async -> AsyncStream<CompanionSyncState>
 }
 
 public enum ConnectivityAdapterError: Error, Equatable, Sendable {

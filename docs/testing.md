@@ -58,6 +58,9 @@ Use launch arguments and synthetic fixture IDs. Test both Watch and iPhone surfa
 - habit completion and state persistence;
 - soccer side-story eligibility;
 - notification deep link without double settlement;
+- unknown Mock scenario fails closed without constructing Apple capabilities;
+- notification-consent migration disables legacy implicit opt-in;
+- WatchConnectivity activation waits for its callback and incoming revisions stream in order;
 - iPhone wardrobe preview, equip, reset, offline queue, and Watch reconciliation;
 - AI unavailable and invalid response fallback;
 - process termination and relaunch;

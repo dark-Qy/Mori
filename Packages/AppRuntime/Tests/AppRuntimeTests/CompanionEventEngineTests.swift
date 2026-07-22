@@ -25,6 +25,7 @@ struct CompanionEventEngineTests {
 
     #expect(updated == replayed)
     #expect(replayed.pet.lastInteractionAt == now)
+    #expect(try await second.currentEvents() == [event])
   }
 
   @Test("Duplicate event identities stay idempotent")

@@ -26,6 +26,10 @@ public actor CompanionEventEngine<Storage: EventLedgerStorage> {
     return state
   }
 
+  public func currentEvents() async throws -> [EventEnvelope] {
+    try await repository.currentLedger().events
+  }
+
   @discardableResult
   public func append(_ event: EventEnvelope) async throws -> CompanionState {
     let ledger = try await repository.append(event)

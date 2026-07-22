@@ -4,13 +4,35 @@ import Testing
 
 @Suite("Application preferences")
 struct PreferencesRuntimeTests {
-  @Test("Sharing starts disabled while care summary is the selected future scope")
+  @Test("Consent-gated features start disabled while care summary is the future scope")
   func privacyDefaults() {
     let value = AppPreferences()
 
     #expect(!value.socialSharingEnabled)
     #expect(value.healthSharingScope == .careSummary)
-    #expect(value.proactiveMessagesEnabled)
+    #expect(!value.proactiveMessagesEnabled)
+    #expect(value.proactiveNotificationConsentVersion == 0)
+  }
+
+  @Test("Legacy implicit notification opt-in migrates to disabled")
+  func legacyNotificationConsentFailsClosed() throws {
+    let legacy = Data(
+      """
+      {
+        "schemaVersion": 1,
+        "proactiveMessagesEnabled": true,
+        "socialSharingEnabled": false,
+        "healthSharingScope": "careSummary",
+        "selectedOutfitID": "default",
+        "quietHoursStartMinute": 1320,
+        "quietHoursEndMinute": 420
+      }
+      """.utf8
+    )
+
+    let decoded = try JSONDecoder().decode(AppPreferences.self, from: legacy)
+    #expect(!decoded.proactiveMessagesEnabled)
+    #expect(decoded.proactiveNotificationConsentVersion == 0)
   }
 
   @Test("Preferences persist across repository instances")

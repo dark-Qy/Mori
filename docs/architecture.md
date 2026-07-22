@@ -123,6 +123,25 @@ The Watch owns moment-to-moment pet actions and queues events while disconnected
 - Privacy always resolves to the most restrictive valid state when information is incomplete.
 - Deletion and friendship removal are high-priority tombstone events.
 
+The current Phase 1 adapter uses WatchConnectivity application context for latest-value
+management state. It waits for session activation, emits incoming revisions as a stream, rejects
+stale revisions, and keeps Watch-local health and growth authoritative while accepting iPhone
+cosmetic and notification preferences. Full event-queue reconciliation and tombstones remain a
+later milestone and must not be claimed as shipped behavior.
+
+## Apple capability lifecycle
+
+- HealthKit request state is reconstructed with the system authorization-request status after
+  relaunch. This means only that the request sheet has been handled; it never claims a particular
+  read permission was granted.
+- Notification consent is versioned separately from the preference schema. Legacy implicit opt-in
+  fails closed, disabling the preference until a user explicitly enables it.
+- Disabling proactive messages cancels the app's pending Mori check-ins. Notification responses
+  are parsed at the adapter boundary and routed to a non-settling in-app action; opening a message
+  never awards progress by itself.
+- Mock and invalid-Mock modes do not construct the HealthKit, notification, persistence, or
+  WatchConnectivity runtime.
+
 ## Capability degradation
 
 | Capability unavailable | Required behavior |

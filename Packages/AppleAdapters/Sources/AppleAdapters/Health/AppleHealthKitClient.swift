@@ -4,32 +4,45 @@
 
   public actor AppleHealthKitClient: HealthDataClient {
     private let store: HKHealthStore
-    private var requestState: HealthAccessRequestState = .notRequested
 
     public init() { store = HKHealthStore() }
 
-    public func accessRequestState() -> HealthAccessRequestState {
+    public func accessRequestState() async -> HealthAccessRequestState {
       guard HKHealthStore.isHealthDataAvailable() else {
         return .unavailable(reason: "Health data is unavailable on this device")
       }
-      return requestState
+      do {
+        let status = try await store.statusForAuthorizationRequest(
+          toShare: [],
+          read: Self.readTypes
+        )
+        // This reports whether the authorization sheet still needs to be shown. It deliberately
+        // does not claim that any individual read type was granted.
+        return switch status {
+        case .shouldRequest, .unknown: .notRequested
+        case .unnecessary: .requestCompleted
+        @unknown default: .notRequested
+        }
+      } catch {
+        return .unavailable(reason: error.localizedDescription)
+      }
     }
 
     public func requestAccess() async -> HealthAccessRequestState {
       guard HKHealthStore.isHealthDataAvailable() else {
         return .unavailable(reason: "Health data is unavailable on this device")
       }
-      guard requestState == .notRequested else { return requestState }
+      let current = await accessRequestState()
+      guard current == .notRequested else { return current }
 
       let readTypes = Self.readTypes
       do {
         try await store.requestAuthorization(toShare: [], read: readTypes)
         // Success only means the request flow completed. It does not reveal per-type read grants.
-        requestState = .requestCompleted
+        return .requestCompleted
       } catch {
-        requestState = .unavailable(reason: error.localizedDescription)
+        return .unavailable(reason: error.localizedDescription)
       }
-      return requestState
     }
 
     public func fetchSnapshot(in window: HealthQueryWindow) async throws -> HealthSnapshot {

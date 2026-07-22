@@ -31,6 +31,18 @@ struct ConnectivityAdapterTests {
     #expect(await client.latestReceivedState()?.revision == 5)
   }
 
+  @Test func receivedStateStreamPublishesOnlyNewerValues() async throws {
+    let client = MockCompanionStateSyncClient(state: .activated)
+    let stream = await client.receivedStates()
+    var iterator = stream.makeAsyncIterator()
+
+    await client.receive(syncState(revision: 2))
+    #expect(await iterator.next()?.revision == 2)
+    await client.receive(syncState(revision: 1))
+    await client.receive(syncState(revision: 3))
+    #expect(await iterator.next()?.revision == 3)
+  }
+
   @Test func sendBeforeActivationFails() async {
     let client = MockCompanionStateSyncClient()
     await #expect(throws: ConnectivityAdapterError.unavailable("Connectivity is not activated")) {
