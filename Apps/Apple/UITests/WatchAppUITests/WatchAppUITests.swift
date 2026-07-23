@@ -158,15 +158,20 @@ final class WatchAppUITests: XCTestCase {
     let storyButton = app.buttons["watch.advance-story"]
     scrollToElement(storyButton, in: app)
     storyButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    let storyStatus = element("watch.status-message", in: app)
+    scrollToElement(storyStatus, in: app)
     XCTAssertTrue(
-      app.staticTexts["今日主线已推进，获得 10 点世界经验"].waitForExistence(timeout: 5)
+      waitForLabel("今日主线已推进，获得 10 点世界经验", on: storyStatus, timeout: 5)
     )
 
     let habitButton = app.buttons["watch.interact"]
     scrollToElement(habitButton, in: app)
+    XCTAssertTrue(habitButton.isEnabled)
     habitButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    let habitStatus = element("watch.status-message", in: app)
+    scrollToElement(habitStatus, in: app)
     XCTAssertTrue(
-      app.staticTexts["今天的小行动已记下；奖励只结算一次"].waitForExistence(timeout: 5)
+      waitForLabel("今天的小行动已记下；奖励只结算一次", on: habitStatus, timeout: 5)
     )
   }
 
@@ -184,15 +189,20 @@ final class WatchAppUITests: XCTestCase {
     scrollToElement(storyButton, in: app)
     XCTAssertTrue(storyButton.exists)
     storyButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    let storyStatus = element("watch.status-message", in: app)
+    scrollToElement(storyStatus, in: app)
     XCTAssertTrue(
-      app.staticTexts["今日主线已推进，获得 10 点世界经验"].waitForExistence(timeout: 5))
+      waitForLabel("今日主线已推进，获得 10 点世界经验", on: storyStatus, timeout: 5))
 
     let habitButton = app.buttons["watch.interact"]
     scrollToElement(habitButton, in: app)
     XCTAssertTrue(habitButton.exists)
+    XCTAssertTrue(habitButton.isEnabled)
     habitButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    let habitStatus = element("watch.status-message", in: app)
+    scrollToElement(habitStatus, in: app)
     XCTAssertTrue(
-      app.staticTexts["今天的小行动已记下；奖励只结算一次"].waitForExistence(timeout: 5))
+      waitForLabel("今天的小行动已记下；奖励只结算一次", on: habitStatus, timeout: 5))
     app.terminate()
 
     let relaunched = launchLiveApp(storageID: storageID, reset: false)
@@ -201,8 +211,10 @@ final class WatchAppUITests: XCTestCase {
     let repeatedStoryButton = relaunched.buttons["watch.advance-story"]
     scrollToElement(repeatedStoryButton, in: relaunched)
     repeatedStoryButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    let repeatedStoryStatus = element("watch.status-message", in: relaunched)
+    scrollToElement(repeatedStoryStatus, in: relaunched)
     XCTAssertTrue(
-      relaunched.staticTexts["今天的主线已经完成，明天继续"].waitForExistence(timeout: 5))
+      waitForLabel("今天的主线已经完成，明天继续", on: repeatedStoryStatus, timeout: 5))
 
     let repeatedHabitButton = relaunched.buttons["watch.interact"]
     scrollToElement(repeatedHabitButton, in: relaunched)
@@ -222,7 +234,8 @@ final class WatchAppUITests: XCTestCase {
     ] {
       let button = app.buttons[buttonID]
       scrollToElement(button, in: app)
-      button.tap()
+      XCTAssertTrue(button.exists)
+      button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
       XCTAssertTrue(element(screenID, in: app).waitForExistence(timeout: 5))
       try auditCurrentScreen(app)
       app.navigationBars.buttons.firstMatch.tap()
@@ -260,21 +273,47 @@ final class WatchAppUITests: XCTestCase {
   private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication) {
     let scrollView = app.scrollViews.firstMatch
 
-    for _ in 0..<8 {
+    for _ in 0..<12 {
       let scrollSurface = scrollView.exists ? scrollView : app
-      let visibleFrame = scrollSurface.frame.insetBy(dx: 0, dy: 8)
-      if element.exists,
-        element.frame.minY >= visibleFrame.minY,
-        element.frame.maxY <= visibleFrame.maxY
-      {
-        return
-      }
-      if element.exists && element.frame.maxY < visibleFrame.minY {
-        scrollSurface.swipeDown()
+      var visibleFrame = scrollSurface.frame.insetBy(dx: 0, dy: 8)
+      // On 40 mm watches, an element can be geometrically visible while its center remains
+      // inside the system-owned status region. Keep synthesized taps below that boundary.
+      visibleFrame.origin.y += 42
+      visibleFrame.size.height -= 42
+
+      if element.exists {
+        let elementCenter = CGPoint(x: element.frame.midX, y: element.frame.midY)
+        if visibleFrame.contains(elementCenter) {
+          return
+        }
+
+        if elementCenter.y < visibleFrame.minY - scrollSurface.frame.height {
+          scrollSurface.swipeDown()
+        } else if elementCenter.y > visibleFrame.maxY + scrollSurface.frame.height {
+          scrollSurface.swipeUp()
+        } else if elementCenter.y < visibleFrame.minY {
+          rotateDigitalCrown(delta: -0.3)
+        } else {
+          rotateDigitalCrown(delta: 0.3)
+        }
       } else {
-        scrollSurface.swipeUp()
+        rotateDigitalCrown(delta: 0.3)
       }
     }
+  }
+
+  private func rotateDigitalCrown(delta: CGFloat) {
+    XCUIDevice.shared.rotateDigitalCrown(delta: delta, velocity: 0.5)
+  }
+
+  private func waitForLabel(
+    _ expectedLabel: String,
+    on element: XCUIElement,
+    timeout: TimeInterval
+  ) -> Bool {
+    let predicate = NSPredicate(format: "label == %@", expectedLabel)
+    let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
   private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {

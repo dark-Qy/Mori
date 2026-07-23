@@ -53,6 +53,21 @@ PY
   rm -f "$devices_json"
 }
 
+udid_from_destination() {
+  local destination="$1"
+  local component
+  local -a components
+  IFS=',' read -r -a components <<<"$destination"
+  for component in "${components[@]}"; do
+    component="${component#"${component%%[![:space:]]*}"}"
+    if [[ "$component" == id=* && -n "${component#id=}" ]]; then
+      printf '%s\n' "${component#id=}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 phone_destination="${E2E_PHONE_DESTINATION:-}"
 phone_udid=""
 if [[ -z "$phone_destination" ]]; then
@@ -62,6 +77,12 @@ if [[ -z "$phone_destination" ]]; then
     exit 1
   fi
   phone_destination="platform=iOS Simulator,id=$phone_udid"
+else
+  phone_udid="$(udid_from_destination "$phone_destination" || true)"
+  if [[ -z "$phone_udid" ]]; then
+    echo "error: E2E_PHONE_DESTINATION must contain an explicit Simulator id=<UDID>." >&2
+    exit 1
+  fi
 fi
 
 watch_destination="${E2E_WATCH_DESTINATION:-}"
@@ -73,6 +94,12 @@ if [[ -z "$watch_destination" ]]; then
     exit 1
   fi
   watch_destination="platform=watchOS Simulator,id=$watch_udid"
+else
+  watch_udid="$(udid_from_destination "$watch_destination" || true)"
+  if [[ -z "$watch_udid" ]]; then
+    echo "error: E2E_WATCH_DESTINATION must contain an explicit Simulator id=<UDID>." >&2
+    exit 1
+  fi
 fi
 
 for simulator_udid in "$phone_udid" "$watch_udid"; do
@@ -80,6 +107,16 @@ for simulator_udid in "$phone_udid" "$watch_udid"; do
     xcrun simctl boot "$simulator_udid" >/dev/null 2>&1 || true
   fi
 done
+
+artifact_directory="$REPO_ROOT/.artifacts"
+mkdir -p "$artifact_directory"
+owns_derived_data=false
+if [[ -n "${E2E_DERIVED_DATA_PATH:-}" ]]; then
+  derived_data_path="$E2E_DERIVED_DATA_PATH"
+else
+  derived_data_path="$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-e2e.XXXXXX")"
+  owns_derived_data=true
+fi
 
 original_phone_appearance=""
 original_phone_contrast=""
@@ -105,27 +142,67 @@ restore_phone_settings() {
   esac
 }
 
+cleanup() {
+  restore_phone_settings
+  if [[ "$owns_derived_data" == true ]]; then
+    rm -rf -- "$derived_data_path"
+  fi
+}
+trap cleanup EXIT
+
 if [[ -n "$phone_udid" ]]; then
   xcrun simctl bootstatus "$phone_udid" -b
   original_phone_appearance="$(xcrun simctl ui "$phone_udid" appearance | tr -d '[:space:]')"
   original_phone_contrast="$(xcrun simctl ui "$phone_udid" increase_contrast | tr -d '[:space:]')"
   original_phone_content_size="$(xcrun simctl ui "$phone_udid" content_size | tr -d '[:space:]')"
-  trap restore_phone_settings EXIT
-
   xcrun simctl ui "$phone_udid" appearance light
   xcrun simctl ui "$phone_udid" increase_contrast disabled
   xcrun simctl ui "$phone_udid" content_size large
 fi
 
-artifact_directory="$REPO_ROOT/.artifacts"
-mkdir -p "$artifact_directory"
-derived_data_path="${E2E_DERIVED_DATA_PATH:-$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-e2e.XXXXXX")}"
 run_stamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 phone_result="$artifact_directory/e2e-phone-$run_stamp.xcresult"
 watch_result="$artifact_directory/e2e-watch-$run_stamp.xcresult"
 
 phone_scheme="${E2E_PHONE_SCHEME:-WatchCompanion}"
 watch_scheme="${E2E_WATCH_SCHEME:-WatchCompanion-Watch}"
+
+assert_test_suite_passed() {
+  local result_path="$1"
+  local suite_label="$2"
+  local summary_path
+  local validation_status=0
+  summary_path="$(mktemp "${TMPDIR:-/tmp}/watch-companion-xcresult.XXXXXX")"
+  xcrun xcresulttool get test-results summary --path "$result_path" --compact >"$summary_path"
+  /usr/bin/python3 - "$summary_path" "$suite_label" <<'PY' || validation_status=$?
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    summary = json.load(source)
+
+label = sys.argv[2]
+total = summary.get("totalTestCount")
+passed = summary.get("passedTests")
+failed = summary.get("failedTests")
+if (
+    summary.get("result") != "Passed"
+    or not isinstance(total, int)
+    or total < 1
+    or passed != total
+    or failed != 0
+):
+    print(
+        f"error: {label} result did not contain a non-empty all-passing suite: "
+        f"result={summary.get('result')!r}, total={total!r}, "
+        f"passed={passed!r}, failed={failed!r}",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+PY
+  rm -f "$summary_path"
+  return "$validation_status"
+}
 
 echo "Running iPhone E2E tests for '$phone_scheme' on '$phone_destination'."
 xcodebuild test \
@@ -139,6 +216,7 @@ xcodebuild test \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   COMPILER_INDEX_STORE_ENABLE=NO
+assert_test_suite_passed "$phone_result" "iPhone E2E"
 
 echo "Running Watch E2E tests for '$watch_scheme' on '$watch_destination'."
 xcodebuild test \
@@ -151,6 +229,7 @@ xcodebuild test \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   COMPILER_INDEX_STORE_ENABLE=NO
+assert_test_suite_passed "$watch_result" "Watch E2E"
 
 echo "E2E result bundles:"
 echo "  $phone_result"

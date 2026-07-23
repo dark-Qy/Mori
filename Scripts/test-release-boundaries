@@ -11,8 +11,21 @@ fi
 
 project_path="$REPO_ROOT/Apps/Apple/WatchCompanion.xcodeproj"
 fixture_list="$REPO_ROOT/Apps/Apple/Configuration/DebugScenarioFixtures.xcfilelist"
-derived_data_path="${RELEASE_DERIVED_DATA_PATH:-$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-release.XXXXXX")}"
+owns_derived_data=false
+if [[ -n "${RELEASE_DERIVED_DATA_PATH:-}" ]]; then
+  derived_data_path="$RELEASE_DERIVED_DATA_PATH"
+else
+  derived_data_path="$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-release.XXXXXX")"
+  owns_derived_data=true
+fi
 products="$derived_data_path/Build/Products"
+
+cleanup() {
+  if [[ "$owns_derived_data" == true ]]; then
+    rm -rf -- "$derived_data_path"
+  fi
+}
+trap cleanup EXIT
 
 echo "Building Release configuration for fixture-boundary validation."
 xcodebuild build \

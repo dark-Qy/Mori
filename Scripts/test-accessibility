@@ -68,27 +68,110 @@ ensure_device_booted "$watch_udid"
 original_appearance="$(xcrun simctl ui "$phone_udid" appearance | tr -d '[:space:]')"
 original_contrast="$(xcrun simctl ui "$phone_udid" increase_contrast | tr -d '[:space:]')"
 original_content_size="$(xcrun simctl ui "$phone_udid" content_size | tr -d '[:space:]')"
-
-restore_phone_settings() {
-  ensure_device_booted "$phone_udid" >/dev/null 2>&1 || return 0
-  if [[ "$original_appearance" == "light" || "$original_appearance" == "dark" ]]; then
-    xcrun simctl ui "$phone_udid" appearance "$original_appearance" >/dev/null 2>&1 || true
-  fi
-  if [[ "$original_contrast" == "enabled" || "$original_contrast" == "disabled" ]]; then
-    xcrun simctl ui "$phone_udid" increase_contrast "$original_contrast" >/dev/null 2>&1 || true
-  fi
-  case "$original_content_size" in
-    extra-small|small|medium|large|extra-large|extra-extra-large|extra-extra-extra-large|accessibility-medium|accessibility-large|accessibility-extra-large|accessibility-extra-extra-large|accessibility-extra-extra-extra-large)
-      xcrun simctl ui "$phone_udid" content_size "$original_content_size" >/dev/null 2>&1 || true
-      ;;
-  esac
-}
-trap restore_phone_settings EXIT
+original_watch_appearance="$(xcrun simctl ui "$watch_udid" appearance | tr -d '[:space:]')"
+original_watch_contrast="$(xcrun simctl ui "$watch_udid" increase_contrast | tr -d '[:space:]')"
+original_watch_content_size="$(xcrun simctl ui "$watch_udid" content_size | tr -d '[:space:]')"
 
 artifact_directory="$REPO_ROOT/.artifacts"
 mkdir -p "$artifact_directory"
-derived_data_path="${ACCESSIBILITY_DERIVED_DATA_PATH:-$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-accessibility.XXXXXX")}"
+owns_derived_data=false
+if [[ -n "${ACCESSIBILITY_DERIVED_DATA_PATH:-}" ]]; then
+  derived_data_path="$ACCESSIBILITY_DERIVED_DATA_PATH"
+else
+  derived_data_path="$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-accessibility.XXXXXX")"
+  owns_derived_data=true
+fi
 run_stamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+
+restore_device_settings() {
+  local udid="$1"
+  local appearance="$2"
+  local contrast="$3"
+  local content_size="$4"
+
+  ensure_device_booted "$udid" >/dev/null 2>&1 || return 0
+  if [[ "$appearance" == "light" || "$appearance" == "dark" ]]; then
+    xcrun simctl ui "$udid" appearance "$appearance" >/dev/null 2>&1 || true
+  fi
+  if [[ "$contrast" == "enabled" || "$contrast" == "disabled" ]]; then
+    xcrun simctl ui "$udid" increase_contrast "$contrast" >/dev/null 2>&1 || true
+  fi
+  case "$content_size" in
+    extra-small|small|medium|large|extra-large|extra-extra-large|extra-extra-extra-large|accessibility-medium|accessibility-large|accessibility-extra-large|accessibility-extra-extra-large|accessibility-extra-extra-extra-large)
+      xcrun simctl ui "$udid" content_size "$content_size" >/dev/null 2>&1 || true
+      ;;
+  esac
+}
+
+cleanup() {
+  restore_device_settings \
+    "$phone_udid" "$original_appearance" "$original_contrast" "$original_content_size"
+  restore_device_settings \
+    "$watch_udid" "$original_watch_appearance" "$original_watch_contrast" \
+    "$original_watch_content_size"
+
+  if [[ "$owns_derived_data" == true ]]; then
+    rm -rf -- "$derived_data_path"
+  fi
+}
+trap cleanup EXIT
+
+set_standard_ui_if_supported() {
+  local udid="$1"
+  local appearance="$2"
+  local contrast="$3"
+  local content_size="$4"
+
+  local current_appearance
+  local current_contrast
+  local current_content_size
+
+  ensure_device_booted "$udid" >/dev/null 2>&1 || return 0
+  current_appearance="$(xcrun simctl ui "$udid" appearance 2>/dev/null | tr -d '[:space:]' || true)"
+  current_contrast="$(xcrun simctl ui "$udid" increase_contrast 2>/dev/null | tr -d '[:space:]' || true)"
+  current_content_size="$(xcrun simctl ui "$udid" content_size 2>/dev/null | tr -d '[:space:]' || true)"
+
+  if [[ -n "$current_appearance" && "$current_appearance" != "unsupported" ]]; then
+    xcrun simctl ui "$udid" appearance "$appearance"
+  fi
+  if [[ -n "$current_contrast" && "$current_contrast" != "unsupported" ]]; then
+    xcrun simctl ui "$udid" increase_contrast "$contrast"
+  fi
+  if [[ -n "$current_content_size" && "$current_content_size" != "unsupported" ]]; then
+    xcrun simctl ui "$udid" content_size "$content_size"
+  fi
+}
+
+assert_single_test_passed() {
+  local result_path="$1"
+  local summary_path
+  summary_path="$(mktemp "${TMPDIR:-/tmp}/watch-companion-xcresult.XXXXXX")"
+  xcrun xcresulttool get test-results summary --path "$result_path" --compact >"$summary_path"
+  local validation_status=0
+  /usr/bin/python3 - "$summary_path" <<'PY' || validation_status=$?
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    summary = json.load(source)
+
+if (
+    summary.get("result") != "Passed"
+    or summary.get("totalTestCount") != 1
+    or summary.get("passedTests") != 1
+    or summary.get("failedTests") != 0
+):
+    print(
+        "error: accessibility result did not contain exactly one passing test: "
+        f"{summary.get('result')=}, {summary.get('totalTestCount')=}, "
+        f"{summary.get('passedTests')=}, {summary.get('failedTests')=}",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+PY
+  rm -f "$summary_path"
+  return "$validation_status"
+}
 
 run_phone_audit() {
   local variant="$1"
@@ -102,25 +185,24 @@ run_phone_audit() {
     -destination "platform=iOS Simulator,id=$phone_udid" \
     -derivedDataPath "$derived_data_path" \
     -resultBundlePath "$result_path" \
-    -only-testing:PhoneAppUITests/testAccessibilityAuditAcrossManagementSurfaces \
+    -only-testing:PhoneAppUITests/PhoneAppUITests/testAccessibilityAuditAcrossManagementSurfaces \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGNING_REQUIRED=NO \
     COMPILER_INDEX_STORE_ENABLE=NO
+  assert_single_test_passed "$result_path"
 }
 
-xcrun simctl ui "$phone_udid" appearance light
-xcrun simctl ui "$phone_udid" increase_contrast disabled
-xcrun simctl ui "$phone_udid" content_size large
+set_standard_ui_if_supported "$phone_udid" light disabled large
 run_phone_audit "light-standard"
 
 ensure_device_booted "$phone_udid"
-xcrun simctl ui "$phone_udid" appearance dark
-xcrun simctl ui "$phone_udid" increase_contrast enabled
-xcrun simctl ui "$phone_udid" content_size accessibility-extra-extra-extra-large
+set_standard_ui_if_supported \
+  "$phone_udid" dark enabled accessibility-extra-extra-extra-large
 run_phone_audit "dark-high-axxxl"
 
 watch_result="$artifact_directory/accessibility-watch-40mm-$run_stamp.xcresult"
 ensure_device_booted "$watch_udid"
+set_standard_ui_if_supported "$watch_udid" light disabled large
 echo "Running 40 mm Watch accessibility audit."
 xcodebuild test \
   -project "$project_path" \
@@ -128,9 +210,10 @@ xcodebuild test \
   -destination "platform=watchOS Simulator,id=$watch_udid" \
   -derivedDataPath "$derived_data_path" \
   -resultBundlePath "$watch_result" \
-  -only-testing:WatchAppUITests/testAccessibilityAuditAcrossPrimarySurfaces \
+  -only-testing:WatchAppUITests/WatchAppUITests/testAccessibilityAuditAcrossPrimarySurfaces \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   COMPILER_INDEX_STORE_ENABLE=NO
+assert_single_test_passed "$watch_result"
 
 echo "Accessibility matrix passed; result bundles are in $artifact_directory."
