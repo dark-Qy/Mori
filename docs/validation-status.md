@@ -3,6 +3,36 @@
 This document records reproducible evidence separately from physical-device claims. A Simulator or
 mock result never upgrades a hardware-dependent capability to `PASS`.
 
+## 2026-07-24 zero-input touch-exchange implementation check
+
+This check ran against the current uncommitted worktree after removing user-entered pairing codes.
+
+| Surface | Evidence | Result |
+| --- | --- | --- |
+| Social Gateway | 54 API, concurrency, privacy, generation-isolation, candidate-rotation, orphan-session supersede, TTL, and confirmation tests | PASS |
+| AppRuntime | 83 tests, including one-way phone-owned consent sync, replacement candidates, real 409 reconciliation, lost-create recovery, confirm/cancel arbitration, and bounded create retry | PASS |
+| AppleAdapters | 33 tests, including Nearby Interaction lifecycle, replacement, invalid-token, and reset events | PASS |
+| Watch app compilation | Debug build plus Release build with an injected HTTPS gateway URL | PASS |
+| Release gateway guard | Missing gateway URL fails the Release build; all five touch-demo selectors are absent from the Release binary | PASS |
+| Watch touch-exchange UI | Seven focused privacy-gate, flow, race, cancellation, and accessibility tests on Apple Watch SE 3 (40 mm), watchOS 26.5 | PASS |
+| iPhone privacy controls | Friend-sharing gate and public pet social-state selection on iPhone 17 Pro, iOS 26.5 | PASS |
+| Static policy and formatting | `Scripts/check` | PASS |
+| Visible 40 mm Simulator inspection | Initial pet surface and touch-exchange assets rendered without launch failure | PASS |
+| Two physical Watches, live gateway, and real UWB | Requires the device runbook | UNVERIFIED |
+
+The focused UI tests verify friend sharing is a hard gate before any upload, there is no
+pairing-code field, the selected game-only public social state is preserved, the peer card is absent
+before the synthetic proximity gate, peer-first still requires local confirmation, delayed
+callbacks cannot overwrite cancellation, an unconfirmed remote cancellation is retried before a
+new session starts, server-confirmed completion wins a confirm/cancel race, and the consent states
+pass an accessibility audit. The Simulator cannot supply real Nearby Interaction measurements, so
+these tests use DEBUG-only touch-exchange paths.
+
+The repository-wide `Scripts/test-release-boundaries` build completed, and the touch-exchange
+selectors/resources passed its boundary checks. The script then reported the separate current
+worktree's `mock1` product-data-source/fixture-identifier overlap; that pre-existing fixture-list
+conflict is not counted as touch-exchange validation.
+
 ## 2026-07-23 acceptance run
 
 - Validated production UI revision: `0adfc11`
