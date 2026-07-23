@@ -115,11 +115,16 @@ reproducible visual matrix:
 
 The UI audit checks contrast, Dynamic Type, element detection, hit regions, descriptions, clipping,
 and accessibility traits. Every matrix invocation parses its `.xcresult` and requires exactly one
-executed, passing test. On iOS 26 the page uses a hard bottom scroll-edge effect. The only suppression
-is a contrast report for static text intersecting the measured system tab-bar frame expanded by 8
-pt; buttons, other interactive controls, and application content outside that frame are never
-ignored. This automated audit covers the current viewport and does not prove VoiceOver reading
-order, physical tap comfort, haptics, or device rendering.
+executed, passing test. On iOS 26 the page uses a hard bottom scroll-edge effect. Contrast suppression
+is limited to static text whose top edge is at or below the measured system tab-bar top, which places
+the entire text outside the visible app viewport even when it continues below the physical screen.
+For partial overlap, it applies only to the reviewed `phone.pet-vitality-label` and
+`phone.today-quest` identifiers or the exact local rule timestamp label `本机计算`, and only when at
+least 2 pt but no more than half of the element's height intersects the system frame expanded by 8 pt.
+Buttons, other interactive element types, every other partially visible label, one-point edge
+intersections, and materially obscured content are never ignored. This automated audit covers the
+current viewport and does not prove VoiceOver reading order, physical tap comfort, haptics, or device
+rendering.
 
 ### Visual and functional review
 

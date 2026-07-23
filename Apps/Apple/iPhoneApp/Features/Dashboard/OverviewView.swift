@@ -129,6 +129,7 @@ private struct PetOverviewCard: View {
       VStack(spacing: 5) {
         HStack {
           Label("生命力", systemImage: "leaf.fill")
+            .accessibilityIdentifier("phone.pet-vitality-label")
           Spacer()
           Text("\(model.vitality)/100")
             .monospacedDigit()

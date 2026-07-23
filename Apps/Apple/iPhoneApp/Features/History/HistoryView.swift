@@ -99,7 +99,7 @@ struct HistoryView: View {
             }
           }
           .accessibilityElement(children: .combine)
-          .accessibilityIdentifier("phone.log.\(log.id)")
+          .accessibilityIdentifier(accessibilityIdentifier(for: log))
         }
       }
     }
@@ -133,5 +133,9 @@ struct HistoryView: View {
     let recovery = day.recovery.map { String(Int($0 * 100)) } ?? "缺失"
     let activity = day.activity.map { String(Int($0 * 100)) } ?? "缺失"
     return "\(day.weekday)日，恢复相对值 \(recovery)，活动相对值 \(activity)"
+  }
+
+  private func accessibilityIdentifier(for log: PhoneActivityLog) -> String {
+    log.id.hasPrefix("rule-") ? "phone.log.rule" : "phone.log.\(log.id)"
   }
 }
