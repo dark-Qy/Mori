@@ -70,6 +70,18 @@ if [[ -f "$narration_service/pyproject.toml" ]]; then
   ran_tests=true
 fi
 
+social_service="$REPO_ROOT/Services/SocialGateway"
+social_venv="$REPO_ROOT/.artifacts/social-gateway-venv"
+if [[ -f "$social_service/pyproject.toml" ]]; then
+  if [[ ! -x "$social_venv/bin/python" ]]; then
+    echo "error: Social Gateway environment is missing; run Scripts/bootstrap first." >&2
+    exit 1
+  fi
+  echo "Running Social Gateway unit and integration tests."
+  "$social_venv/bin/python" -m pytest "$social_service"
+  ran_tests=true
+fi
+
 if [[ -n "$project_path" ]]; then
   scheme="${XCODE_SCHEME:-WatchCompanion}"
   test_plan="${XCODE_TEST_PLAN:-Phase0}"

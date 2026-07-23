@@ -38,3 +38,14 @@ if [[ -f "$narration_service/pyproject.toml" ]]; then
   echo "Formatting Narration Gateway sources."
   "$narration_venv/bin/ruff" format "$narration_service"
 fi
+
+social_service="$REPO_ROOT/Services/SocialGateway"
+social_venv="$REPO_ROOT/.artifacts/social-gateway-venv"
+if [[ -f "$social_service/pyproject.toml" ]]; then
+  if [[ ! -x "$social_venv/bin/ruff" ]]; then
+    echo "error: Social Gateway tools are missing; run Scripts/bootstrap first." >&2
+    exit 1
+  fi
+  echo "Formatting Social Gateway sources."
+  "$social_venv/bin/ruff" format "$social_service"
+fi

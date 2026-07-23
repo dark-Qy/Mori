@@ -78,6 +78,18 @@ if [[ -f "$narration_service/pyproject.toml" ]]; then
   "$narration_venv/bin/ruff" format --check "$narration_service"
 fi
 
+social_service="$REPO_ROOT/Services/SocialGateway"
+social_venv="$REPO_ROOT/.artifacts/social-gateway-venv"
+if [[ -f "$social_service/pyproject.toml" ]]; then
+  if [[ ! -x "$social_venv/bin/ruff" ]]; then
+    echo "error: Social Gateway tools are missing; run Scripts/bootstrap first." >&2
+    exit 1
+  fi
+  echo "Linting and formatting-checking Social Gateway sources."
+  "$social_venv/bin/ruff" check "$social_service"
+  "$social_venv/bin/ruff" format --check "$social_service"
+fi
+
 if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "Scanning tracked and non-ignored untracked files for common credential patterns."
   credential_pattern='(sk-[A-Za-z0-9_-]{16,}|Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{16,}|AKIA[0-9A-Z]{16})'

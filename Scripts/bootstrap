@@ -60,4 +60,16 @@ if [[ -f "$narration_service/pyproject.toml" ]]; then
   "$narration_venv/bin/python" -m pip install --disable-pip-version-check -e "$narration_service[test]"
 fi
 
+social_service="$REPO_ROOT/Services/SocialGateway"
+if [[ -f "$social_service/pyproject.toml" ]]; then
+  social_venv="$REPO_ROOT/.artifacts/social-gateway-venv"
+  if [[ ! -x "$social_venv/bin/python" ]]; then
+    echo "Creating Social Gateway test environment."
+    python3 -m venv "$social_venv"
+  fi
+  echo "Installing Social Gateway and its test tools."
+  "$social_venv/bin/python" -m pip install --disable-pip-version-check --upgrade pip
+  "$social_venv/bin/python" -m pip install --disable-pip-version-check -e "$social_service[test]"
+fi
+
 echo "Bootstrap checks completed."
