@@ -8,7 +8,7 @@
     private let session: WCSession
     private let lock = NSLock()
     private var latest: CompanionSyncState?
-    private var lastSentRevision: UInt64?
+    private var lastSentState: CompanionSyncState?
     private var observers: [UUID: AsyncStream<CompanionSyncState>.Continuation] = [:]
     private let activationGate: ConnectivityActivationGate
 
@@ -54,16 +54,19 @@
         throw ConnectivityAdapterError.unavailable("WatchConnectivity is unsupported")
       }
       try lock.withLock {
-        if let lastSentRevision, state.revision <= lastSentRevision {
+        if state == lastSentState {
+          return
+        }
+        if let lastSentState, state.revision <= lastSentState.revision {
           throw ConnectivityAdapterError.staleRevision(
-            current: lastSentRevision,
+            current: lastSentState.revision,
             attempted: state.revision
           )
         }
         do {
           let data = try JSONEncoder().encode(state)
           try session.updateApplicationContext(["companionState": data])
-          lastSentRevision = state.revision
+          lastSentState = state
         } catch let error as ConnectivityAdapterError {
           throw error
         } catch {

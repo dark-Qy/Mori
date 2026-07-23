@@ -51,21 +51,18 @@
     private let connectivity: AppleWatchConnectivityClient
     private let events: CompanionEventEngine<FileEventLedgerStorage>
     private let preferences: PreferencesRepository<UserDefaultsPreferencesDataStore>
-    private var syncRevisionClock = SyncRevisionClock()
-    private var pendingPeerSync: PendingPeerSync?
+    private let managementOutbox: ManagementSyncOutbox<FileManagementSyncOutboxStorage>
+    private let peerSyncEnabled: Bool
     private var peerSyncTask: Task<Void, Never>?
-
-    private struct PendingPeerSync: Sendable {
-      let state: CompanionState
-      let date: Date
-    }
 
     public init(
       source: EventSource,
       storageDirectory: URL,
-      preferencesKey: String = "app.preferences.v1"
+      preferencesKey: String = "app.preferences.v1",
+      peerSyncEnabled: Bool = true
     ) {
       self.source = source
+      self.peerSyncEnabled = peerSyncEnabled
       health = AppleHealthKitClient()
       notifications = AppleLocalNotificationClient()
       connectivity = AppleWatchConnectivityClient()
@@ -76,6 +73,11 @@
       )
       preferences = PreferencesRepository(
         store: UserDefaultsPreferencesDataStore(key: preferencesKey)
+      )
+      managementOutbox = ManagementSyncOutbox(
+        storage: FileManagementSyncOutboxStorage(
+          fileURL: storageDirectory.appendingPathComponent("management-sync-outbox-v1.json")
+        )
       )
     }
 
@@ -120,7 +122,7 @@
         state = unlockedState
       }
       let notificationDecision = await scheduleProactiveIfAllowed(for: state, now: now)
-      enqueuePeerSync(state, at: now)
+      await enqueuePeerSync(state, at: now)
       return RuntimeHealthRefresh(
         requestState: ingestion.requestState,
         health: ingestion.snapshot,
@@ -143,7 +145,7 @@
           payload: .petInteracted(PetInteraction(kind: kind))
         )
       )
-      enqueuePeerSync(state, at: date)
+      await enqueuePeerSync(state, at: date)
       return state
     }
 
@@ -156,7 +158,7 @@
         timeZone: timeZone,
         source: source
       )
-      enqueuePeerSync(outcome.state, at: date)
+      await enqueuePeerSync(outcome.state, at: date)
       return outcome
     }
 
@@ -172,7 +174,7 @@
         timeZone: timeZone,
         source: source
       )
-      enqueuePeerSync(outcome.state, at: date)
+      await enqueuePeerSync(outcome.state, at: date)
       return outcome
     }
 
@@ -180,10 +182,27 @@
       try await preferences.load()
     }
 
-    public func savePreferences(_ value: AppPreferences) async throws {
+    @discardableResult
+    public func savePreferences(_ value: AppPreferences) async throws -> RuntimeSyncStatus {
       try await preferences.save(value)
-      let state = try await events.currentState()
-      enqueuePeerSync(state, at: Date())
+      do {
+        let state = try await events.currentState()
+        try await stagePeerSync(state, at: Date())
+      } catch {
+        return .failed(reason: String(describing: error))
+      }
+      guard peerSyncEnabled else { return .waitingForPeer }
+      schedulePeerSyncDrain()
+      return .queued
+    }
+
+    public func retryPeerSync(at date: Date = Date()) async throws -> RuntimeSyncStatus {
+      guard peerSyncEnabled else { return .waitingForPeer }
+      if try await managementOutbox.pendingOperation() == nil {
+        let state = try await events.currentState()
+        try await stagePeerSync(state, at: date)
+      }
+      return await drainPeerSyncQueue()
     }
 
     public func notificationPermissionState() async -> NotificationPermissionState {
@@ -231,20 +250,8 @@
     }
 
     public func applyPeerPreferences(_ values: [String: String]) async throws {
-      var current = try await preferences.load()
-      if let enabled = values["proactiveMessagesEnabled"].flatMap(Bool.init) {
-        current.proactiveMessagesEnabled = enabled
-      }
-      if let consentVersion = values["proactiveNotificationConsentVersion"].flatMap(Int.init) {
-        current.proactiveNotificationConsentVersion = consentVersion
-      }
-      if let quietStart = values["quietHoursStartMinute"].flatMap(Int.init) {
-        current.quietHoursStartMinute = max(0, min(1_439, quietStart))
-      }
-      if let quietEnd = values["quietHoursEndMinute"].flatMap(Int.init) {
-        current.quietHoursEndMinute = max(0, min(1_439, quietEnd))
-      }
-      try await preferences.save(current)
+      let current = try await preferences.load()
+      try await preferences.save(PeerPreferencesMerger().merge(values, into: current))
     }
 
     private func scheduleProactiveIfAllowed(
@@ -284,9 +291,7 @@
       }
     }
 
-    private func sendDerivedState(_ state: CompanionState, at date: Date) async
-      -> RuntimeSyncStatus
-    {
+    private func send(_ operation: ManagementSyncOperation) async -> RuntimeSyncStatus {
       let activation = await connectivity.activate()
       switch activation {
       case .inactive:
@@ -297,33 +302,12 @@
         break
       }
 
-      // Reserve before the next suspension point so concurrent actor re-entry cannot reuse it.
-      let revision = syncRevisionClock.reserve(at: date)
-      let savedPreferences = try? await preferences.load()
-      let selectedOutfitID =
-        savedPreferences?.selectedOutfitID
-        ?? state.pet.equippedOutfitID
-        ?? "default"
       do {
         try await connectivity.send(
           CompanionSyncState(
-            revision: revision,
-            updatedAt: date,
-            values: [
-              "name": state.pet.name,
-              "mood": state.pet.mood.rawValue,
-              "theme": state.activeTheme.rawValue,
-              "vitality": String(state.growth.vitality),
-              "chapter": String(state.story.mainlineChapter),
-              "outfit": selectedOutfitID,
-              "proactiveMessagesEnabled": String(
-                savedPreferences?.proactiveMessagesEnabled ?? false),
-              "proactiveNotificationConsentVersion": String(
-                savedPreferences?.proactiveNotificationConsentVersion ?? 0),
-              "quietHoursStartMinute": String(
-                savedPreferences?.quietHoursStartMinute ?? 1_320),
-              "quietHoursEndMinute": String(savedPreferences?.quietHoursEndMinute ?? 420),
-            ]
+            revision: operation.revision,
+            updatedAt: operation.updatedAt,
+            values: operation.values
           )
         )
         return .synced
@@ -332,22 +316,55 @@
       }
     }
 
-    /// Local progression must never wait for a paired device. Coalescing keeps only the newest
-    /// derived state while a prior sync is in flight, and the actor drains updates in order.
-    private func enqueuePeerSync(_ state: CompanionState, at date: Date) {
-      pendingPeerSync = PendingPeerSync(state: state, date: date)
+    private func stagePeerSync(_ state: CompanionState, at date: Date) async throws {
+      let savedPreferences = try? await preferences.load()
+      let values = PeerStateProjection().makeValues(
+        companion: state,
+        preferences: savedPreferences
+      )
+      try await managementOutbox.enqueue(values: values, updatedAt: date)
+    }
+
+    /// Local progression must never wait for a paired device. The durable outbox coalesces to the
+    /// newest management state and survives process termination until transport accepts it.
+    private func enqueuePeerSync(_ state: CompanionState, at date: Date) async {
+      do {
+        try await stagePeerSync(state, at: date)
+      } catch {
+        return
+      }
+      guard peerSyncEnabled else { return }
+      schedulePeerSyncDrain()
+    }
+
+    private func schedulePeerSyncDrain() {
       guard peerSyncTask == nil else { return }
       peerSyncTask = Task { [weak self] in
-        await self?.drainPeerSyncQueue()
+        _ = await self?.drainPeerSyncQueue()
       }
     }
 
-    private func drainPeerSyncQueue() async {
-      while let pending = pendingPeerSync {
-        pendingPeerSync = nil
-        _ = await sendDerivedState(pending.state, at: pending.date)
+    private func drainPeerSyncQueue() async -> RuntimeSyncStatus {
+      defer { peerSyncTask = nil }
+      guard peerSyncEnabled else { return .waitingForPeer }
+      while true {
+        let operation: ManagementSyncOperation
+        do {
+          guard let pending = try await managementOutbox.pendingOperation() else {
+            return .synced
+          }
+          operation = pending
+        } catch {
+          return .failed(reason: String(describing: error))
+        }
+        let status = await send(operation)
+        guard status == .synced else { return status }
+        do {
+          try await managementOutbox.acknowledge(revision: operation.revision)
+        } catch {
+          return .failed(reason: String(describing: error))
+        }
       }
-      peerSyncTask = nil
     }
   }
 #endif

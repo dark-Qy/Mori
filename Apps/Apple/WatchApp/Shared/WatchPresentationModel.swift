@@ -14,6 +14,7 @@ enum WatchDataMode: Equatable {
 
 struct WatchPresentationModel {
   let dataMode: WatchDataMode
+  let initialScreen: WatchInitialScreen
   let level: Int
   let vitality: Int
   let petMood: String
@@ -67,6 +68,7 @@ struct WatchPresentationModel {
     let trends = makeTrends(from: trend)
     return WatchPresentationModel(
       dataMode: .live,
+      initialScreen: .petHome,
       level: max(1, vitality / 100 + 1),
       vitality: min(100, vitality % 100),
       petMood: moodText(companion.pet.mood, hasHealth: hasHealth),
@@ -132,6 +134,7 @@ struct WatchPresentationModel {
     let base = liveNoData()
     return WatchPresentationModel(
       dataMode: .invalidMock(value),
+      initialScreen: .petHome,
       level: base.level,
       vitality: base.vitality,
       petMood: "Mock 场景无效，已停止读取真实数据",
@@ -187,8 +190,15 @@ struct WatchPresentationModel {
       let fallbackExplanation =
         seed.narrationState == .localFallback
         ? " AI 服务不可用或响应无效，当前使用本地表达；规则结果不变。" : ""
+      let initialScreen: WatchInitialScreen =
+        switch seed.primaryState {
+        case .onboarding: .onboarding
+        case .petIntroduction: .petIntroduction
+        case .petHome, .wardrobe: .petHome
+        }
       return WatchPresentationModel(
         dataMode: .mock(scenario),
+        initialScreen: initialScreen,
         level: max(1, seed.petLevel),
         vitality: base.vitality,
         petMood: base.petMood,
@@ -356,6 +366,12 @@ struct WatchPresentationModel {
       return []
     }
   }
+}
+
+enum WatchInitialScreen: Equatable {
+  case onboarding
+  case petIntroduction
+  case petHome
 }
 
 struct WatchMockScenario: Equatable {

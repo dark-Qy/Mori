@@ -60,16 +60,24 @@ struct ConnectivityAdapterTests {
     #expect(gate.pendingWaiterCount() == 0)
   }
 
-  @Test func sendRejectsDuplicateAndStaleRevisions() async throws {
+  @Test func exactRetryIsIdempotentWhileConflictingAndStaleRevisionsFail() async throws {
     let client = MockCompanionStateSyncClient(state: .activated)
-    try await client.send(syncState(revision: 2))
+    let delivered = syncState(revision: 2)
+    try await client.send(delivered)
+    try await client.send(delivered)
     await #expect(throws: ConnectivityAdapterError.staleRevision(current: 2, attempted: 2)) {
-      try await client.send(self.syncState(revision: 2))
+      try await client.send(
+        CompanionSyncState(
+          revision: 2,
+          updatedAt: delivered.updatedAt,
+          values: ["outfit": "different"]
+        )
+      )
     }
     await #expect(throws: ConnectivityAdapterError.staleRevision(current: 2, attempted: 1)) {
       try await client.send(self.syncState(revision: 1))
     }
-    #expect(await client.sentStates.map(\.revision) == [2])
+    #expect(await client.sentStates == [delivered])
   }
 
   @Test func receiveKeepsNewestRevision() async {

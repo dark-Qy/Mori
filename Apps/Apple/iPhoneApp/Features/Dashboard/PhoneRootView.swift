@@ -11,6 +11,25 @@ struct PhoneRootView: View {
   @ObservedObject var store: PhoneAppStore
 
   var body: some View {
+    Group {
+      switch store.phase {
+      case .loading:
+        ProgressView("正在载入本机状态…")
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(CompanionPalette.background)
+          .accessibilityIdentifier("phone.loading")
+      case .onboarding:
+        PhoneOnboardingView(store: store)
+      case .ready:
+        managementTabs
+      }
+    }
+    .task {
+      await store.start()
+    }
+  }
+
+  private var managementTabs: some View {
     TabView(selection: $store.selectedTab) {
       NavigationStack {
         OverviewView(store: store)
@@ -50,8 +69,11 @@ struct PhoneRootView: View {
     }
     .tint(CompanionPalette.mint)
     .accessibilityIdentifier("phone.root")
-    .task {
-      await store.start()
+    .sheet(item: $store.notificationDestination) { destination in
+      PhoneNotificationMessageView(
+        destination: destination,
+        onDismiss: store.dismissNotificationDestination
+      )
     }
   }
 }

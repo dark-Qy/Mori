@@ -40,6 +40,12 @@ permission, service, wardrobe, and pet state. `MockScenarioRun` owns a determini
 ledger, and replayable reducer. A fixture that cannot enter this executable path fails the core
 test suite.
 
+Installation state and executable domain state derive the initial screen. For example,
+`hasLaunchedBefore: false` produces onboarding, while a created pet produces the pet home. The
+`expectations.primaryState` field validates that derived result; it is never used as runtime input.
+`fresh_install` begins with a truly empty event ledger, so onboarding cannot inherit synthetic
+progress accidentally.
+
 Dates are interpreted relative to `clock.now` where possible. Fixtures never contain copied health exports, real names, contact details, provider keys, device identifiers, or personal conversations.
 
 ## Required scenarios

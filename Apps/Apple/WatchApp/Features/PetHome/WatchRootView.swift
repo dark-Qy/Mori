@@ -8,6 +8,34 @@ struct WatchRootView: View {
   private var model: WatchPresentationModel { store.model }
 
   var body: some View {
+    Group {
+      switch store.phase {
+      case .loading:
+        ProgressView("载入中…")
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(AdventurePalette.background)
+          .accessibilityIdentifier("watch.loading")
+      case .onboarding:
+        WatchOnboardingView(store: store, isPetIntroduction: false)
+      case .petIntroduction:
+        WatchOnboardingView(store: store, isPetIntroduction: true)
+      case .ready:
+        if let destination = store.notificationDestination {
+          WatchNotificationMessageView(
+            destination: destination,
+            onDismiss: store.dismissNotificationDestination
+          )
+        } else {
+          petHome
+        }
+      }
+    }
+    .task {
+      await store.start()
+    }
+  }
+
+  private var petHome: some View {
     NavigationStack {
       ScrollView {
         VStack(spacing: AdventureSpacing.medium) {
@@ -55,9 +83,6 @@ struct WatchRootView: View {
     }
     .tint(AdventurePalette.mint)
     .accessibilityIdentifier("watch.pet-home")
-    .task {
-      await store.start()
-    }
   }
 
   private var statusHeader: some View {
@@ -216,7 +241,7 @@ private struct WatchOutfitAccessory {
 
   static func make(for outfitID: String?) -> Self? {
     switch outfitID {
-    case "scarf": Self(symbol: "wind", color: AdventurePalette.rose)
+    case "scarf", "soccer_scarf": Self(symbol: "wind", color: AdventurePalette.rose)
     case "leaf": Self(symbol: "leaf.fill", color: AdventurePalette.mint)
     case "star": Self(symbol: "star.fill", color: AdventurePalette.gold)
     case "drop": Self(symbol: "drop.fill", color: AdventurePalette.blue)

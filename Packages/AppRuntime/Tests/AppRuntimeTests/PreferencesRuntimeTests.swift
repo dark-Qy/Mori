@@ -8,6 +8,7 @@ struct PreferencesRuntimeTests {
   func privacyDefaults() {
     let value = AppPreferences()
 
+    #expect(!value.hasCompletedOnboarding)
     #expect(!value.socialSharingEnabled)
     #expect(value.healthSharingScope == .careSummary)
     #expect(!value.proactiveMessagesEnabled)
@@ -31,6 +32,7 @@ struct PreferencesRuntimeTests {
     )
 
     let decoded = try JSONDecoder().decode(AppPreferences.self, from: legacy)
+    #expect(decoded.hasCompletedOnboarding)
     #expect(!decoded.proactiveMessagesEnabled)
     #expect(decoded.proactiveNotificationConsentVersion == 0)
   }
@@ -40,6 +42,7 @@ struct PreferencesRuntimeTests {
     let store = InMemoryPreferencesDataStore()
     let first = PreferencesRepository(store: store)
     var value = try await first.load()
+    value.hasCompletedOnboarding = true
     value.selectedOutfitID = "leaf"
     value.healthSharingScope = .limitedHealthSummary
     try await first.save(value)

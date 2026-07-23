@@ -15,9 +15,21 @@ struct ScenarioRuntimeTests {
 
       #expect(runtime.id == url.deletingPathExtension().lastPathComponent)
       #expect(runtime.mockBadgeVisible)
-      #expect(run.ledger.events.count == 1)
-      #expect(run.state.processedEventIDs.count == 1)
+      let expectedEventCount = runtime.hasCompletedOnboarding ? 1 : 0
+      #expect(run.ledger.events.count == expectedEventCount)
+      #expect(run.state.processedEventIDs.count == expectedEventCount)
     }
+  }
+
+  @Test("Fresh install derives onboarding from installation state and keeps an empty ledger")
+  func freshInstallIsStateDerived() throws {
+    let runtime = try runtime(named: "fresh_install")
+    let run = try MockScenarioRun(runtime: runtime)
+
+    #expect(!runtime.hasCompletedOnboarding)
+    #expect(runtime.primaryState == .onboarding)
+    #expect(run.ledger.events.isEmpty)
+    #expect(run.state == runtime.initialState)
   }
 
   @Test("Health scenario projects samples into a rule-authoritative state")

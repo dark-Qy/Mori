@@ -88,11 +88,19 @@ real event ledger and reducers while intentionally suppressing HealthKit refresh
 WatchConnectivity startup, so the test proves offline main-story/habit settlement without being
 coupled to Simulator framework latency. The argument has no effect without `-UITesting`.
 
+The iPhone stateful E2E uses isolated Application Support and UserDefaults namespaces to verify
+onboarding, wardrobe preview versus equip, offline persistence across termination, reset, and
+relaunch. Notification-route E2E on both surfaces verifies navigation only: opening or dismissing
+the message cannot settle a story or habit reward. Package tests separately verify durable outbox
+coalescing, relaunch recovery, monotonic revisions, scoped projection/merge, and exact transport
+retry idempotency. Cross-device delivery and reconciliation still require a paired-device run.
+
 Repository fixtures are copied from an explicit `.xcfilelist` only into Debug app bundles. Both
 Apple clients require the compile-time `DEBUG` condition and the runtime `-UITesting` flag before
 they resolve an allowlisted fixture through `DebugScenarioSupport`. `Scripts/test-release-boundaries`
-builds the Release iPhone app and embedded Watch app, then rejects fixture resources, selectors,
-and fixture identifiers in either executable.
+builds the Release iPhone app and embedded Watch app, then rejects fixture resources, fixture
+identifiers, E2E storage selectors, offline-runtime selectors, and notification-route launch hooks
+in either executable.
 
 ### Visual and functional review
 

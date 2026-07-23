@@ -55,7 +55,15 @@ watch_strings="$derived_data_path/release-watch.strings"
 /usr/bin/strings "$phone_binary" >"$phone_strings"
 /usr/bin/strings "$watch_binary" >"$watch_strings"
 
-for marker in "--mock-scenario=" "-MockScenario" "MockScenarios"; do
+for marker in \
+  "--mock-scenario=" \
+  "-MockScenario" \
+  "MockScenarios" \
+  "-UITesting" \
+  "--notification-route=" \
+  "--e2e-storage-id=" \
+  "--e2e-offline-runtime" \
+  "--reset-e2e-storage"; do
   if /usr/bin/grep -Fq -- "$marker" "$phone_strings" \
     || /usr/bin/grep -Fq -- "$marker" "$watch_strings"; then
     echo "error: Release executable exposes Debug scenario marker: $marker" >&2
@@ -73,4 +81,4 @@ while IFS= read -r listed_path || [[ -n "$listed_path" ]]; do
   fi
 done <"$fixture_list"
 
-echo "Release boundary passed: no fixture resources, selectors, or identifiers are shipped."
+echo "Release boundary passed: no fixture resources, test selectors, or identifiers are shipped."

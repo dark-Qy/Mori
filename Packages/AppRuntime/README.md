@@ -11,5 +11,11 @@ product domain. It owns mapping, local proactive-interaction orchestration, and 
   create or schedule a notification.
 - Social sharing is off by default. If a user later enables it, care summary is the default scope.
 - Clothing is stored as a cosmetic preference only.
+- Onboarding and management preferences persist locally; a legacy schema-1 record migrates without
+  forcing an existing installation through onboarding again.
+- A file-backed latest-value outbox coalesces management changes and retries after relaunch without
+  blocking local pet progression. Only allowlisted pet display, wardrobe, and notification values
+  enter the WatchConnectivity projection.
+- Notification responses map to bounded presentation destinations and never settle rewards.
 - Apple-platform composition keeps HealthKit, notifications, WatchConnectivity, and durable event
   storage outside SwiftUI views.

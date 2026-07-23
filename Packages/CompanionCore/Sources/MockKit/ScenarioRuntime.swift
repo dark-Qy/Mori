@@ -59,6 +59,7 @@
     public let id: String
     public let displayName: String
     public let clock: TimeTravelClock
+    public let hasCompletedOnboarding: Bool
     public let primaryState: MockPrimaryState
     public let healthRequestState: HealthRequestState
     public let notificationAuthorization: MockNotificationAuthorization
@@ -88,11 +89,8 @@
         timeZoneIdentifier: fixture.clock.timeZone
       )
 
-      let expectedPrimary = try Self.requiredString(expectations, path: "primaryState")
-      guard let primaryState = MockPrimaryState(rawValue: expectedPrimary) else {
-        throw MockScenarioError.invalidValue("expectations.primaryState")
-      }
-      self.primaryState = primaryState
+      let installation = try Self.requiredObject(state, path: "installation")
+      hasCompletedOnboarding = installation["hasLaunchedBefore"]?.boolValue == true
 
       let permissions = try Self.requiredObject(state, path: "permissions")
       healthRequestState = try Self.healthRequestState(
@@ -131,6 +129,25 @@
         previewOutfitID: wardrobeObject["previewOutfitID"]?.stringValue
       )
 
+      let derivedPrimaryState: MockPrimaryState
+      if !hasCompletedOnboarding {
+        derivedPrimaryState = .onboarding
+      } else if petLifecycle == .notCreated || petLifecycle == .new {
+        derivedPrimaryState = .petIntroduction
+      } else if wardrobe.previewOutfitID != nil {
+        derivedPrimaryState = .wardrobe
+      } else {
+        derivedPrimaryState = .petHome
+      }
+      let expectedPrimary = try Self.requiredString(expectations, path: "primaryState")
+      guard let expectedPrimaryState = MockPrimaryState(rawValue: expectedPrimary) else {
+        throw MockScenarioError.invalidValue("expectations.primaryState")
+      }
+      guard expectedPrimaryState == derivedPrimaryState else {
+        throw MockScenarioError.expectationMismatch("primaryState")
+      }
+      primaryState = derivedPrimaryState
+
       let services = try Self.requiredObject(state, path: "services")
       aiState = try Self.serviceState(from: Self.requiredString(services, path: "ai"))
       syncState = try Self.serviceState(from: Self.requiredString(services, path: "sync"))
@@ -149,13 +166,17 @@
         pet: PetState(equippedOutfitID: selectedOutfitID),
         growth: growth
       )
-      let event = EventEnvelope(
-        eventID: Self.healthEventID,
-        occurredAt: fixture.clock.now,
-        source: .mock,
-        payload: .healthSnapshotReceived(healthSnapshot)
-      )
-      initialLedger = try EventLedger(events: [event])
+      if hasCompletedOnboarding {
+        let event = EventEnvelope(
+          eventID: Self.healthEventID,
+          occurredAt: fixture.clock.now,
+          source: .mock,
+          payload: .healthSnapshotReceived(healthSnapshot)
+        )
+        initialLedger = try EventLedger(events: [event])
+      } else {
+        initialLedger = try EventLedger()
+      }
     }
 
     private static let healthEventID = UUID(

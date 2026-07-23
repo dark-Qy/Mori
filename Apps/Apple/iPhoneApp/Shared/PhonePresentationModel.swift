@@ -13,6 +13,8 @@ enum PhoneDataMode: Equatable {
 
 struct PhonePresentationModel {
   let dataMode: PhoneDataMode
+  let initialScreen: PhoneInitialScreen
+  let wardrobe: PhoneWardrobePresentation
   let level: Int
   let vitality: Int
   let mood: String
@@ -57,6 +59,8 @@ struct PhonePresentationModel {
     let points = makeHistory(from: trend)
     return PhonePresentationModel(
       dataMode: .live,
+      initialScreen: .overview,
+      wardrobe: .phaseOneDefault,
       level: max(1, companion.growth.vitality / 100 + 1),
       vitality: min(100, companion.growth.vitality % 100),
       mood: moodText(companion.pet.mood, hasHealth: health?.hasAnyMetric == true),
@@ -111,6 +115,8 @@ struct PhonePresentationModel {
     let base = liveNoData()
     return PhonePresentationModel(
       dataMode: .invalidMock(value),
+      initialScreen: .overview,
+      wardrobe: .unavailable,
       level: base.level,
       vitality: base.vitality,
       mood: "Mock 场景无效，已停止读取真实数据",
@@ -154,8 +160,21 @@ struct PhonePresentationModel {
       let fallbackExplanation =
         seed.narrationState == .localFallback
         ? " AI 服务不可用或响应无效，当前使用经过审核的本地表达；规则结果不变。" : ""
+      let initialScreen: PhoneInitialScreen =
+        switch seed.primaryState {
+        case .onboarding: .onboarding
+        case .wardrobe: .wardrobe
+        case .petIntroduction, .petHome: .overview
+        }
       return PhonePresentationModel(
         dataMode: .mock(scenario),
+        initialScreen: initialScreen,
+        wardrobe: PhoneWardrobePresentation(
+          selectedOutfitID: seed.selectedOutfitID ?? "default",
+          unlockedOutfitIDs: seed.unlockedOutfitIDs,
+          previewOutfitID: seed.previewOutfitID ?? seed.selectedOutfitID ?? "default",
+          peerSyncAvailable: seed.syncAvailable
+        ),
         level: max(1, seed.petLevel),
         vitality: base.vitality,
         mood: base.mood,
@@ -305,6 +324,33 @@ struct PhonePresentationModel {
 struct PhoneMockScenario: Equatable {
   let id: String
   let displayName: String
+}
+
+enum PhoneInitialScreen: Equatable {
+  case onboarding
+  case overview
+  case wardrobe
+}
+
+struct PhoneWardrobePresentation: Equatable {
+  let selectedOutfitID: String
+  let unlockedOutfitIDs: Set<String>
+  let previewOutfitID: String
+  let peerSyncAvailable: Bool?
+
+  static let phaseOneDefault = PhoneWardrobePresentation(
+    selectedOutfitID: "default",
+    unlockedOutfitIDs: ["default", "scarf", "leaf", "star", "drop", "soccer_scarf"],
+    previewOutfitID: "default",
+    peerSyncAvailable: nil
+  )
+
+  static let unavailable = PhoneWardrobePresentation(
+    selectedOutfitID: "default",
+    unlockedOutfitIDs: [],
+    previewOutfitID: "default",
+    peerSyncAvailable: false
+  )
 }
 
 struct PhoneMetric: Identifiable {

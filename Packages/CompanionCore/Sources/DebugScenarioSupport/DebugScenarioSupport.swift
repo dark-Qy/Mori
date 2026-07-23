@@ -23,6 +23,7 @@
   public struct DebugScenarioSeed: Sendable {
     public let id: String
     public let displayName: String
+    public let hasCompletedOnboarding: Bool
     public let primaryState: DebugScenarioPrimaryState
     public let companionState: CompanionState
     public let healthSnapshot: HealthSnapshot
@@ -37,6 +38,7 @@
     fileprivate init(runtime: MockScenarioRuntime, run: MockScenarioRun) {
       id = runtime.id
       displayName = runtime.displayName
+      hasCompletedOnboarding = runtime.hasCompletedOnboarding
       primaryState = DebugScenarioPrimaryState(rawValue: runtime.primaryState.rawValue) ?? .petHome
       companionState = run.state
       healthSnapshot = runtime.healthSnapshot

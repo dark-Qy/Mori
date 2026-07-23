@@ -28,6 +28,9 @@ public actor MockCompanionStateSyncClient: CompanionStateSyncClient {
     guard state == .activated else {
       throw ConnectivityAdapterError.unavailable("Connectivity is not activated")
     }
+    if newState == sentStates.last {
+      return
+    }
     if let latestSent = sentStates.last, newState.revision <= latestSent.revision {
       throw ConnectivityAdapterError.staleRevision(
         current: latestSent.revision,

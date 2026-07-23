@@ -38,16 +38,37 @@ final class WatchAppUITests: XCTestCase {
   }
 
   func testDefaultLaunchUsesNeutralHealthKitMode() {
-    let app = XCUIApplication()
-    app.launchArguments = ["-UITesting"]
-    app.launch()
+    let app = launchLiveApp(storageID: "watch-live-neutral", reset: true)
 
-    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("watch.onboarding", in: app).waitForExistence(timeout: 8))
     XCTAssertTrue(element("watch.live-badge", in: app).exists)
     XCTAssertFalse(element("watch.mock-badge", in: app).exists)
+    let onboardingButton = app.buttons["watch.onboarding.complete"]
+    scrollToElement(onboardingButton, in: app)
+    onboardingButton.tap()
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
     let connectButton = app.buttons["watch.connect-health"]
     scrollToElement(connectButton, in: app)
     XCTAssertTrue(connectButton.exists)
+  }
+
+  func testFreshInstallAndPetIntroductionFixturesUseExplicitOneTapEntry() {
+    let fresh = launchApp(scenario: "fresh_install")
+    XCTAssertTrue(element("watch.onboarding", in: fresh).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("watch.mock-badge", in: fresh).exists)
+    XCTAssertFalse(fresh.buttons["watch.connect-health"].exists)
+    let freshButton = fresh.buttons["watch.onboarding.complete"]
+    scrollToElement(freshButton, in: fresh)
+    freshButton.tap()
+    XCTAssertTrue(element("watch.pet-home", in: fresh).waitForExistence(timeout: 5))
+    fresh.terminate()
+
+    let introduced = launchApp(scenario: "pet_new")
+    XCTAssertTrue(element("watch.pet-introduction", in: introduced).waitForExistence(timeout: 8))
+    let introductionButton = introduced.buttons["watch.pet-introduction.complete"]
+    scrollToElement(introductionButton, in: introduced)
+    introductionButton.tap()
+    XCTAssertTrue(element("watch.pet-home", in: introduced).waitForExistence(timeout: 5))
   }
 
   func testInvalidMockFailsClosedAndDisablesInteraction() {
@@ -65,20 +86,49 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertFalse(app.buttons["watch.connect-health"].exists)
   }
 
-  func testNotificationRouteShowsSafeOptionalAction() {
-    let app = launchApp(
-      scenario: "health_normal",
+  func testNotificationRouteNavigatesWithoutSettlingStoryOrHabit() {
+    let app = launchLiveApp(
+      storageID: "notification-nonsettling",
+      reset: true,
       additionalArguments: ["--notification-route=pet/recovery"]
     )
 
-    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
-    XCTAssertTrue(app.staticTexts["Mori：今天可以慢一点，由你决定是否回应"].exists)
+    XCTAssertTrue(element("watch.onboarding", in: app).waitForExistence(timeout: 8))
+    let onboardingButton = app.buttons["watch.onboarding.complete"]
+    scrollToElement(onboardingButton, in: app)
+    onboardingButton.tap()
+    XCTAssertTrue(
+      element("watch.notification.recoveryMessage", in: app).waitForExistence(timeout: 8)
+    )
+    XCTAssertTrue(app.staticTexts["打开来信不会领取奖励"].exists)
+    let dismissButton = app.buttons["watch.notification.dismiss"]
+    scrollToElement(dismissButton, in: app)
+    dismissButton.tap()
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 5))
+
+    let storyButton = app.buttons["watch.advance-story"]
+    scrollToElement(storyButton, in: app)
+    storyButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    XCTAssertTrue(
+      app.staticTexts["今日主线已推进，获得 10 点世界经验"].waitForExistence(timeout: 5)
+    )
+
+    let habitButton = app.buttons["watch.interact"]
+    scrollToElement(habitButton, in: app)
+    habitButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    XCTAssertTrue(
+      app.staticTexts["今天的小行动已记下；奖励只结算一次"].waitForExistence(timeout: 5)
+    )
   }
 
   func testLiveMainStoryAndHabitPersistWithoutHealthData() {
     let storageID = "phase-one-progression"
     let app = launchLiveApp(storageID: storageID, reset: true)
 
+    XCTAssertTrue(element("watch.onboarding", in: app).waitForExistence(timeout: 8))
+    let onboardingButton = app.buttons["watch.onboarding.complete"]
+    scrollToElement(onboardingButton, in: app)
+    onboardingButton.tap()
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
     XCTAssertTrue(element("watch.status-message", in: app).waitForExistence(timeout: 8))
     let storyButton = app.buttons["watch.advance-story"]
@@ -121,11 +171,16 @@ final class WatchAppUITests: XCTestCase {
     return app
   }
 
-  private func launchLiveApp(storageID: String, reset: Bool) -> XCUIApplication {
+  private func launchLiveApp(
+    storageID: String,
+    reset: Bool,
+    additionalArguments: [String] = []
+  ) -> XCUIApplication {
     let app = XCUIApplication()
-    app.launchArguments = [
-      "-UITesting", "--e2e-storage-id=\(storageID)", "--e2e-offline-runtime",
-    ]
+    app.launchArguments =
+      [
+        "-UITesting", "--e2e-storage-id=\(storageID)", "--e2e-offline-runtime",
+      ] + additionalArguments
     if reset {
       app.launchArguments.append("--reset-e2e-storage")
     }

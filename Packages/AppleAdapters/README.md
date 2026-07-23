@@ -13,7 +13,8 @@ implementation.
   identifiers. Deep links use the package's own payload model. Quiet hours and cooldown are
   deterministic policy decisions.
 - `CompanionStateSyncClient` transfers a small revisioned application state through
-  WatchConnectivity. Duplicate or stale revisions cannot replace newer state.
+  WatchConnectivity. An exact retry of the last accepted state is idempotent; a conflicting same
+  revision or stale revision cannot replace newer state.
 - `NearbyRangingClient` exchanges encoded discovery tokens and reports distance. Nearby
   Interaction is **not a data transport**; token and business-data exchange require another
   channel.

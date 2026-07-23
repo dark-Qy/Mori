@@ -11,6 +11,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
   public static let currentNotificationConsentVersion = 1
 
   public var schemaVersion: Int
+  public var hasCompletedOnboarding: Bool
   public var proactiveMessagesEnabled: Bool
   public var proactiveNotificationConsentVersion: Int
   public var socialSharingEnabled: Bool
@@ -21,6 +22,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
 
   public init(
     schemaVersion: Int = AppPreferences.currentSchemaVersion,
+    hasCompletedOnboarding: Bool = false,
     proactiveMessagesEnabled: Bool = false,
     proactiveNotificationConsentVersion: Int? = nil,
     socialSharingEnabled: Bool = false,
@@ -30,6 +32,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     quietHoursEndMinute: Int = 7 * 60
   ) {
     self.schemaVersion = schemaVersion
+    self.hasCompletedOnboarding = hasCompletedOnboarding
     self.proactiveMessagesEnabled = proactiveMessagesEnabled
     self.proactiveNotificationConsentVersion =
       proactiveNotificationConsentVersion
@@ -43,6 +46,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
 
   private enum CodingKeys: String, CodingKey {
     case schemaVersion
+    case hasCompletedOnboarding
     case proactiveMessagesEnabled
     case proactiveNotificationConsentVersion
     case socialSharingEnabled
@@ -55,6 +59,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+    // Existing version-1 installs predate onboarding. Treat those records as completed so an
+    // update never unexpectedly blocks the app behind a new introduction screen.
+    hasCompletedOnboarding =
+      try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding)
+      ?? true
     let consentVersion =
       try container.decodeIfPresent(
         Int.self,

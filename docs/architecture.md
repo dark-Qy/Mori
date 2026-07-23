@@ -138,18 +138,24 @@ Apple clients never receive the upstream provider key.
 
 ## Watch-iPhone synchronization
 
-The Watch owns moment-to-moment pet actions and queues events while disconnected. The iPhone owns management changes such as wardrobe and privacy settings. Both exchange versioned, idempotent events.
+The Watch owns moment-to-moment pet actions. The iPhone owns lightweight management changes such
+as wardrobe and notification preferences. Phase 1 keeps authoritative growth events local and
+exchanges only a bounded latest-value management projection; raw health values, social settings,
+and health-sharing scope are not included in that projection.
 
 - Growth and story merge by event identity.
 - Wardrobe selection uses a monotonically increasing revision and deterministic conflict resolution.
 - Privacy always resolves to the most restrictive valid state when information is incomplete.
 - Deletion and friendship removal are high-priority tombstone events.
 
-The current Phase 1 adapter uses WatchConnectivity application context for latest-value
-management state. It waits for session activation, emits incoming revisions as a stream, rejects
-stale revisions, and keeps Watch-local health and growth authoritative while accepting iPhone
-cosmetic and notification preferences. Full event-queue reconciliation and tombstones remain a
-later milestone and must not be claimed as shipped behavior.
+The current Phase 1 adapter uses WatchConnectivity application context for latest-value management
+state. A file-backed outbox coalesces rapid changes, persists monotonic revisions across relaunch
+and clock rollback, and retries pending state on the next local mutation or application start.
+The transport treats an exact retry as idempotent while rejecting a conflicting same revision or
+an older revision. Incoming values are allowlisted and bounded before the Watch accepts cosmetic
+or notification preferences. Full event-queue reconciliation, server sync, and tombstones remain
+later milestones and must not be claimed as shipped behavior. Physical disconnect/reconnect timing
+also remains unverified until the paired-device runbook passes.
 
 ## Apple capability lifecycle
 

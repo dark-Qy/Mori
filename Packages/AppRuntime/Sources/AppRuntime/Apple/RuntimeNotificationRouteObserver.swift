@@ -2,16 +2,6 @@
   import AppleAdapters
   import Foundation
 
-  public struct RuntimeNotificationRoute: Equatable, Sendable {
-    public let route: String
-    public let parameters: [String: String]
-
-    public init(route: String, parameters: [String: String] = [:]) {
-      self.route = route
-      self.parameters = parameters
-    }
-  }
-
   public final class RuntimeNotificationRouteObserver: @unchecked Sendable {
     private let router: AppleNotificationResponseRouter
 
