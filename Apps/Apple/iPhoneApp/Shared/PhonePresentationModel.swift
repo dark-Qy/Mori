@@ -135,58 +135,60 @@ struct PhonePresentationModel {
     }
   #endif
 
-  func addingMockCareMessage() -> Self {
-    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
-    var log = activityLog.filter { $0.id != "mock2-care" }
-    log.insert(
-      PhoneActivityLog(
-        id: "mock2-care",
-        title: "Mori 来关心你了",
-        detail: "不用解释，要不要和我安静待一会儿？",
-        time: "刚刚",
-        symbol: "heart.text.square.fill"
-      ),
-      at: 0
-    )
-    return PhonePresentationModel(
-      dataMode: dataMode,
-      initialScreen: initialScreen,
-      wardrobe: wardrobe,
-      level: level,
-      vitality: vitality,
-      mood: mood,
-      syncStatus: syncStatus,
-      metrics: metrics,
-      questTitle: questTitle,
-      questDetail: questDetail,
-      questProgress: questProgress,
-      history: history,
-      trendSummary: trendSummary,
-      activityLog: log,
-      dataExplanation: dataExplanation
-    )
-  }
+  #if DEBUG
+    func addingMockCareMessage() -> Self {
+      guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+      var log = activityLog.filter { $0.id != "mock2-care" }
+      log.insert(
+        PhoneActivityLog(
+          id: "mock2-care",
+          title: "Mori 来关心你了",
+          detail: "不用解释，要不要和我安静待一会儿？",
+          time: "刚刚",
+          symbol: "heart.text.square.fill"
+        ),
+        at: 0
+      )
+      return PhonePresentationModel(
+        dataMode: dataMode,
+        initialScreen: initialScreen,
+        wardrobe: wardrobe,
+        level: level,
+        vitality: vitality,
+        mood: mood,
+        syncStatus: syncStatus,
+        metrics: metrics,
+        questTitle: questTitle,
+        questDetail: questDetail,
+        questProgress: questProgress,
+        history: history,
+        trendSummary: trendSummary,
+        activityLog: log,
+        dataExplanation: dataExplanation
+      )
+    }
 
-  func resolvingMockRelationship() -> Self {
-    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
-    return PhonePresentationModel(
-      dataMode: dataMode,
-      initialScreen: initialScreen,
-      wardrobe: wardrobe,
-      level: level,
-      vitality: vitality,
-      mood: "Mori 安心了一点，想和你安静待一会儿",
-      syncStatus: syncStatus,
-      metrics: metrics,
-      questTitle: questTitle,
-      questDetail: questDetail,
-      questProgress: questProgress,
-      history: history,
-      trendSummary: trendSummary,
-      activityLog: activityLog,
-      dataExplanation: dataExplanation
-    )
-  }
+    func resolvingMockRelationship() -> Self {
+      guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+      return PhonePresentationModel(
+        dataMode: dataMode,
+        initialScreen: initialScreen,
+        wardrobe: wardrobe,
+        level: level,
+        vitality: vitality,
+        mood: "Mori 安心了一点，想和你安静待一会儿",
+        syncStatus: syncStatus,
+        metrics: metrics,
+        questTitle: questTitle,
+        questDetail: questDetail,
+        questProgress: questProgress,
+        history: history,
+        trendSummary: trendSummary,
+        activityLog: activityLog,
+        dataExplanation: dataExplanation
+      )
+    }
+  #endif
 
   private static func invalidMock(_ value: String) -> Self {
     let base = liveNoData()

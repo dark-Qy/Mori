@@ -165,30 +165,32 @@ struct WatchPresentationModel {
     }
   #endif
 
-  func resolvingMockRelationship() -> Self {
-    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
-    return replacing(
-      petMood: "Mori 又靠近了一点：我也很想你",
-      scene: scene.applying(mood: .curious),
-      relationshipPresence: .present,
-      petPrompt: "Mori 已经收到你的回应。",
-      actionTitle: "今天已回应"
-    )
-  }
+  #if DEBUG
+    func resolvingMockRelationship() -> Self {
+      guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+      return replacing(
+        petMood: "Mori 又靠近了一点：我也很想你",
+        scene: scene.applying(mood: .curious),
+        relationshipPresence: .present,
+        petPrompt: "Mori 已经收到你的回应。",
+        actionTitle: "今天已回应"
+      )
+    }
 
-  func addingMockCareMessage() -> Self {
-    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
-    let care = WatchMessage(
-      id: "mock2-care",
-      title: "要不要安静待一会儿？",
-      body: "刚才是不是有点累？不用解释，我可以在这里陪你。",
-      relativeTime: "刚刚",
-      symbol: "heart.text.square.fill",
-      tint: AdventurePalette.rose,
-      isUnread: true
-    )
-    return replacing(messages: [care] + messages.filter { $0.id != care.id })
-  }
+    func addingMockCareMessage() -> Self {
+      guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+      let care = WatchMessage(
+        id: "mock2-care",
+        title: "要不要安静待一会儿？",
+        body: "刚才是不是有点累？不用解释，我可以在这里陪你。",
+        relativeTime: "刚刚",
+        symbol: "heart.text.square.fill",
+        tint: AdventurePalette.rose,
+        isUnread: true
+      )
+      return replacing(messages: [care] + messages.filter { $0.id != care.id })
+    }
+  #endif
 
   private static func invalidMock(_ value: String) -> Self {
     let base = liveNoData()

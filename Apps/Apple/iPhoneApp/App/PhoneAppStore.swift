@@ -45,8 +45,13 @@ final class PhoneAppStore: ObservableObject {
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
     let initialModel = PhonePresentationModel.initial(arguments: arguments)
     model = initialModel
-    selectedDataSource =
-      initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) } ?? .mock1
+    #if DEBUG
+      selectedDataSource =
+        initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) }
+        ?? .defaultSelection
+    #else
+      selectedDataSource = .defaultSelection
+    #endif
     preferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
       selectedOutfitID: initialModel.wardrobe.selectedOutfitID
@@ -201,9 +206,11 @@ final class PhoneAppStore: ObservableObject {
 
   func companionInteraction() async {
     if selectedDataSource.isMock || hasLaunchScenarioOverride {
-      if model.mockScenario?.id == CompanionDataSource.mock2.fixtureID {
-        model = model.resolvingMockRelationship()
-      }
+      #if DEBUG
+        if model.mockScenario?.id == CompanionDataSource.mock2.fixtureID {
+          model = model.resolvingMockRelationship()
+        }
+      #endif
       statusMessage = "Mori 靠近了一点，安静地陪着你"
       return
     }
@@ -412,15 +419,17 @@ final class PhoneAppStore: ObservableObject {
     await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
   }
 
-  private func scheduleMockCareIfNeeded() {
-    guard selectedDataSource == .mock2 else { return }
-    mockCareTask = Task { [weak self] in
-      try? await Task.sleep(for: .seconds(60))
-      guard !Task.isCancelled, let self, self.selectedDataSource == .mock2 else { return }
-      self.model = self.model.addingMockCareMessage()
-      self.statusMessage = "Mori 给你留了一封轻轻的来信"
+  #if DEBUG
+    private func scheduleMockCareIfNeeded() {
+      guard selectedDataSource == .mock2 else { return }
+      mockCareTask = Task { [weak self] in
+        try? await Task.sleep(for: .seconds(60))
+        guard !Task.isCancelled, let self, self.selectedDataSource == .mock2 else { return }
+        self.model = self.model.addingMockCareMessage()
+        self.statusMessage = "Mori 给你留了一封轻轻的来信"
+      }
     }
-  }
+  #endif
 
   private func beginPeerUpdates(runtime: AppleCompanionRuntime) {
     guard peerUpdateTask == nil else { return }

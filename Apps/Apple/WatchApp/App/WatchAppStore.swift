@@ -72,8 +72,13 @@ final class WatchAppStore: ObservableObject {
       let touchExchangeDemoSocialState = PublicPetSocialStateV1.greeting
     #endif
     model = initialModel
-    selectedDataSource =
-      initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) } ?? .mock1
+    #if DEBUG
+      selectedDataSource =
+        initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) }
+        ?? .defaultSelection
+    #else
+      selectedDataSource = .defaultSelection
+    #endif
     preferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
       socialSharingEnabled: touchExchangeDemoEnabled,
@@ -287,10 +292,12 @@ final class WatchAppStore: ObservableObject {
 
   func interact(with animation: WatchCharacterAnimation) async {
     if selectedDataSource.isMock || hasLaunchScenarioOverride {
-      if model.mockScenario?.id == CompanionDataSource.mock2.fixtureID {
-        model = model.resolvingMockRelationship()
-        actionCompleted = true
-      }
+      #if DEBUG
+        if model.mockScenario?.id == CompanionDataSource.mock2.fixtureID {
+          model = model.resolvingMockRelationship()
+          actionCompleted = true
+        }
+      #endif
       statusMessage = animation == .touchHead ? "Mori 开心地眨了眨眼" : "Mori 转过身回应了你"
       return
     }
@@ -401,15 +408,17 @@ final class WatchAppStore: ObservableObject {
     await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
   }
 
-  private func scheduleMockCareIfNeeded() {
-    guard selectedDataSource == .mock2 else { return }
-    mockCareTask = Task { [weak self] in
-      try? await Task.sleep(for: .seconds(60))
-      guard !Task.isCancelled, let self, self.selectedDataSource == .mock2 else { return }
-      self.model = self.model.addingMockCareMessage()
-      self.statusMessage = "Mori 给你留了一封轻轻的来信"
+  #if DEBUG
+    private func scheduleMockCareIfNeeded() {
+      guard selectedDataSource == .mock2 else { return }
+      mockCareTask = Task { [weak self] in
+        try? await Task.sleep(for: .seconds(60))
+        guard !Task.isCancelled, let self, self.selectedDataSource == .mock2 else { return }
+        self.model = self.model.addingMockCareMessage()
+        self.statusMessage = "Mori 给你留了一封轻轻的来信"
+      }
     }
-  }
+  #endif
 
   private func applyPeerValues(
     _ values: [String: String],
