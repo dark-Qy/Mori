@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if [[ "${CONFIGURATION:-}" != "Debug" ]]; then
+  exit 0
+fi
+
+: "${SRCROOT:?Xcode must provide SRCROOT}"
+: "${TARGET_BUILD_DIR:?Xcode must provide TARGET_BUILD_DIR}"
+: "${UNLOCALIZED_RESOURCES_FOLDER_PATH:?Xcode must provide UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+: "${SCRIPT_INPUT_FILE_LIST_0:?Build phase must provide its fixture input file list}"
+
+destination="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/MockScenarios"
+case "$destination" in
+  */MockScenarios) ;;
+  *)
+    echo "error: refusing unexpected fixture destination: $destination" >&2
+    exit 1
+    ;;
+esac
+
+/bin/mkdir -p "$destination"
+/usr/bin/find "$destination" -type f -name '*.json' -delete
+
+copied=0
+while IFS= read -r listed_path || [[ -n "$listed_path" ]]; do
+  [[ -z "$listed_path" ]] && continue
+  source_path="${listed_path//'$(SRCROOT)'/$SRCROOT}"
+  filename="$(basename "$source_path")"
+  if [[ ! "$filename" =~ ^[a-z0-9_]+\.json$ ]] || [[ ! -f "$source_path" ]]; then
+    echo "error: invalid Debug scenario fixture: $listed_path" >&2
+    exit 1
+  fi
+  /bin/cp "$source_path" "$destination/$filename"
+  copied=$((copied + 1))
+done <"$SCRIPT_INPUT_FILE_LIST_0"
+
+if [[ "$copied" -eq 0 ]]; then
+  echo "error: Debug scenario fixture list is empty" >&2
+  exit 1
+fi

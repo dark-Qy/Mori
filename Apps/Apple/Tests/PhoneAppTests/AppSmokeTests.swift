@@ -17,18 +17,27 @@ final class AppSmokeTests: XCTestCase {
     XCTAssertTrue(model.dataExplanation.contains("尚无可用 HealthKit 数据"))
   }
 
-  func testMockModeRequiresExplicitScenarioArgument() {
+  func testMockModeRequiresUITestingAndAllowlistedScenario() {
     let model = PhonePresentationModel.initial(
-      arguments: ["WatchCompanion", "--mock-scenario=recovery_low"]
+      arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=health_normal"]
     )
 
-    XCTAssertEqual(model.mockScenario, .recoveryLow)
-    XCTAssertEqual(model.metrics.first(where: { $0.id == "activity" })?.value, "3.1k")
+    XCTAssertEqual(model.mockScenario?.id, "health_normal")
+    XCTAssertEqual(model.metrics.first(where: { $0.id == "activity" })?.value, "3.2k")
+  }
+
+  func testMockArgumentWithoutUITestingIsIgnored() {
+    let model = PhonePresentationModel.initial(
+      arguments: ["WatchCompanion", "--mock-scenario=health_normal"]
+    )
+
+    XCTAssertTrue(model.isLive)
+    XCTAssertNil(model.mockScenario)
   }
 
   func testInvalidMockArgumentFailsClosedInsteadOfReadingHealthKit() {
     let model = PhonePresentationModel.initial(
-      arguments: ["WatchCompanion", "--mock-scenario=typo"]
+      arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=typo"]
     )
 
     XCTAssertFalse(model.isLive)

@@ -6,17 +6,18 @@ final class PhoneAppUITests: XCTestCase {
   }
 
   func testMockOverviewAndManagementTabs() {
-    let app = launchApp(scenario: "recovery_low")
+    let app = launchApp(scenario: "health_normal")
 
     XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
     XCTAssertTrue(element("phone.mock-badge", in: app).exists)
-    XCTAssertTrue(app.staticTexts["我会陪你放慢一点，不需要硬撑"].exists)
+    XCTAssertTrue(app.staticTexts["今天的冒险能量正在发光"].exists)
     XCTAssertTrue(app.staticTexts["点亮营地的第一盏灯"].exists)
     XCTAssertTrue(element("phone.pet-overview", in: app).exists)
 
     app.tabBars.buttons["历史"].tap()
     XCTAssertTrue(element("phone.history", in: app).waitForExistence(timeout: 5))
-    XCTAssertTrue(element("phone.history-chart", in: app).exists)
+    XCTAssertTrue(element("phone.history-empty", in: app).exists)
+    XCTAssertTrue(app.staticTexts["至少保留两天已知数据后再开始比较；缺失日不会按零计算。"].exists)
 
     app.tabBars.buttons["衣橱"].tap()
     XCTAssertTrue(element("phone.wardrobe", in: app).waitForExistence(timeout: 5))
@@ -53,7 +54,7 @@ final class PhoneAppUITests: XCTestCase {
   func testNotificationRouteOpensSafeOverviewWithoutSettlingAReward() {
     let app = XCUIApplication()
     app.launchArguments = [
-      "-UITesting", "--mock-scenario=recovery_low", "--notification-route=pet/recovery",
+      "-UITesting", "--mock-scenario=health_normal", "--notification-route=pet/recovery",
     ]
     app.launch()
 

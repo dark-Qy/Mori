@@ -56,6 +56,10 @@ struct PhoneRootView: View {
   }
 }
 
-#Preview {
-  PhoneRootView(store: PhoneAppStore(arguments: ["--mock-scenario=steady_week"]))
-}
+#if DEBUG
+  #Preview {
+    PhoneRootView(
+      store: PhoneAppStore(arguments: ["-UITesting", "--mock-scenario=health_normal"])
+    )
+  }
+#endif

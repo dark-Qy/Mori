@@ -1,3 +1,4 @@
+import DebugScenarioSupport
 import Domain
 import Foundation
 import MockKit
@@ -79,6 +80,87 @@ struct ScenarioRuntimeTests {
         == .scenario("activity_high")
     )
     #expect(MockLaunchArguments.selection(from: ["App", "-MockScenario"]) == .none)
+  }
+
+  @Test("Repository catalog exactly matches checked-in scenario fixtures")
+  func repositoryCatalogMatchesFixtures() throws {
+    let stems = Set(
+      try fixtureURLs().map { $0.deletingPathExtension().lastPathComponent }
+    )
+
+    #expect(stems == DebugScenarioCatalog.allowlistedIDs)
+
+    let fileListURL = repositoryRoot()
+      .appendingPathComponent("Apps/Apple/Configuration/DebugScenarioFixtures.xcfilelist")
+    let listedStems = try Set(
+      String(contentsOf: fileListURL, encoding: .utf8)
+        .split(whereSeparator: \.isNewline)
+        .map { line in
+          URL(fileURLWithPath: String(line))
+            .deletingPathExtension()
+            .lastPathComponent
+        }
+    )
+    #expect(listedStems == DebugScenarioCatalog.allowlistedIDs)
+  }
+
+  @Test("Repository selection is disabled before reading fixture data")
+  func repositorySelectionCanBeDisabled() {
+    var requestedData = false
+    let selection = DebugScenarioCatalog.selection(
+      from: ["App", "--mock-scenario=health_normal"],
+      enabled: false
+    ) { _ in
+      requestedData = true
+      return nil
+    }
+
+    guard case .none = selection else {
+      Issue.record("Disabled catalog must ignore mock launch arguments")
+      return
+    }
+    #expect(requestedData == false)
+  }
+
+  @Test("Repository selection rejects unknown IDs without resolving a path")
+  func repositorySelectionRejectsUnknownID() {
+    var requestedData = false
+    let selection = DebugScenarioCatalog.selection(
+      from: ["App", "--mock-scenario=../../private"],
+      enabled: true
+    ) { _ in
+      requestedData = true
+      return nil
+    }
+
+    guard case .invalid(let requestedID) = selection else {
+      Issue.record("Unknown identifiers must fail closed")
+      return
+    }
+    #expect(requestedID == "../../private")
+    #expect(requestedData == false)
+  }
+
+  @Test("Repository selection creates an executable runtime from canonical bytes")
+  func repositorySelectionCreatesRuntime() throws {
+    let selection = DebugScenarioCatalog.selection(
+      from: ["App", "-MockScenario", "soccer_workout"],
+      enabled: true
+    ) { identifier in
+      try? Data(
+        contentsOf: repositoryRoot()
+          .appendingPathComponent("Fixtures/Scenarios/\(identifier).json")
+      )
+    }
+
+    guard case .scenario(let runtime) = selection else {
+      Issue.record("Allowlisted canonical fixture should resolve")
+      return
+    }
+    #expect(runtime.id == "soccer_workout")
+    #expect(runtime.healthSnapshot.workouts.first?.activity == .soccer)
+    #expect(runtime.eligibleRandomStoryID == "lost_ball")
+    #expect(!runtime.companionState.story.unlockedSideStoryIDs.contains("lost_ball"))
   }
 
   private func runtime(named name: String) throws -> MockScenarioRuntime {

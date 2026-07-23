@@ -25,8 +25,9 @@ final class WatchAppStore: ObservableObject {
   private var notificationRouteTask: Task<Void, Never>?
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
-    dataMode = WatchDataMode.from(arguments: arguments)
-    model = WatchPresentationModel.initial(arguments: arguments)
+    let initialModel = WatchPresentationModel.initial(arguments: arguments)
+    dataMode = initialModel.dataMode
+    model = initialModel
     runtime =
       dataMode == .live
       ? AppleCompanionRuntime(

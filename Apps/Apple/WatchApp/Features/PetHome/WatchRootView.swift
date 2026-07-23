@@ -378,6 +378,10 @@ private struct DestinationRow: View {
   }
 }
 
-#Preview {
-  WatchRootView(store: WatchAppStore(arguments: ["--mock-scenario=steady_week"]))
-}
+#if DEBUG
+  #Preview {
+    WatchRootView(
+      store: WatchAppStore(arguments: ["-UITesting", "--mock-scenario=health_normal"])
+    )
+  }
+#endif

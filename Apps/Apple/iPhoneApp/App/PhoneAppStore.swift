@@ -24,8 +24,9 @@ final class PhoneAppStore: ObservableObject {
   private var notificationRouteTask: Task<Void, Never>?
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
-    dataMode = PhoneDataMode.from(arguments: arguments)
-    model = PhonePresentationModel.initial(arguments: arguments)
+    let initialModel = PhonePresentationModel.initial(arguments: arguments)
+    dataMode = initialModel.dataMode
+    model = initialModel
     runtime =
       dataMode == .live
       ? AppleCompanionRuntime(

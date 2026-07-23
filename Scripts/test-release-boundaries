@@ -1,0 +1,76 @@
+#!/bin/bash
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
+
+if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer" ]]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
+project_path="$REPO_ROOT/Apps/Apple/WatchCompanion.xcodeproj"
+fixture_list="$REPO_ROOT/Apps/Apple/Configuration/DebugScenarioFixtures.xcfilelist"
+derived_data_path="${RELEASE_DERIVED_DATA_PATH:-$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-release.XXXXXX")}"
+products="$derived_data_path/Build/Products"
+
+echo "Building Release configuration for fixture-boundary validation."
+xcodebuild build \
+  -quiet \
+  -project "$project_path" \
+  -scheme WatchCompanion \
+  -configuration Release \
+  -destination "generic/platform=iOS Simulator" \
+  -derivedDataPath "$derived_data_path" \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  COMPILER_INDEX_STORE_ENABLE=NO
+
+phone_app="$products/Release-iphonesimulator/WatchCompanion.app"
+watch_app="$phone_app/Watch/WatchCompanion Watch App.app"
+phone_binary="$phone_app/WatchCompanion"
+watch_binary="$watch_app/WatchCompanion Watch App"
+
+for required_path in "$phone_app" "$watch_app" "$phone_binary" "$watch_binary"; do
+  if [[ ! -e "$required_path" ]]; then
+    echo "error: expected Release artifact is missing: $required_path" >&2
+    exit 1
+  fi
+done
+
+unexpected_resource="$({
+  find "$phone_app" -type d -name MockScenarios -print
+  while IFS= read -r listed_path || [[ -n "$listed_path" ]]; do
+    [[ -z "$listed_path" ]] && continue
+    find "$phone_app" -type f -name "$(basename "$listed_path")" -print
+  done <"$fixture_list"
+} | head -n 1)"
+if [[ -n "$unexpected_resource" ]]; then
+  echo "error: Release app contains a Debug fixture resource: $unexpected_resource" >&2
+  exit 1
+fi
+
+phone_strings="$derived_data_path/release-phone.strings"
+watch_strings="$derived_data_path/release-watch.strings"
+/usr/bin/strings "$phone_binary" >"$phone_strings"
+/usr/bin/strings "$watch_binary" >"$watch_strings"
+
+for marker in "--mock-scenario=" "-MockScenario" "MockScenarios"; do
+  if /usr/bin/grep -Fq -- "$marker" "$phone_strings" \
+    || /usr/bin/grep -Fq -- "$marker" "$watch_strings"; then
+    echo "error: Release executable exposes Debug scenario marker: $marker" >&2
+    exit 1
+  fi
+done
+
+while IFS= read -r listed_path || [[ -n "$listed_path" ]]; do
+  [[ -z "$listed_path" ]] && continue
+  identifier="$(basename "$listed_path" .json)"
+  if /usr/bin/grep -Fq -- "$identifier" "$phone_strings" \
+    || /usr/bin/grep -Fq -- "$identifier" "$watch_strings"; then
+    echo "error: Release executable exposes fixture identifier: $identifier" >&2
+    exit 1
+  fi
+done <"$fixture_list"
+
+echo "Release boundary passed: no fixture resources, selectors, or identifiers are shipped."

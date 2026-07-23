@@ -1,0 +1,15 @@
+$(SRCROOT)/../../Fixtures/Scenarios/activity_high.json
+$(SRCROOT)/../../Fixtures/Scenarios/ai_malformed.json
+$(SRCROOT)/../../Fixtures/Scenarios/ai_offline.json
+$(SRCROOT)/../../Fixtures/Scenarios/fresh_install.json
+$(SRCROOT)/../../Fixtures/Scenarios/health_no_data.json
+$(SRCROOT)/../../Fixtures/Scenarios/health_normal.json
+$(SRCROOT)/../../Fixtures/Scenarios/health_partial.json
+$(SRCROOT)/../../Fixtures/Scenarios/notification_denied.json
+$(SRCROOT)/../../Fixtures/Scenarios/outfit_locked.json
+$(SRCROOT)/../../Fixtures/Scenarios/outfit_unlocked.json
+$(SRCROOT)/../../Fixtures/Scenarios/permission_not_requested.json
+$(SRCROOT)/../../Fixtures/Scenarios/pet_new.json
+$(SRCROOT)/../../Fixtures/Scenarios/sleep_stale.json
+$(SRCROOT)/../../Fixtures/Scenarios/soccer_workout.json
+$(SRCROOT)/../../Fixtures/Scenarios/sync_unreachable.json

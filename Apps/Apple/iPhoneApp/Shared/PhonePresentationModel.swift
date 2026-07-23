@@ -1,30 +1,14 @@
 import Domain
 import Foundation
 
+#if DEBUG
+  import DebugScenarioSupport
+#endif
+
 enum PhoneDataMode: Equatable {
   case live
   case mock(PhoneMockScenario)
   case invalidMock(String)
-
-  static func from(arguments: [String]) -> Self {
-    let rawScenario =
-      arguments
-      .first(where: { $0.hasPrefix("--mock-scenario=") })?
-      .replacingOccurrences(of: "--mock-scenario=", with: "")
-      ?? value(after: "--mock-scenario", in: arguments)
-    guard let rawScenario else { return .live }
-    guard let scenario = PhoneMockScenario(rawValue: rawScenario) else {
-      return .invalidMock(rawScenario)
-    }
-    return .mock(scenario)
-  }
-
-  private static func value(after flag: String, in arguments: [String]) -> String? {
-    guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else {
-      return nil
-    }
-    return arguments[index + 1]
-  }
 }
 
 struct PhonePresentationModel {
@@ -50,14 +34,15 @@ struct PhonePresentationModel {
   var isLive: Bool { dataMode == .live }
 
   static func initial(arguments: [String] = ProcessInfo.processInfo.arguments) -> Self {
-    switch PhoneDataMode.from(arguments: arguments) {
-    case .live:
+    #if DEBUG
+      switch debugScenarioSelection(arguments: arguments) {
+      case .none: return liveNoData()
+      case .scenario(let seed): return mock(seed: seed)
+      case .invalid(let requestedID): return invalidMock(requestedID)
+      }
+    #else
       return liveNoData()
-    case .mock(let scenario):
-      return mock(scenario: scenario)
-    case .invalidMock(let value):
-      return invalidMock(value)
-    }
+    #endif
   }
 
   static func live(
@@ -141,79 +126,51 @@ struct PhonePresentationModel {
     )
   }
 
-  private static func mock(scenario: PhoneMockScenario) -> Self {
-    switch scenario {
-    case .steadyWeek:
-      return PhonePresentationModel(
-        dataMode: .mock(scenario),
-        level: 7,
-        vitality: 76,
-        mood: "精神不错，想陪你把今天走稳",
-        syncStatus: "Mock：模拟手表同步",
-        metrics: [
-          PhoneMetric(
-            id: "recovery", title: "恢复", value: "平稳", detail: "接近个人近况", symbol: "moon.stars.fill"),
-          PhoneMetric(
-            id: "activity", title: "活动", value: "6.2k", detail: "今天的步数", symbol: "figure.walk"),
-          PhoneMetric(
-            id: "rhythm", title: "节律", value: "更稳", detail: "近 7 日更稳定", symbol: "waveform.path.ecg"),
-        ],
-        questTitle: "点亮营地的第一盏灯",
-        questDetail: "和 Mori 完成今天的故事片段；健康状态不会阻挡主线。",
-        questProgress: 0.62,
-        history: PhoneHistoryDay.steadyWeek,
-        trendSummary: "节律正在变稳",
-        activityLog: PhoneActivityLog.steady,
-        dataExplanation: "当前为确定性 Mock 数据。恢复、活动和节律只与个人近期状态比较；缺失数据不会造成惩罚。"
+  #if DEBUG
+    private static func debugScenarioSelection(arguments: [String]) -> DebugScenarioSelection {
+      DebugScenarioCatalog.selection(
+        from: arguments,
+        enabled: arguments.contains("-UITesting")
+      ) { identifier in
+        guard
+          let url = Bundle.main.url(
+            forResource: identifier,
+            withExtension: "json",
+            subdirectory: "MockScenarios"
+          )
+        else { return nil }
+        return try? Data(contentsOf: url)
+      }
+    }
+
+    private static func mock(seed: DebugScenarioSeed) -> Self {
+      let base = live(
+        companion: seed.companionState,
+        health: seed.healthSnapshot,
+        trend: nil,
+        syncStatus: seed.syncAvailable ? "Mock：模拟手表可达" : "Mock：手表暂不可达"
       )
-    case .recoveryLow:
+      let scenario = PhoneMockScenario(id: seed.id, displayName: seed.displayName)
+      let fallbackExplanation =
+        seed.narrationState == .localFallback
+        ? " AI 服务不可用或响应无效，当前使用经过审核的本地表达；规则结果不变。" : ""
       return PhonePresentationModel(
         dataMode: .mock(scenario),
-        level: 7,
-        vitality: 58,
-        mood: "我会陪你放慢一点，不需要硬撑",
-        syncStatus: "Mock：模拟手表同步",
-        metrics: [
-          PhoneMetric(
-            id: "recovery", title: "恢复", value: "偏低", detail: "比个人近况偏低", symbol: "moon.stars.fill"),
-          PhoneMetric(
-            id: "activity", title: "活动", value: "3.1k", detail: "今天的步数", symbol: "figure.walk"),
-          PhoneMetric(
-            id: "rhythm", title: "节律", value: "波动", detail: "最近有所波动", symbol: "waveform.path.ecg"),
-        ],
-        questTitle: "点亮营地的第一盏灯",
-        questDetail: "和 Mori 完成今天的故事片段；健康状态不会阻挡主线。",
-        questProgress: 0.62,
-        history: PhoneHistoryDay.recoveryLow,
-        trendSummary: "恢复需要留意",
-        activityLog: PhoneActivityLog.recovery,
-        dataExplanation: "当前为确定性 Mock 数据。恢复、活动和节律只与个人近期状态比较；缺失数据不会造成惩罚。"
-      )
-    case .activeDay:
-      return PhonePresentationModel(
-        dataMode: .mock(scenario),
-        level: 8,
-        vitality: 88,
-        mood: "今天的冒险能量正在发光",
-        syncStatus: "Mock：模拟手表同步",
-        metrics: [
-          PhoneMetric(
-            id: "recovery", title: "恢复", value: "平稳", detail: "接近个人近况", symbol: "moon.stars.fill"),
-          PhoneMetric(
-            id: "activity", title: "活动", value: "12k", detail: "明显高于平常", symbol: "figure.run"),
-          PhoneMetric(
-            id: "rhythm", title: "节律", value: "更稳", detail: "近 7 日更稳定", symbol: "waveform.path.ecg"),
-        ],
-        questTitle: "点亮营地的第一盏灯",
-        questDetail: "和 Mori 完成今天的故事片段；健康状态不会阻挡主线。",
-        questProgress: 0.8,
-        history: PhoneHistoryDay.activeWeek,
-        trendSummary: "活动明显高于平常",
-        activityLog: PhoneActivityLog.active,
-        dataExplanation: "当前为确定性 Mock 数据。恢复、活动和节律只与个人近期状态比较；缺失数据不会造成惩罚。"
+        level: max(1, seed.petLevel),
+        vitality: base.vitality,
+        mood: base.mood,
+        syncStatus: base.syncStatus,
+        metrics: base.metrics,
+        questTitle: base.questTitle,
+        questDetail: base.questDetail,
+        questProgress: base.questProgress,
+        history: base.history,
+        trendSummary: base.trendSummary,
+        activityLog: base.activityLog,
+        dataExplanation: "模拟数据经真实规则运行时计算。\(base.dataExplanation)\(fallbackExplanation)"
       )
     }
-  }
+  #endif
 
   private static func makeHistory(from trend: PersonalHealthTrend?) -> [PhoneHistoryDay] {
     guard let points = trend?.recentDays, !points.isEmpty else { return [] }
@@ -345,12 +302,9 @@ struct PhonePresentationModel {
   }
 }
 
-enum PhoneMockScenario: String, Equatable {
-  case steadyWeek = "steady_week"
-  case recoveryLow = "recovery_low"
-  case activeDay = "active_day"
-
-  var displayName: String { rawValue }
+struct PhoneMockScenario: Equatable {
+  let id: String
+  let displayName: String
 }
 
 struct PhoneMetric: Identifiable {

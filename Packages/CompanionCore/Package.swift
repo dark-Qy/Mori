@@ -17,6 +17,7 @@ let package = Package(
     .library(name: "Persistence", targets: ["Persistence"]),
     .library(name: "Sync", targets: ["Sync"]),
     .library(name: "MockKit", targets: ["MockKit"]),
+    .library(name: "DebugScenarioSupport", targets: ["DebugScenarioSupport"]),
   ],
   targets: [
     .target(name: "Domain"),
@@ -29,9 +30,16 @@ let package = Package(
       name: "MockKit",
       dependencies: ["Domain", "Rules", "Story", "Growth", "Persistence", "Sync"]
     ),
+    .target(
+      name: "DebugScenarioSupport",
+      dependencies: ["Domain", "MockKit"]
+    ),
     .testTarget(
       name: "CompanionCoreTests",
-      dependencies: ["Domain", "Rules", "Story", "Growth", "Persistence", "Sync", "MockKit"]
+      dependencies: [
+        "Domain", "Rules", "Story", "Growth", "Persistence", "Sync", "MockKit",
+        "DebugScenarioSupport",
+      ]
     ),
   ]
 )

@@ -88,6 +88,12 @@ real event ledger and reducers while intentionally suppressing HealthKit refresh
 WatchConnectivity startup, so the test proves offline main-story/habit settlement without being
 coupled to Simulator framework latency. The argument has no effect without `-UITesting`.
 
+Repository fixtures are copied from an explicit `.xcfilelist` only into Debug app bundles. Both
+Apple clients require the compile-time `DEBUG` condition and the runtime `-UITesting` flag before
+they resolve an allowlisted fixture through `DebugScenarioSupport`. `Scripts/test-release-boundaries`
+builds the Release iPhone app and embedded Watch app, then rejects fixture resources, selectors,
+and fixture identifiers in either executable.
+
 ### Visual and functional review
 
 For UI changes, use Computer Use or an equivalent visible simulator/device session after automated tests pass. Inspect small and large supported Watch sizes, iPhone sizes, light/dark appearance where applicable, largest text, Reduce Motion, truncation, tap targets, navigation, loading, empty, error, and offline states.

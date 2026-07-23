@@ -83,6 +83,9 @@ jobs:
       - name: Unit and integration tests
         run: Scripts/test
 
+      - name: Release fixture boundary
+        run: Scripts/test-release-boundaries
+
       - name: Simulator E2E tests
         run: Scripts/test-e2e
 

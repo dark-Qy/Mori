@@ -13,11 +13,13 @@
 		D00300000000000000000002 /* Persistence in Frameworks */ = {isa = PBXBuildFile; productRef = D00300000000000000000001 /* Persistence */; };
 		D00400000000000000000002 /* Sync in Frameworks */ = {isa = PBXBuildFile; productRef = D00400000000000000000001 /* Sync */; };
 		D10100000000000000000002 /* AppRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = D10100000000000000000001 /* AppRuntime */; };
+		E10100000000000000000002 /* DebugScenarioSupport in Frameworks */ = {isa = PBXBuildFile; productRef = E10100000000000000000001 /* DebugScenarioSupport */; };
 		D01100000000000000000002 /* Domain in Frameworks */ = {isa = PBXBuildFile; productRef = D01100000000000000000001 /* Domain */; };
 		D01200000000000000000002 /* Growth in Frameworks */ = {isa = PBXBuildFile; productRef = D01200000000000000000001 /* Growth */; };
 		D01300000000000000000002 /* Persistence in Frameworks */ = {isa = PBXBuildFile; productRef = D01300000000000000000001 /* Persistence */; };
 		D01400000000000000000002 /* Sync in Frameworks */ = {isa = PBXBuildFile; productRef = D01400000000000000000001 /* Sync */; };
 		D11100000000000000000002 /* AppRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = D11100000000000000000001 /* AppRuntime */; };
+		E11100000000000000000002 /* DebugScenarioSupport in Frameworks */ = {isa = PBXBuildFile; productRef = E11100000000000000000001 /* DebugScenarioSupport */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -127,6 +129,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E10100000000000000000002 /* DebugScenarioSupport in Frameworks */,
 				D10100000000000000000002 /* AppRuntime in Frameworks */,
 				D00100000000000000000002 /* Domain in Frameworks */,
 				D00200000000000000000002 /* Growth in Frameworks */,
@@ -139,6 +142,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E11100000000000000000002 /* DebugScenarioSupport in Frameworks */,
 				D11100000000000000000002 /* AppRuntime in Frameworks */,
 				D01100000000000000000002 /* Domain in Frameworks */,
 				D01200000000000000000002 /* Growth in Frameworks */,
@@ -261,6 +265,7 @@
 				39ED9ADF300FD7CF00649CAA /* Sources */,
 				39ED9AE0300FD7CF00649CAA /* Frameworks */,
 				39ED9AE1300FD7CF00649CAA /* Resources */,
+				E10100000000000000000003 /* Copy Debug Scenario Fixtures */,
 				39ED9B00300FD7D100649CAA /* Embed Watch Content */,
 			);
 			buildRules = (
@@ -274,6 +279,7 @@
 			name = WatchCompanion;
 			packageProductDependencies = (
 				D10100000000000000000001 /* AppRuntime */,
+				E10100000000000000000001 /* DebugScenarioSupport */,
 			);
 			productName = WatchCompanion;
 			productReference = 39ED9AE3300FD7CF00649CAA /* WatchCompanion.app */;
@@ -286,6 +292,7 @@
 				39ED9AEC300FD7D000649CAA /* Sources */,
 				39ED9AED300FD7D000649CAA /* Frameworks */,
 				39ED9AEE300FD7D000649CAA /* Resources */,
+				E11100000000000000000003 /* Copy Debug Scenario Fixtures */,
 			);
 			buildRules = (
 			);
@@ -297,6 +304,7 @@
 			name = "WatchCompanion Watch App";
 			packageProductDependencies = (
 				D11100000000000000000001 /* AppRuntime */,
+				E11100000000000000000001 /* DebugScenarioSupport */,
 			);
 			productName = "WatchCompanion Watch App";
 			productReference = 39ED9AF0300FD7D000649CAA /* WatchCompanion Watch App.app */;
@@ -396,6 +404,51 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		E10100000000000000000003 /* Copy Debug Scenario Fixtures */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"$(SRCROOT)/Configuration/DebugScenarioFixtures.xcfilelist",
+			);
+			inputPaths = (
+				"$(SRCROOT)/../../Scripts/copy-debug-scenarios",
+			);
+			name = "Copy Debug Scenario Fixtures";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"$SRCROOT/../../Scripts/copy-debug-scenarios\"\n";
+		};
+		E11100000000000000000003 /* Copy Debug Scenario Fixtures */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"$(SRCROOT)/Configuration/DebugScenarioFixtures.xcfilelist",
+			);
+			inputPaths = (
+				"$(SRCROOT)/../../Scripts/copy-debug-scenarios",
+			);
+			name = "Copy Debug Scenario Fixtures";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"$SRCROOT/../../Scripts/copy-debug-scenarios\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		C00100000000000000000005 /* Sources */ = {
@@ -939,6 +992,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D10000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AppRuntime" */;
 			productName = AppRuntime;
+		};
+		E10100000000000000000001 /* DebugScenarioSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/CompanionCore" */;
+			productName = DebugScenarioSupport;
+		};
+		E11100000000000000000001 /* DebugScenarioSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/CompanionCore" */;
+			productName = DebugScenarioSupport;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

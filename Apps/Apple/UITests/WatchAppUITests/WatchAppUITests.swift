@@ -6,11 +6,11 @@ final class WatchAppUITests: XCTestCase {
   }
 
   func testMockPetHomeAndInteraction() {
-    let app = launchApp(scenario: "active_day")
+    let app = launchApp(scenario: "activity_high")
 
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
     XCTAssertTrue(element("watch.mock-badge", in: app).exists)
-    XCTAssertTrue(app.staticTexts["Mori · Lv.8"].exists)
+    XCTAssertTrue(app.staticTexts["Mori · Lv.3"].exists)
     XCTAssertTrue(app.buttons["watch.interact"].waitForExistence(timeout: 5))
 
     app.buttons["watch.interact"].tap()
@@ -18,14 +18,14 @@ final class WatchAppUITests: XCTestCase {
   }
 
   func testTrendAndMessageNavigation() {
-    let app = launchApp(scenario: "steady_week")
+    let app = launchApp(scenario: "health_normal")
 
     let trendLink = app.buttons["watch.open-trends"]
     scrollToElement(trendLink, in: app)
     XCTAssertTrue(trendLink.exists)
     trendLink.tap()
     XCTAssertTrue(element("watch.trends", in: app).waitForExistence(timeout: 5))
-    XCTAssertTrue(element("watch.trend-chart", in: app).exists)
+    XCTAssertTrue(element("watch.trend-empty", in: app).exists)
 
     app.navigationBars.buttons.firstMatch.tap()
 
@@ -34,7 +34,7 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(messageLink.exists)
     messageLink.tap()
     XCTAssertTrue(element("watch.messages", in: app).waitForExistence(timeout: 5))
-    XCTAssertTrue(element("watch.message.pause", in: app).exists)
+    XCTAssertTrue(element("watch.message.live-activity", in: app).exists)
   }
 
   func testDefaultLaunchUsesNeutralHealthKitMode() {
@@ -67,7 +67,7 @@ final class WatchAppUITests: XCTestCase {
 
   func testNotificationRouteShowsSafeOptionalAction() {
     let app = launchApp(
-      scenario: "recovery_low",
+      scenario: "health_normal",
       additionalArguments: ["--notification-route=pet/recovery"]
     )
 
