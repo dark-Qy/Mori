@@ -39,7 +39,7 @@ struct MockBadge: View {
   let scenarioName: String
 
   var body: some View {
-    Label("Mock · \(scenarioName)", systemImage: "testtube.2")
+    Label("Mock", systemImage: "testtube.2")
       .font(.caption2.weight(.bold))
       .foregroundStyle(AdventurePalette.blue)
       .padding(.horizontal, 7)

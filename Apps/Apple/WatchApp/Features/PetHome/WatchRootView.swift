@@ -6,6 +6,8 @@ struct WatchRootView: View {
   @ObservedObject var store: WatchAppStore
   @State private var interactionCount = 0
   @State private var showsDataSourcePicker = false
+  @State private var sceneReactionSequence = 0
+  @State private var sceneReaction: WatchSceneReaction?
 
   private var model: WatchPresentationModel { store.model }
 
@@ -41,6 +43,10 @@ struct WatchRootView: View {
     NavigationStack {
       ScrollView {
         VStack(spacing: AdventureSpacing.medium) {
+          PetHeroCard(model: model, reaction: sceneReaction) { interaction in
+            interactionCount += 1
+            Task { await store.interact(with: interaction) }
+          }
           statusHeader
           if let status = store.statusMessage {
             Text(status)
@@ -53,9 +59,14 @@ struct WatchRootView: View {
             quest: model.quest,
             isAdvancing: store.isAdvancingStory,
             showsAction: model.isLive,
-            onAdvance: { Task { await store.advanceMainStory() } }
+            onAdvance: {
+              Task {
+                if await store.advanceMainStory() {
+                  triggerSceneReaction(.storyReaction)
+                }
+              }
+            }
           )
-          PetHeroCard(model: model)
           HealthPillRow(metrics: model.metrics)
           interactionCard
           destinationLinks
@@ -123,15 +134,20 @@ struct WatchRootView: View {
         }
 
         Button {
-          WKInterfaceDevice.current().play(.click)
           if model.requestsCompanionInteraction {
             interactionCount += 1
-            Task { await store.companionInteraction() }
+            triggerSceneReaction(.touchHead)
+            Task { await store.interact(with: .touchHead) }
           } else if model.isLive {
-            Task { await store.completeSuggestedAction() }
+            Task {
+              if await store.completeSuggestedAction() {
+                triggerSceneReaction(.actionSuccess)
+              }
+            }
           } else {
             interactionCount += 1
-            Task { await store.companionInteraction() }
+            triggerSceneReaction(.touchHead)
+            Task { await store.interact(with: .touchHead) }
           }
         } label: {
           Label(
@@ -152,6 +168,14 @@ struct WatchRootView: View {
         .accessibilityIdentifier("watch.interact")
       }
     }
+  }
+
+  private func triggerSceneReaction(_ animation: WatchCharacterAnimation) {
+    sceneReactionSequence += 1
+    sceneReaction = WatchSceneReaction(
+      sequence: sceneReactionSequence,
+      animation: animation
+    )
   }
 
   private var destinationLinks: some View {
@@ -214,71 +238,39 @@ private struct WatchDataSourcePicker: View {
 
 private struct PetHeroCard: View {
   let model: WatchPresentationModel
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  let reaction: WatchSceneReaction?
+  let onInteraction: (WatchCharacterAnimation) -> Void
 
   var body: some View {
-    VStack(spacing: AdventureSpacing.medium) {
-      ZStack {
-        Circle()
-          .fill(AdventurePalette.mint.opacity(0.18))
-          .frame(width: 74, height: 74)
-        Circle()
-          .stroke(AdventurePalette.mint.opacity(0.35), lineWidth: 1)
-          .frame(width: 64, height: 64)
-        Image(systemName: model.petSymbol)
-          .font(.system(size: 34, weight: .semibold))
-          .foregroundStyle(AdventurePalette.mint)
-          .symbolEffect(.bounce, value: reduceMotion ? 0 : model.vitality)
-        if let accessory = WatchOutfitAccessory.make(for: model.outfitID) {
-          Image(systemName: accessory.symbol)
-            .font(.system(size: 17, weight: .bold))
-            .foregroundStyle(accessory.color)
-            .offset(x: 26, y: -27)
-        }
-      }
-      .accessibilityHidden(true)
+    VStack(spacing: AdventureSpacing.small) {
+      CompanionSceneView(
+        scene: model.scene,
+        reaction: reaction,
+        onInteraction: onInteraction
+      )
+      .aspectRatio(352 / 430, contentMode: .fit)
 
-      VStack(spacing: 2) {
+      HStack(alignment: .firstTextBaseline) {
         Text("Mori · Lv.\(model.level)")
           .font(.headline)
           .accessibilityIdentifier("watch.pet-level")
-        Text(model.petMood)
-          .font(.caption2)
-          .foregroundStyle(.secondary)
-          .multilineTextAlignment(.center)
+        Spacer(minLength: 6)
+        Label("\(model.vitality)", systemImage: "leaf.fill")
+          .font(.caption2.weight(.semibold))
+          .foregroundStyle(AdventurePalette.mint)
       }
 
-      VStack(spacing: 4) {
-        HStack {
-          Label("生命力", systemImage: "leaf.fill")
-          Spacer()
-          Text("\(model.vitality)/100")
-            .monospacedDigit()
-        }
-        .font(.caption2.weight(.semibold))
-        ProgressView(value: Double(model.vitality), total: 100)
-          .tint(AdventurePalette.mint)
-          .frame(minHeight: 44)
-          .contentShape(Rectangle())
-          .accessibilityIdentifier("watch.vitality-progress")
-          .accessibilityLabel("生命力")
-          .accessibilityValue("\(model.vitality)/100")
-      }
-    }
-    .padding(AdventureSpacing.medium)
-    .background {
-      RoundedRectangle(cornerRadius: AdventureRadius.hero, style: .continuous)
-        .fill(
-          LinearGradient(
-            colors: [AdventurePalette.surface, AdventurePalette.mint.opacity(0.09)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-          )
-        )
-    }
-    .overlay {
-      RoundedRectangle(cornerRadius: AdventureRadius.hero, style: .continuous)
-        .stroke(AdventurePalette.mint.opacity(0.14), lineWidth: 1)
+      Text(model.petMood)
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+
+      ProgressView(value: Double(model.vitality), total: 100)
+        .tint(AdventurePalette.mint)
+        .accessibilityIdentifier("watch.vitality-progress")
+        .accessibilityLabel("生命力")
+        .accessibilityValue("\(model.vitality)/100")
     }
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("watch.pet-hero")

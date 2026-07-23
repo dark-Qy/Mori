@@ -21,6 +21,7 @@ struct WatchPresentationModel {
   let petMood: String
   let petSymbol: String
   let outfitID: String?
+  let scene: WatchScenePresentation
   let relationshipPresence: RelationshipPresence
   let dayStatus: String
   let petPrompt: String
@@ -86,6 +87,10 @@ struct WatchPresentationModel {
       ),
       petSymbol: "pawprint.fill",
       outfitID: peerValues?["outfit"] ?? companion.pet.equippedOutfitID,
+      scene: WatchScenePresentation.make(
+        peerValues: peerValues,
+        mood: relationship == .quietlyMissingYou ? .resting : companion.pet.mood
+      ),
       relationshipPresence: relationship,
       dayStatus: statusText(companion.activeTheme, hasHealth: hasHealth),
       petPrompt: relationship == .quietlyMissingYou
@@ -164,6 +169,7 @@ struct WatchPresentationModel {
     guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
     return replacing(
       petMood: "Mori 又靠近了一点：我也很想你",
+      scene: scene.applying(mood: .curious),
       relationshipPresence: .present,
       petPrompt: "Mori 已经收到你的回应。",
       actionTitle: "今天已回应"
@@ -194,6 +200,7 @@ struct WatchPresentationModel {
       petMood: "Mock 场景无效，已停止读取真实数据",
       petSymbol: base.petSymbol,
       outfitID: nil,
+      scene: base.scene,
       relationshipPresence: base.relationshipPresence,
       dayStatus: "Mock 无效",
       petPrompt: "请修正启动参数；当前不会访问 HealthKit。",
@@ -266,6 +273,7 @@ struct WatchPresentationModel {
         petMood: base.petMood,
         petSymbol: base.petSymbol,
         outfitID: base.outfitID,
+        scene: base.scene,
         relationshipPresence: base.relationshipPresence,
         dayStatus: base.dayStatus,
         petPrompt: base.petPrompt,
@@ -439,6 +447,7 @@ struct WatchPresentationModel {
 
   private func replacing(
     petMood: String? = nil,
+    scene: WatchScenePresentation? = nil,
     relationshipPresence: RelationshipPresence? = nil,
     petPrompt: String? = nil,
     actionTitle: String? = nil,
@@ -452,6 +461,7 @@ struct WatchPresentationModel {
       petMood: petMood ?? self.petMood,
       petSymbol: petSymbol,
       outfitID: outfitID,
+      scene: scene ?? self.scene,
       relationshipPresence: relationshipPresence ?? self.relationshipPresence,
       dayStatus: dayStatus,
       petPrompt: petPrompt ?? self.petPrompt,

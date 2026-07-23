@@ -221,8 +221,11 @@ final class WatchAppStore: ObservableObject {
     }
   }
 
-  func completeSuggestedAction() async {
-    guard selectedDataSource == .healthKit, let runtime, !isCompletingAction else { return }
+  @discardableResult
+  func completeSuggestedAction() async -> Bool {
+    guard selectedDataSource == .healthKit, let runtime, !isCompletingAction else {
+      return false
+    }
     isCompletingAction = true
     defer { isCompletingAction = false }
     do {
@@ -242,23 +245,25 @@ final class WatchAppStore: ObservableObject {
         actionCompleted = true
         statusMessage = "今天已经完成过一个小行动，继续休息也很好"
       }
+      return true
     } catch {
       statusMessage = "互动暂时没能保存"
+      return false
     }
   }
 
-  func companionInteraction() async {
+  func interact(with animation: WatchCharacterAnimation) async {
     if selectedDataSource.isMock || hasLaunchScenarioOverride {
       if model.mockScenario?.id == CompanionDataSource.mock2.fixtureID {
         model = model.resolvingMockRelationship()
         actionCompleted = true
       }
-      statusMessage = "Mori 靠近了一点，安静地陪着你"
+      statusMessage = animation == .touchHead ? "Mori 开心地眨了眨眼" : "Mori 转过身回应了你"
       return
     }
     guard let runtime else { return }
     do {
-      let state = try await runtime.recordPetInteraction(kind: "watch_companion")
+      let state = try await runtime.recordPetInteraction(kind: animation.rawValue)
       let trend = try await runtime.personalHealthTrend()
       model = .live(
         companion: state,
@@ -266,14 +271,17 @@ final class WatchAppStore: ObservableObject {
         trend: trend,
         peerValues: latestPeerValues
       )
-      statusMessage = "Mori 靠近了一点，安静地陪着你"
+      statusMessage = animation == .touchHead ? "Mori 开心地眨了眨眼" : "Mori 转过身回应了你"
     } catch {
       statusMessage = "这次互动没能保存，但 Mori 已经看见你了"
     }
   }
 
-  func advanceMainStory() async {
-    guard selectedDataSource == .healthKit, let runtime, !isAdvancingStory else { return }
+  @discardableResult
+  func advanceMainStory() async -> Bool {
+    guard selectedDataSource == .healthKit, let runtime, !isAdvancingStory else {
+      return false
+    }
     isAdvancingStory = true
     defer { isAdvancingStory = false }
     do {
@@ -293,8 +301,10 @@ final class WatchAppStore: ObservableObject {
       case .storyComplete:
         statusMessage = "七日主线已完成，可以自由探索支线"
       }
+      return true
     } catch {
       statusMessage = "主线进度暂时没能保存"
+      return false
     }
   }
 
@@ -391,7 +401,7 @@ final class WatchAppStore: ObservableObject {
       let shouldReloadDataSource = try await runtime.applyPeerPreferences(values)
       preferences = try await runtime.loadPreferences()
       // Presentation consumes the validated, merged management subset. Raw or partial peer
-      // payloads must never reset a valid local outfit to a default.
+      // payloads must never reset a valid local character or scene to a default.
       latestPeerValues = Self.peerValues(from: preferences)
       await applyPeerValues(values, shouldReloadDataSource: shouldReloadDataSource)
     } catch {
@@ -435,7 +445,15 @@ final class WatchAppStore: ObservableObject {
   }
 
   private static func peerValues(from preferences: AppPreferences) -> [String: String] {
-    ["outfit": preferences.selectedOutfitID]
+    [
+      "outfit": preferences.selectedOutfitID,
+      "characters": CompanionVisualCatalog.normalizedCharacterIDs(
+        preferences.selectedCharacterIDs
+      ).joined(separator: ","),
+      "background": CompanionVisualCatalog.normalizedBackgroundID(
+        preferences.selectedBackgroundID
+      ),
+    ]
   }
 
   private static func productionRuntimeConfiguration() -> RuntimeConfiguration {
