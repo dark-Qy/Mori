@@ -20,7 +20,7 @@ struct PhoneOnboardingView: View {
               .fixedSize(horizontal: false, vertical: true)
             Text("它把睡眠、活动和你主动完成的小习惯，翻译成容易理解的状态与剧情；健康数据不是通关门槛。")
               .font(.body)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(CompanionPalette.secondaryText)
               .fixedSize(horizontal: false, vertical: true)
           }
 
@@ -29,7 +29,7 @@ struct PhoneOnboardingView: View {
               .font(.headline)
             Text("不会在这里自动请求健康或通知权限；缺失数据保持中性，也不会让宠物受伤或退化。")
               .font(.subheadline)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(CompanionPalette.secondaryText)
               .fixedSize(horizontal: false, vertical: true)
           }
 
@@ -50,7 +50,7 @@ struct PhoneOnboardingView: View {
           if let status = store.statusMessage {
             Text(status)
               .font(.footnote)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(CompanionPalette.secondaryText)
               .accessibilityIdentifier("phone.onboarding.status")
           }
         }

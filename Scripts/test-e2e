@@ -81,6 +81,42 @@ for simulator_udid in "$phone_udid" "$watch_udid"; do
   fi
 done
 
+original_phone_appearance=""
+original_phone_contrast=""
+original_phone_content_size=""
+
+restore_phone_settings() {
+  if [[ -z "$phone_udid" ]]; then
+    return 0
+  fi
+
+  xcrun simctl boot "$phone_udid" >/dev/null 2>&1 || true
+  xcrun simctl bootstatus "$phone_udid" -b >/dev/null 2>&1 || return 0
+  if [[ "$original_phone_appearance" == "light" || "$original_phone_appearance" == "dark" ]]; then
+    xcrun simctl ui "$phone_udid" appearance "$original_phone_appearance" >/dev/null 2>&1 || true
+  fi
+  if [[ "$original_phone_contrast" == "enabled" || "$original_phone_contrast" == "disabled" ]]; then
+    xcrun simctl ui "$phone_udid" increase_contrast "$original_phone_contrast" >/dev/null 2>&1 || true
+  fi
+  case "$original_phone_content_size" in
+    extra-small|small|medium|large|extra-large|extra-extra-large|extra-extra-extra-large|accessibility-medium|accessibility-large|accessibility-extra-large|accessibility-extra-extra-large|accessibility-extra-extra-extra-large)
+      xcrun simctl ui "$phone_udid" content_size "$original_phone_content_size" >/dev/null 2>&1 || true
+      ;;
+  esac
+}
+
+if [[ -n "$phone_udid" ]]; then
+  xcrun simctl bootstatus "$phone_udid" -b
+  original_phone_appearance="$(xcrun simctl ui "$phone_udid" appearance | tr -d '[:space:]')"
+  original_phone_contrast="$(xcrun simctl ui "$phone_udid" increase_contrast | tr -d '[:space:]')"
+  original_phone_content_size="$(xcrun simctl ui "$phone_udid" content_size | tr -d '[:space:]')"
+  trap restore_phone_settings EXIT
+
+  xcrun simctl ui "$phone_udid" appearance light
+  xcrun simctl ui "$phone_udid" increase_contrast disabled
+  xcrun simctl ui "$phone_udid" content_size large
+fi
+
 artifact_directory="$REPO_ROOT/.artifacts"
 mkdir -p "$artifact_directory"
 derived_data_path="${E2E_DERIVED_DATA_PATH:-$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-e2e.XXXXXX")}"

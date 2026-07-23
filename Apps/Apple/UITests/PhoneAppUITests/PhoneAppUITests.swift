@@ -29,8 +29,30 @@ final class PhoneAppUITests: XCTestCase {
 
     app.tabBars.buttons["隐私"].tap()
     XCTAssertTrue(element("phone.privacy", in: app).waitForExistence(timeout: 5))
-    XCTAssertTrue(app.switches["phone.privacy.social-sharing"].exists)
+    let socialSharing = app.switches["phone.privacy.social-sharing"]
+    XCTAssertTrue(socialSharing.exists)
     XCTAssertTrue(element("phone.privacy.sharing-scope", in: app).exists)
+    XCTAssertTrue(element("phone.privacy.sharing-scope-status", in: app).exists)
+    XCTAssertFalse(app.buttons["phone.privacy.sharing-scope-picker"].exists)
+    socialSharing.tap()
+    XCTAssertTrue(app.buttons["phone.privacy.sharing-scope-picker"].waitForExistence(timeout: 5))
+    XCTAssertFalse(element("phone.privacy.sharing-scope-status", in: app).exists)
+  }
+
+  func testPartialHealthUsesKnownMetricsAndKeepsMissingValuesNeutral() {
+    let app = launchApp(scenario: "health_partial")
+
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("phone.metric.recovery", in: app).label.contains("恢复，暂无睡眠数据"))
+    let activityLabel = element("phone.metric.activity", in: app).label
+    XCTAssertTrue(activityLabel.contains("活动"), "Actual activity label: \(activityLabel)")
+    XCTAssertTrue(activityLabel.contains("2180"), "Actual activity label: \(activityLabel)")
+    XCTAssertTrue(activityLabel.contains("步"), "Actual activity label: \(activityLabel)")
+    XCTAssertTrue(element("phone.metric.rhythm", in: app).label.contains("节律，暂无节律数据"))
+    XCTAssertTrue(
+      element("phone.data-explanation.detail", in: app).label.contains("仅使用场景中已知的指标")
+    )
+    XCTAssertFalse(app.staticTexts["0h0m"].exists)
   }
 
   func testDefaultLaunchNeverPretendsMockDataIsLive() {
@@ -145,6 +167,22 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["已打开 Mori 的恢复来信；不会自动完成任务或领取奖励"].exists)
   }
 
+  func testAccessibilityAuditAcrossManagementSurfaces() throws {
+    let app = launchApp(scenario: "health_partial")
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
+    try auditCurrentScreen(app)
+
+    for (tab, identifier) in [
+      ("历史", "phone.history"),
+      ("衣橱", "phone.wardrobe"),
+      ("隐私", "phone.privacy"),
+    ] {
+      app.tabBars.buttons[tab].tap()
+      XCTAssertTrue(element(identifier, in: app).waitForExistence(timeout: 5))
+      try auditCurrentScreen(app)
+    }
+  }
+
   private func launchApp(scenario: String) -> XCUIApplication {
     let app = XCUIApplication()
     app.launchArguments = ["-UITesting", "--mock-scenario=\(scenario)"]
@@ -184,5 +222,32 @@ final class PhoneAppUITests: XCTestCase {
 
   private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
     app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+  }
+
+  private func auditCurrentScreen(_ app: XCUIApplication) throws {
+    try app.performAccessibilityAudit(
+      for: [
+        .contrast,
+        .dynamicType,
+        .elementDetection,
+        .hitRegion,
+        .sufficientElementDescription,
+        .textClipped,
+        .trait,
+      ]
+    ) { issue in
+      guard issue.auditType == .contrast,
+        let element = issue.element
+      else {
+        return false
+      }
+
+      let tabBar = app.tabBars.firstMatch
+      guard tabBar.exists else { return false }
+      // XCTest measures pixels after the translucent OS tab bar and its shadow cover scroll content.
+      // Suppress only contrast reports inside that system-owned material footprint.
+      let systemMaterialFrame = tabBar.frame.insetBy(dx: 0, dy: -32)
+      return element.frame.intersects(systemMaterialFrame)
+    }
   }
 }

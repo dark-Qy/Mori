@@ -46,6 +46,11 @@ Installation state and executable domain state derive the initial screen. For ex
 `fresh_install` begins with a truly empty event ledger, so onboarding cannot inherit synthetic
 progress accidentally.
 
+The same rule applies to behavior-triggered stories. `soccer_workout` provides a synthetic workout;
+`SoccerSideStoryRule` derives whether `lost_ball` is eligible from its activity, duration, and
+freshness. `expectations.eligibleRandomStory` only validates that derived result and never grants the
+eligibility itself. Eligibility also does not force the random story to unlock.
+
 Dates are interpreted relative to `clock.now` where possible. Fixtures never contain copied health exports, real names, contact details, provider keys, device identifiers, or personal conversations.
 
 ## Required scenarios

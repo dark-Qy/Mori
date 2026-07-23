@@ -210,6 +210,8 @@ private struct PetHeroCard: View {
         .font(.caption2.weight(.semibold))
         ProgressView(value: Double(model.vitality), total: 100)
           .tint(AdventurePalette.mint)
+          .frame(minHeight: 44)
+          .contentShape(Rectangle())
           .accessibilityIdentifier("watch.vitality-progress")
           .accessibilityLabel("生命力")
           .accessibilityValue("\(model.vitality)/100")
@@ -352,6 +354,8 @@ private struct TodayQuestCard: View {
         HStack(spacing: 6) {
           ProgressView(value: quest.progress)
             .tint(AdventurePalette.gold)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityLabel("今日主线进度")
             .accessibilityValue(quest.progressLabel)
           Text(quest.progressLabel)
@@ -362,6 +366,8 @@ private struct TodayQuestCard: View {
           Label(sideStoryTitle, systemImage: "sparkles")
             .font(.caption2.weight(.semibold))
             .foregroundStyle(AdventurePalette.mint)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(sideStoryTitle)
             .accessibilityIdentifier("watch.side-story")
         }
       }

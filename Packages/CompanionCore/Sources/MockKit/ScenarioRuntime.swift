@@ -3,6 +3,7 @@
   import Foundation
   import Growth
   import Persistence
+  import Rules
 
   public enum MockScenarioError: Error, Equatable, Sendable {
     case missingValue(String)
@@ -151,7 +152,13 @@
       let services = try Self.requiredObject(state, path: "services")
       aiState = try Self.serviceState(from: Self.requiredString(services, path: "ai"))
       syncState = try Self.serviceState(from: Self.requiredString(services, path: "sync"))
-      eligibleRandomStoryID = expectations["eligibleRandomStory"]?.stringValue
+      let derivedEligibleRandomStoryID =
+        SoccerSideStoryRule().qualifyingWorkout(in: healthSnapshot) == nil
+        ? nil : "lost_ball"
+      guard expectations["eligibleRandomStory"]?.stringValue == derivedEligibleRandomStoryID else {
+        throw MockScenarioError.expectationMismatch("eligibleRandomStory")
+      }
+      eligibleRandomStoryID = derivedEligibleRandomStoryID
       mockBadgeVisible = expectations["mockBadgeVisible"]?.boolValue == true
       guard mockBadgeVisible else {
         throw MockScenarioError.expectationMismatch("mockBadgeVisible")

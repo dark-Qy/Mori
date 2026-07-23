@@ -29,10 +29,13 @@ struct OverviewView: View {
             .accessibilityIdentifier("phone.quest-title")
           Text(model.questDetail)
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(CompanionPalette.secondaryText)
             .padding(.top, 2)
+            .accessibilityIdentifier("phone.quest-detail")
           ProgressView(value: model.questProgress)
             .tint(CompanionPalette.gold)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .padding(.top, CompanionSpacing.small)
             .accessibilityLabel("今日主线进度")
             .accessibilityValue("\(Int(model.questProgress * 100))%")
@@ -43,12 +46,13 @@ struct OverviewView: View {
           Label("数据说明", systemImage: "info.circle.fill")
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(CompanionPalette.blue)
+            .accessibilityIdentifier("phone.data-explanation.title")
           Text(model.dataExplanation)
             .font(.footnote)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(CompanionPalette.secondaryText)
             .padding(.top, 5)
+            .accessibilityIdentifier("phone.data-explanation.detail")
         }
-        .accessibilityIdentifier("phone.data-explanation")
 
         if model.isLive {
           Button {
@@ -69,7 +73,7 @@ struct OverviewView: View {
         if let status = store.statusMessage {
           Text(status)
             .font(.footnote)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(CompanionPalette.secondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("phone.status-message")
         }
@@ -132,6 +136,8 @@ private struct PetOverviewCard: View {
         .font(.subheadline.weight(.semibold))
         ProgressView(value: Double(model.vitality), total: 100)
           .tint(.white)
+          .frame(minHeight: 44)
+          .contentShape(Rectangle())
           .accessibilityLabel("生命力")
           .accessibilityValue("\(model.vitality)/100")
       }
@@ -167,8 +173,8 @@ private struct MetricTile: View {
       Text(metric.title)
         .font(.caption.weight(.semibold))
       Text(metric.detail)
-        .font(.caption2)
-        .foregroundStyle(.secondary)
+        .font(.caption)
+        .foregroundStyle(CompanionPalette.secondaryText)
         .lineLimit(2)
     }
     .frame(maxWidth: .infinity, minHeight: 116, alignment: .leading)
@@ -177,6 +183,7 @@ private struct MetricTile: View {
       CompanionPalette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous)
     )
     .accessibilityElement(children: .combine)
+    .accessibilityLabel("\(metric.title)，\(metric.accessibilityValue)。\(metric.detail)")
     .accessibilityIdentifier("phone.metric.\(metric.id)")
   }
 }

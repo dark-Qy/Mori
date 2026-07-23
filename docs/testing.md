@@ -102,6 +102,20 @@ builds the Release iPhone app and embedded Watch app, then rejects fixture resou
 identifiers, E2E storage selectors, offline-runtime selectors, and notification-route launch hooks
 in either executable.
 
+`Scripts/test-e2e` normalizes the iPhone Simulator to light appearance, standard contrast, and the
+default large content size before the suite, then restores the user's previous settings even when a
+test shuts the device down. `Scripts/test-accessibility` adds a reproducible visual matrix:
+
+- iPhone in light appearance with standard contrast and default large text;
+- iPhone in dark appearance, increased contrast, and accessibility XXXL text;
+- a 40 mm Apple Watch Simulator primary-surface audit.
+
+The UI audit checks contrast, Dynamic Type, element detection, hit regions, descriptions, clipping,
+and accessibility traits. Its only suppression is a contrast report whose audited frame intersects
+the system-owned translucent tab-bar material and shadow; application-owned content outside that
+footprint must pass normally. This automated audit covers the current viewport and does not prove
+VoiceOver reading order, physical tap comfort, haptics, or device rendering.
+
 ### Visual and functional review
 
 For UI changes, use Computer Use or an equivalent visible simulator/device session after automated tests pass. Inspect small and large supported Watch sizes, iPhone sizes, light/dark appearance where applicable, largest text, Reduce Motion, truncation, tap targets, navigation, loading, empty, error, and offline states.

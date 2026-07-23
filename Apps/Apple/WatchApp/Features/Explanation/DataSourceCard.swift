@@ -55,6 +55,7 @@ private struct ExplanationView: View {
           .font(.caption2)
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("watch.explanation.detail")
       }
       .padding(.horizontal, AdventureSpacing.page)
       .padding(.bottom, AdventureSpacing.large)

@@ -18,7 +18,7 @@ struct PrivacyView: View {
             .foregroundStyle(CompanionPalette.mint)
           Text("原始 HealthKit 数据只在本机生成状态与趋势；不会自动向好友发送睡眠阶段、心率数值或原始记录。")
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(CompanionPalette.secondaryText)
             .padding(.top, 5)
         }
 
@@ -52,29 +52,46 @@ struct PrivacyView: View {
             Text("分享范围")
               .font(.subheadline.weight(.semibold))
               .accessibilityIdentifier("phone.privacy.sharing-scope")
-            Picker(
-              "分享范围",
-              selection: Binding(
-                get: { store.preferences.healthSharingScope },
-                set: store.setHealthSharingScope
-              )
-            ) {
-              Text("游戏状态").tag(HealthSharingScope.gameStateOnly)
-              Text("关心摘要").tag(HealthSharingScope.careSummary)
-              Text("有限健康摘要").tag(HealthSharingScope.limitedHealthSummary)
+            if store.preferences.socialSharingEnabled {
+              Picker(
+                "分享范围",
+                selection: Binding(
+                  get: { store.preferences.healthSharingScope },
+                  set: store.setHealthSharingScope
+                )
+              ) {
+                Text("游戏状态").tag(HealthSharingScope.gameStateOnly)
+                Text("关心摘要").tag(HealthSharingScope.careSummary)
+                Text("有限健康摘要").tag(HealthSharingScope.limitedHealthSummary)
+              }
+              .pickerStyle(.navigationLink)
+              .accessibilityIdentifier("phone.privacy.sharing-scope-picker")
+            } else {
+              HStack(spacing: CompanionSpacing.small) {
+                Label("好友分享已关闭", systemImage: "lock.fill")
+                  .font(.footnote.weight(.semibold))
+                Spacer(minLength: CompanionSpacing.small)
+                Text(scopeTitle)
+                  .font(.footnote.weight(.semibold))
+              }
+              .foregroundStyle(CompanionPalette.secondaryText)
+              .accessibilityElement(children: .combine)
+              .accessibilityLabel("分享范围")
+              .accessibilityValue("\(scopeTitle)，好友分享已关闭")
+              .accessibilityIdentifier("phone.privacy.sharing-scope-status")
             }
-            .pickerStyle(.navigationLink)
-            .disabled(!store.preferences.socialSharingEnabled)
-            .accessibilityIdentifier("phone.privacy.sharing-scope-picker")
 
             Text(scopeDescription)
               .font(.footnote)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(CompanionPalette.secondaryText)
               .fixedSize(horizontal: false, vertical: true)
-            Text("尚未连接社交服务；这个选择现在不会发送任何数据。")
-              .font(.caption2)
-              .foregroundStyle(CompanionPalette.gold)
-              .fixedSize(horizontal: false, vertical: true)
+            Label(
+              "尚未连接社交服务；这个选择现在不会发送任何数据。",
+              systemImage: "network.slash"
+            )
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(CompanionPalette.secondaryText)
+            .fixedSize(horizontal: false, vertical: true)
           }
         }
 
@@ -90,7 +107,7 @@ struct PrivacyView: View {
               : "此运行使用显式 Mock 场景验证交互，不会把演示值标记为真实健康数据。"
           )
           .font(.footnote)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(CompanionPalette.secondaryText)
           .padding(.top, 5)
         }
       }
@@ -110,6 +127,17 @@ struct PrivacyView: View {
     }
   }
 
+  private var scopeTitle: String {
+    switch store.preferences.healthSharingScope {
+    case .gameStateOnly:
+      "游戏状态"
+    case .careSummary:
+      "关心摘要"
+    case .limitedHealthSummary:
+      "有限健康摘要"
+    }
+  }
+
   private func settingToggle(
     title: String,
     detail: String,
@@ -123,7 +151,7 @@ struct PrivacyView: View {
             .font(.subheadline.weight(.semibold))
           Text(detail)
             .font(.footnote)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(CompanionPalette.secondaryText)
             .fixedSize(horizontal: false, vertical: true)
         }
       }

@@ -1,0 +1,136 @@
+#!/bin/bash
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
+
+if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer" ]]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
+project_path="$REPO_ROOT/Apps/Apple/WatchCompanion.xcodeproj"
+if [[ ! -f "$project_path/project.pbxproj" ]]; then
+  echo "error: Apple project is missing: $project_path" >&2
+  exit 1
+fi
+
+find_device_udid() {
+  local platform_marker="$1"
+  local name_pattern="$2"
+  local devices_json
+  devices_json="$(mktemp "${TMPDIR:-/tmp}/watch-companion-accessibility-devices.XXXXXX")"
+  xcrun simctl list devices available -j >"$devices_json"
+
+  /usr/bin/python3 - "$devices_json" "$platform_marker" "$name_pattern" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    runtimes = json.load(source).get("devices", {})
+
+platform_marker = sys.argv[2]
+name_pattern = re.compile(sys.argv[3])
+
+for runtime, devices in sorted(runtimes.items(), reverse=True):
+    if platform_marker not in runtime:
+        continue
+    for device in devices:
+        if device.get("isAvailable", True) and name_pattern.search(device.get("name", "")):
+            print(device["udid"])
+            raise SystemExit(0)
+PY
+  rm -f "$devices_json"
+}
+
+phone_udid="${ACCESSIBILITY_PHONE_UDID:-$(find_device_udid ".iOS-" '^iPhone.*Pro$')}"
+watch_udid="${ACCESSIBILITY_WATCH_UDID:-$(find_device_udid ".watchOS-" 'Apple Watch.*\(40mm\)$')}"
+
+if [[ -z "$phone_udid" ]]; then
+  echo "error: no available iPhone Pro Simulator was found." >&2
+  exit 1
+fi
+if [[ -z "$watch_udid" ]]; then
+  echo "error: no available 40 mm Apple Watch Simulator was found." >&2
+  exit 1
+fi
+
+ensure_device_booted() {
+  local udid="$1"
+  xcrun simctl boot "$udid" >/dev/null 2>&1 || true
+  xcrun simctl bootstatus "$udid" -b
+}
+
+ensure_device_booted "$phone_udid"
+ensure_device_booted "$watch_udid"
+
+original_appearance="$(xcrun simctl ui "$phone_udid" appearance | tr -d '[:space:]')"
+original_contrast="$(xcrun simctl ui "$phone_udid" increase_contrast | tr -d '[:space:]')"
+original_content_size="$(xcrun simctl ui "$phone_udid" content_size | tr -d '[:space:]')"
+
+restore_phone_settings() {
+  ensure_device_booted "$phone_udid" >/dev/null 2>&1 || return 0
+  if [[ "$original_appearance" == "light" || "$original_appearance" == "dark" ]]; then
+    xcrun simctl ui "$phone_udid" appearance "$original_appearance" >/dev/null 2>&1 || true
+  fi
+  if [[ "$original_contrast" == "enabled" || "$original_contrast" == "disabled" ]]; then
+    xcrun simctl ui "$phone_udid" increase_contrast "$original_contrast" >/dev/null 2>&1 || true
+  fi
+  case "$original_content_size" in
+    extra-small|small|medium|large|extra-large|extra-extra-large|extra-extra-extra-large|accessibility-medium|accessibility-large|accessibility-extra-large|accessibility-extra-extra-large|accessibility-extra-extra-extra-large)
+      xcrun simctl ui "$phone_udid" content_size "$original_content_size" >/dev/null 2>&1 || true
+      ;;
+  esac
+}
+trap restore_phone_settings EXIT
+
+artifact_directory="$REPO_ROOT/.artifacts"
+mkdir -p "$artifact_directory"
+derived_data_path="${ACCESSIBILITY_DERIVED_DATA_PATH:-$(mktemp -d "${TMPDIR:-/tmp}/watch-companion-accessibility.XXXXXX")}"
+run_stamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+
+run_phone_audit() {
+  local variant="$1"
+  local result_path="$artifact_directory/accessibility-phone-$variant-$run_stamp.xcresult"
+  ensure_device_booted "$phone_udid"
+  echo "Running iPhone accessibility audit: $variant."
+  xcodebuild test \
+    -project "$project_path" \
+    -scheme WatchCompanion \
+    -testPlan Phase0 \
+    -destination "platform=iOS Simulator,id=$phone_udid" \
+    -derivedDataPath "$derived_data_path" \
+    -resultBundlePath "$result_path" \
+    -only-testing:PhoneAppUITests/testAccessibilityAuditAcrossManagementSurfaces \
+    CODE_SIGNING_ALLOWED=NO \
+    CODE_SIGNING_REQUIRED=NO \
+    COMPILER_INDEX_STORE_ENABLE=NO
+}
+
+xcrun simctl ui "$phone_udid" appearance light
+xcrun simctl ui "$phone_udid" increase_contrast disabled
+xcrun simctl ui "$phone_udid" content_size large
+run_phone_audit "light-standard"
+
+ensure_device_booted "$phone_udid"
+xcrun simctl ui "$phone_udid" appearance dark
+xcrun simctl ui "$phone_udid" increase_contrast enabled
+xcrun simctl ui "$phone_udid" content_size accessibility-extra-extra-extra-large
+run_phone_audit "dark-high-axxxl"
+
+watch_result="$artifact_directory/accessibility-watch-40mm-$run_stamp.xcresult"
+ensure_device_booted "$watch_udid"
+echo "Running 40 mm Watch accessibility audit."
+xcodebuild test \
+  -project "$project_path" \
+  -scheme WatchCompanion-Watch \
+  -destination "platform=watchOS Simulator,id=$watch_udid" \
+  -derivedDataPath "$derived_data_path" \
+  -resultBundlePath "$watch_result" \
+  -only-testing:WatchAppUITests/testAccessibilityAuditAcrossPrimarySurfaces \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  COMPILER_INDEX_STORE_ENABLE=NO
+
+echo "Accessibility matrix passed; result bundles are in $artifact_directory."

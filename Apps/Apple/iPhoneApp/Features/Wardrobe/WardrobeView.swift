@@ -44,42 +44,50 @@ struct WardrobeView: View {
               : "正在预览：\(previewedItem?.name ?? "基础外观")"
           )
           .font(.footnote)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(CompanionPalette.secondaryText)
           .accessibilityIdentifier("phone.wardrobe-selection-state")
 
           if previewIsUnlocked {
-            Button {
-              store.equipPreviewedOutfit()
-            } label: {
-              Label(
-                previewItemID == equippedItemID ? "已装备" : "装备这件装扮",
-                systemImage: previewItemID == equippedItemID
-                  ? "checkmark.circle.fill" : "tshirt.fill"
-              )
-              .frame(maxWidth: .infinity)
+            if previewItemID == equippedItemID {
+              Label("已装备", systemImage: "checkmark.circle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(CompanionPalette.mint)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, CompanionSpacing.small)
+                .background(CompanionPalette.mintSoft, in: Capsule())
+                .accessibilityIdentifier("phone.wardrobe.equipped-status")
+            } else {
+              Button {
+                store.equipPreviewedOutfit()
+              } label: {
+                Label("装备这件装扮", systemImage: "tshirt.fill")
+                  .frame(maxWidth: .infinity)
+              }
+              .buttonStyle(.borderedProminent)
+              .tint(CompanionPalette.mint)
+              .disabled(store.isSavingPreferences)
+              .accessibilityIdentifier("phone.wardrobe.equip")
             }
-            .buttonStyle(.borderedProminent)
-            .tint(CompanionPalette.mint)
-            .disabled(previewItemID == equippedItemID || store.isSavingPreferences)
-            .accessibilityIdentifier("phone.wardrobe.equip")
           } else {
             Label("还未解锁；可以预览，但不能装备", systemImage: "lock.fill")
               .font(.footnote.weight(.semibold))
-              .foregroundStyle(.secondary)
+              .foregroundStyle(CompanionPalette.secondaryText)
               .accessibilityIdentifier("phone.wardrobe.locked-reason")
           }
 
-          Button("恢复默认外观") {
-            store.resetOutfit()
+          if equippedItemID != "default" {
+            Button("恢复默认外观") {
+              store.resetOutfit()
+            }
+            .buttonStyle(.bordered)
+            .disabled(store.isSavingPreferences)
+            .accessibilityIdentifier("phone.wardrobe.reset")
           }
-          .buttonStyle(.bordered)
-          .disabled(equippedItemID == "default" || store.isSavingPreferences)
-          .accessibilityIdentifier("phone.wardrobe.reset")
 
           if let status = store.statusMessage {
             Text(status)
               .font(.footnote)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(CompanionPalette.secondaryText)
               .fixedSize(horizontal: false, vertical: true)
               .accessibilityIdentifier("phone.wardrobe-sync-status")
           }
@@ -121,7 +129,7 @@ struct WardrobeView: View {
                       .foregroundStyle(CompanionPalette.blue)
                   } else if !store.unlockedOutfitIDs.contains(item.id) {
                     Image(systemName: "lock.fill")
-                      .foregroundStyle(.secondary)
+                      .foregroundStyle(CompanionPalette.secondaryText)
                   }
                 }
               }

@@ -26,7 +26,7 @@ struct PhoneNotificationMessageView: View {
               : "如果愿意，我们可以一起走两分钟；不回应也不会失去成长。"
           )
           .font(.title3)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(CompanionPalette.secondaryText)
           .fixedSize(horizontal: false, vertical: true)
 
           CompanionCard {
@@ -34,7 +34,7 @@ struct PhoneNotificationMessageView: View {
               .font(.headline)
             Text("不会自动完成任务、领取奖励或写入健康数据。只有你之后明确执行的动作才会改变状态。")
               .font(.subheadline)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(CompanionPalette.secondaryText)
           }
 
           Button("回到概览", action: onDismiss)

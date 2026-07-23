@@ -14,7 +14,7 @@ struct HistoryView: View {
             .font(.headline)
           Text("只和你自己的近期状态比较")
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(CompanionPalette.secondaryText)
 
           HStack {
             Label("恢复", systemImage: "moon.fill")
@@ -26,12 +26,21 @@ struct HistoryView: View {
           .padding(.top, CompanionSpacing.medium)
 
           if model.history.isEmpty {
-            ContentUnavailableView(
-              "趋势正在积累",
-              systemImage: "chart.bar.xaxis",
-              description: Text("至少保留两天已知数据后再开始比较；缺失日不会按零计算。")
-            )
-            .frame(height: 150)
+            VStack(spacing: CompanionSpacing.small) {
+              Image(systemName: "chart.bar.xaxis")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(CompanionPalette.mint)
+              Text("趋势正在积累")
+                .font(.headline)
+              Text("至少保留两天已知数据后再开始比较；缺失日不会按零计算。")
+                .font(.subheadline)
+                .foregroundStyle(CompanionPalette.secondaryText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 150)
+            .padding(.vertical, CompanionSpacing.small)
+            .accessibilityElement(children: .combine)
             .accessibilityIdentifier("phone.history-empty")
           } else {
             HStack(alignment: .bottom, spacing: 10) {
@@ -42,8 +51,8 @@ struct HistoryView: View {
                     historyBar(day.activity, color: CompanionPalette.mint, style: .activity)
                   }
                   Text(day.weekday)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(CompanionPalette.secondaryText)
                 }
                 .frame(maxWidth: .infinity)
                 .accessibilityElement(children: .ignore)
@@ -66,7 +75,7 @@ struct HistoryView: View {
         if model.activityLog.isEmpty {
           Text("还没有可显示的事件。完成一次健康同步或宠物互动后会出现在这里。")
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(CompanionPalette.secondaryText)
             .padding(.vertical, CompanionSpacing.medium)
         }
 
@@ -82,10 +91,10 @@ struct HistoryView: View {
                   .font(.subheadline.weight(.semibold))
                 Text(log.detail)
                   .font(.footnote)
-                  .foregroundStyle(.secondary)
+                  .foregroundStyle(CompanionPalette.secondaryText)
                 Text(log.time)
-                  .font(.caption2)
-                  .foregroundStyle(.tertiary)
+                  .font(.caption)
+                  .foregroundStyle(CompanionPalette.secondaryText)
               }
             }
           }

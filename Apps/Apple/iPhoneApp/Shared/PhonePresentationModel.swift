@@ -56,6 +56,7 @@ struct PhonePresentationModel {
     let sleep = health?.sleepMinutes
     let steps = health?.steps
     let rhythmKnown = health?.sleepWindowStart != nil && health?.sleepWindowEnd != nil
+    let rhythmValue = rhythmKnown ? observationText(trend, metric: .sleepTiming) : "--"
     let points = makeHistory(from: trend)
     return PhonePresentationModel(
       dataMode: .live,
@@ -70,6 +71,7 @@ struct PhonePresentationModel {
           id: "recovery",
           title: "恢复",
           value: sleep.map(sleepText) ?? "--",
+          accessibilityValue: sleep.map(sleepAccessibilityText) ?? "暂无睡眠数据",
           detail: sleep == nil ? "尚无可用睡眠" : "最近一次睡眠",
           symbol: "moon.stars.fill"
         ),
@@ -77,13 +79,15 @@ struct PhonePresentationModel {
           id: "activity",
           title: "活动",
           value: steps.map(stepText) ?? "--",
+          accessibilityValue: steps.map { "\($0) 步" } ?? "暂无步数数据",
           detail: steps == nil ? "尚无今日步数" : "今日累计步数",
           symbol: "figure.walk"
         ),
         PhoneMetric(
           id: "rhythm",
           title: "节律",
-          value: rhythmKnown ? observationText(trend, metric: .sleepTiming) : "--",
+          value: rhythmValue,
+          accessibilityValue: rhythmKnown ? rhythmValue : "暂无节律数据",
           detail: rhythmKnown ? "与个人历史比较" : "需要更多睡眠记录",
           symbol: "waveform.path.ecg"
         ),
@@ -160,6 +164,8 @@ struct PhonePresentationModel {
       let fallbackExplanation =
         seed.narrationState == .localFallback
         ? " AI 服务不可用或响应无效，当前使用经过审核的本地表达；规则结果不变。" : ""
+      let mockHealthExplanation =
+        "模拟健康数据只会在可用且新鲜时进入规则；仅使用场景中已知的指标，缺失或过期数据保持中性。"
       let initialScreen: PhoneInitialScreen =
         switch seed.primaryState {
         case .onboarding: .onboarding
@@ -186,7 +192,7 @@ struct PhonePresentationModel {
         history: base.history,
         trendSummary: base.trendSummary,
         activityLog: base.activityLog,
-        dataExplanation: "模拟数据经真实规则运行时计算。\(base.dataExplanation)\(fallbackExplanation)"
+        dataExplanation: "模拟数据经真实规则运行时计算。\(mockHealthExplanation)\(fallbackExplanation)"
       )
     }
   #endif
@@ -275,6 +281,10 @@ struct PhonePresentationModel {
     "\(minutes / 60)h\(minutes % 60)m"
   }
 
+  nonisolated private static func sleepAccessibilityText(_ minutes: Int) -> String {
+    "\(minutes / 60) 小时 \(minutes % 60) 分钟"
+  }
+
   nonisolated private static func stepText(_ steps: Int) -> String {
     steps >= 1_000 ? String(format: "%.1fk", Double(steps) / 1_000) : String(steps)
   }
@@ -357,6 +367,7 @@ struct PhoneMetric: Identifiable {
   let id: String
   let title: String
   let value: String
+  let accessibilityValue: String
   let detail: String
   let symbol: String
 }

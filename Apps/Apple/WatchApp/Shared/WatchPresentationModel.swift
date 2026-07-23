@@ -190,6 +190,8 @@ struct WatchPresentationModel {
       let fallbackExplanation =
         seed.narrationState == .localFallback
         ? " AI 服务不可用或响应无效，当前使用本地表达；规则结果不变。" : ""
+      let mockHealthExplanation =
+        "模拟健康数据只会在可用且新鲜时进入规则；仅使用场景中已知的指标，缺失或过期数据保持中性。"
       let initialScreen: WatchInitialScreen =
         switch seed.primaryState {
         case .onboarding: .onboarding
@@ -213,7 +215,7 @@ struct WatchPresentationModel {
         trendSummary: base.trendSummary,
         trendDetail: base.trendDetail,
         messages: base.messages,
-        dataExplanation: "模拟数据经真实规则运行时计算。\(base.dataExplanation)\(fallbackExplanation)"
+        dataExplanation: "模拟数据经真实规则运行时计算。\(mockHealthExplanation)\(fallbackExplanation)"
       )
     }
   #endif

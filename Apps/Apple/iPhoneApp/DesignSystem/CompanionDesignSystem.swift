@@ -5,6 +5,12 @@ enum CompanionPalette {
   static let ink = Color(uiColor: .label)
   static let background = Color(uiColor: .systemGroupedBackground)
   static let surface = Color(uiColor: .secondarySystemGroupedBackground)
+  static let secondaryText = adaptive(
+    light: UIColor(red: 0.18, green: 0.18, blue: 0.20, alpha: 1),
+    dark: UIColor(red: 0.88, green: 0.88, blue: 0.91, alpha: 1),
+    highContrastLight: .black,
+    highContrastDark: .white
+  )
   static let mint = adaptive(
     light: UIColor(red: 0.00, green: 0.38, blue: 0.26, alpha: 1),
     dark: UIColor(red: 0.36, green: 0.95, blue: 0.70, alpha: 1),
