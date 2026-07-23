@@ -11,7 +11,8 @@ struct PeerStateProjection: Sendable {
     companion: CompanionState,
     preferences: AppPreferences?,
     dataSource: CompanionDataSource = .mock1,
-    dataSourceSelectionToken: String? = nil
+    dataSourceSelectionToken: String? = nil,
+    includePhoneOwnedSocialSettings: Bool = true
   ) -> [String: String] {
     var values = [
       "name": companion.pet.name,
@@ -20,6 +21,12 @@ struct PeerStateProjection: Sendable {
       "vitality": String(companion.growth.vitality),
       "chapter": String(companion.story.mainlineChapter),
       "outfit": preferences?.selectedOutfitID ?? companion.pet.equippedOutfitID ?? "default",
+      "characters": CompanionVisualCatalog.normalizedCharacterIDs(
+        preferences?.selectedCharacterIDs ?? [CompanionVisualCatalog.defaultCharacterID]
+      ).joined(separator: ","),
+      "background": CompanionVisualCatalog.normalizedBackgroundID(
+        preferences?.selectedBackgroundID ?? CompanionVisualCatalog.defaultBackgroundID
+      ),
       "dataSource": dataSource.rawValue,
       "proactiveMessagesEnabled": String(preferences?.proactiveMessagesEnabled ?? false),
       "proactiveNotificationConsentVersion": String(
@@ -28,6 +35,11 @@ struct PeerStateProjection: Sendable {
       "quietHoursStartMinute": String(preferences?.quietHoursStartMinute ?? 1_320),
       "quietHoursEndMinute": String(preferences?.quietHoursEndMinute ?? 420),
     ]
+    if includePhoneOwnedSocialSettings {
+      values["socialSharingEnabled"] = String(preferences?.socialSharingEnabled ?? false)
+      values["publicPetSocialState"] =
+        (preferences?.publicPetSocialState ?? PublicPetSocialStateV1.greeting).rawValue
+    }
     if let dataSourceSelectionToken {
       values["dataSourceSelectionToken"] = dataSourceSelectionToken
     }
@@ -39,6 +51,7 @@ struct PeerStateProjection: Sendable {
     preferences: AppPreferences?,
     dataSource: CompanionDataSource = .mock1,
     dataSourceSelectionToken: String? = nil,
+    includePhoneOwnedSocialSettings: Bool = true,
     revision: UInt64,
     updatedAt: Date
   ) -> CompanionSyncState {
@@ -49,7 +62,8 @@ struct PeerStateProjection: Sendable {
         companion: companion,
         preferences: preferences,
         dataSource: dataSource,
-        dataSourceSelectionToken: dataSourceSelectionToken
+        dataSourceSelectionToken: dataSourceSelectionToken,
+        includePhoneOwnedSocialSettings: includePhoneOwnedSocialSettings
       )
     )
   }

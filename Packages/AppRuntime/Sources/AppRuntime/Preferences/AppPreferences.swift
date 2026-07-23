@@ -15,8 +15,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
   public var proactiveMessagesEnabled: Bool
   public var proactiveNotificationConsentVersion: Int
   public var socialSharingEnabled: Bool
+  public var publicPetSocialState: PublicPetSocialStateV1
   public var healthSharingScope: HealthSharingScope
   public var selectedOutfitID: String
+  public var selectedCharacterIDs: [String]
+  public var selectedBackgroundID: String
   public var quietHoursStartMinute: Int
   public var quietHoursEndMinute: Int
 
@@ -26,8 +29,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     proactiveMessagesEnabled: Bool = false,
     proactiveNotificationConsentVersion: Int? = nil,
     socialSharingEnabled: Bool = false,
+    publicPetSocialState: PublicPetSocialStateV1 = .greeting,
     healthSharingScope: HealthSharingScope = .careSummary,
     selectedOutfitID: String = "default",
+    selectedCharacterIDs: [String] = [CompanionVisualCatalog.defaultCharacterID],
+    selectedBackgroundID: String = CompanionVisualCatalog.defaultBackgroundID,
     quietHoursStartMinute: Int = 22 * 60,
     quietHoursEndMinute: Int = 7 * 60
   ) {
@@ -38,8 +44,13 @@ public struct AppPreferences: Codable, Equatable, Sendable {
       proactiveNotificationConsentVersion
       ?? (proactiveMessagesEnabled ? Self.currentNotificationConsentVersion : 0)
     self.socialSharingEnabled = socialSharingEnabled
+    self.publicPetSocialState = publicPetSocialState
     self.healthSharingScope = healthSharingScope
     self.selectedOutfitID = selectedOutfitID
+    self.selectedCharacterIDs =
+      CompanionVisualCatalog.normalizedCharacterIDs(selectedCharacterIDs)
+    self.selectedBackgroundID =
+      CompanionVisualCatalog.normalizedBackgroundID(selectedBackgroundID)
     self.quietHoursStartMinute = max(0, min(1_439, quietHoursStartMinute))
     self.quietHoursEndMinute = max(0, min(1_439, quietHoursEndMinute))
   }
@@ -50,8 +61,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     case proactiveMessagesEnabled
     case proactiveNotificationConsentVersion
     case socialSharingEnabled
+    case publicPetSocialState
     case healthSharingScope
     case selectedOutfitID
+    case selectedCharacterIDs
+    case selectedBackgroundID
     case quietHoursStartMinute
     case quietHoursEndMinute
   }
@@ -83,6 +97,11 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         Bool.self,
         forKey: .socialSharingEnabled
       ) ?? false
+    publicPetSocialState =
+      try container.decodeIfPresent(
+        PublicPetSocialStateV1.self,
+        forKey: .publicPetSocialState
+      ) ?? .greeting
     healthSharingScope =
       try container.decodeIfPresent(
         HealthSharingScope.self,
@@ -91,6 +110,14 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     selectedOutfitID =
       try container.decodeIfPresent(String.self, forKey: .selectedOutfitID)
       ?? "default"
+    selectedCharacterIDs = CompanionVisualCatalog.normalizedCharacterIDs(
+      try container.decodeIfPresent([String].self, forKey: .selectedCharacterIDs)
+        ?? [CompanionVisualCatalog.defaultCharacterID]
+    )
+    selectedBackgroundID = CompanionVisualCatalog.normalizedBackgroundID(
+      try container.decodeIfPresent(String.self, forKey: .selectedBackgroundID)
+        ?? CompanionVisualCatalog.defaultBackgroundID
+    )
     quietHoursStartMinute = max(
       0,
       min(1_439, try container.decodeIfPresent(Int.self, forKey: .quietHoursStartMinute) ?? 1_320)

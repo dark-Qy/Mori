@@ -287,7 +287,13 @@
     @discardableResult
     public func applyPeerPreferences(_ values: [String: String]) async throws -> Bool {
       let current = try await preferences.load()
-      try await preferences.save(PeerPreferencesMerger().merge(values, into: current))
+      try await preferences.save(
+        PeerPreferencesMerger().merge(
+          values,
+          into: current,
+          acceptPhoneOwnedSocialSettings: source == .watch
+        )
+      )
       if let rawValue = values["dataSource"],
         let selection = CompanionDataSource(rawValue: rawValue)
       {
@@ -394,7 +400,8 @@
         companion: state,
         preferences: savedPreferences,
         dataSource: selectedDataSource,
-        dataSourceSelectionToken: dataSourceSelectionToken
+        dataSourceSelectionToken: dataSourceSelectionToken,
+        includePhoneOwnedSocialSettings: source == .phone
       )
       try await managementOutbox.enqueue(values: values, updatedAt: date)
     }

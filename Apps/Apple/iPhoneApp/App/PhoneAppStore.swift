@@ -249,9 +249,41 @@ final class PhoneAppStore: ObservableObject {
     persistPreferences()
   }
 
+  func setPublicPetSocialState(_ state: PublicPetSocialStateV1) {
+    guard preferences.publicPetSocialState != state else { return }
+    preferences.publicPetSocialState = state
+    persistPreferences(successPrefix: "公开宠物状态已更新")
+  }
+
   func setHealthSharingScope(_ scope: HealthSharingScope) {
     preferences.healthSharingScope = scope
     persistPreferences()
+  }
+
+  func selectCharacter(_ id: String) {
+    guard CompanionVisualCatalog.characterIDs.contains(id) else {
+      statusMessage = "无法选择未知角色"
+      return
+    }
+    guard preferences.selectedCharacterIDs != [id] else {
+      statusMessage = "这个角色正在陪伴你"
+      return
+    }
+    preferences.selectedCharacterIDs = [id]
+    persistPreferences(successPrefix: "角色已更新")
+  }
+
+  func selectBackground(_ id: String) {
+    guard CompanionVisualCatalog.backgroundIDs.contains(id) else {
+      statusMessage = "无法选择未知背景"
+      return
+    }
+    guard preferences.selectedBackgroundID != id else {
+      statusMessage = "这个背景正在使用"
+      return
+    }
+    preferences.selectedBackgroundID = id
+    persistPreferences(successPrefix: "背景已更新")
   }
 
   func previewOutfit(_ id: String) {
