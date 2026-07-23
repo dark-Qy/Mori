@@ -5,29 +5,49 @@ struct PhoneNotificationMessageView: View {
   let destination: RuntimeNotificationDestination
   let onDismiss: () -> Void
 
+  private var content: (symbol: String, color: Color, title: String, detail: String) {
+    switch destination {
+    case .recoveryMessage:
+      (
+        "moon.stars.fill",
+        CompanionPalette.blue,
+        "Mori 的恢复来信",
+        "今天可以慢一点。你可以休息、换个更轻的任务，或者什么也不做。"
+      )
+    case .activityMessage:
+      (
+        "figure.walk",
+        CompanionPalette.mint,
+        "Mori 的活动来信",
+        "如果愿意，我们可以一起走两分钟；不回应也不会失去成长。"
+      )
+    case .careMessage:
+      (
+        "heart.text.square.fill",
+        CompanionPalette.rose,
+        "Mori 的陪伴来信",
+        "不用解释，也不需要立刻变好。要不要和我安静待一会儿？"
+      )
+    }
+  }
+
   var body: some View {
     NavigationStack {
       PhonePage {
         VStack(alignment: .leading, spacing: CompanionSpacing.large) {
-          Image(systemName: destination == .recoveryMessage ? "moon.stars.fill" : "figure.walk")
+          Image(systemName: content.symbol)
             .font(.system(size: 44, weight: .semibold))
-            .foregroundStyle(
-              destination == .recoveryMessage ? CompanionPalette.blue : CompanionPalette.mint
-            )
+            .foregroundStyle(content.color)
             .accessibilityHidden(true)
 
-          Text(destination == .recoveryMessage ? "Mori 的恢复来信" : "Mori 的活动来信")
+          Text(content.title)
             .font(.largeTitle.bold())
             .fixedSize(horizontal: false, vertical: true)
 
-          Text(
-            destination == .recoveryMessage
-              ? "今天可以慢一点。你可以休息、换个更轻的任务，或者什么也不做。"
-              : "如果愿意，我们可以一起走两分钟；不回应也不会失去成长。"
-          )
-          .font(.title3)
-          .foregroundStyle(CompanionPalette.secondaryText)
-          .fixedSize(horizontal: false, vertical: true)
+          Text(content.detail)
+            .font(.title3)
+            .foregroundStyle(CompanionPalette.secondaryText)
+            .fixedSize(horizontal: false, vertical: true)
 
           CompanionCard {
             Label("打开来信只负责导航", systemImage: "checkmark.shield.fill")

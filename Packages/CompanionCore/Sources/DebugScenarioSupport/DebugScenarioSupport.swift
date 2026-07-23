@@ -23,6 +23,8 @@
   public struct DebugScenarioSeed: Sendable {
     public let id: String
     public let displayName: String
+    public let now: Date
+    public let timeZoneIdentifier: String
     public let hasCompletedOnboarding: Bool
     public let primaryState: DebugScenarioPrimaryState
     public let companionState: CompanionState
@@ -38,6 +40,8 @@
     fileprivate init(runtime: MockScenarioRuntime, run: MockScenarioRun) {
       id = runtime.id
       displayName = runtime.displayName
+      now = runtime.clock.now
+      timeZoneIdentifier = runtime.clock.timeZoneIdentifier
       hasCompletedOnboarding = runtime.hasCompletedOnboarding
       primaryState = DebugScenarioPrimaryState(rawValue: runtime.primaryState.rawValue) ?? .petHome
       companionState = run.state
@@ -71,6 +75,9 @@
       "health_no_data",
       "health_normal",
       "health_partial",
+      "mock1",
+      "mock2",
+      "mock3",
       "notification_denied",
       "outfit_locked",
       "outfit_unlocked",

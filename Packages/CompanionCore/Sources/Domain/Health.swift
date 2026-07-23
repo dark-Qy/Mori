@@ -71,6 +71,46 @@ public struct WorkoutSummary: Codable, Equatable, Hashable, Sendable {
   }
 }
 
+public enum StateOfMindLabel: String, Codable, CaseIterable, Sendable {
+  case anxious
+  case stressed
+  case worried
+  case overwhelmed
+  case other
+
+  public var requestsGentleCare: Bool {
+    switch self {
+    case .anxious, .stressed, .worried, .overwhelmed: true
+    case .other: false
+    }
+  }
+}
+
+/// A deliberately narrow projection of a state of mind the person explicitly logged.
+/// Physiological values never construct this type.
+public struct StateOfMindSample: Codable, Equatable, Hashable, Sendable {
+  public var id: UUID
+  public var recordedAt: Date
+  public var valence: Double
+  public var labels: Set<StateOfMindLabel>
+
+  public init(
+    id: UUID,
+    recordedAt: Date,
+    valence: Double,
+    labels: Set<StateOfMindLabel>
+  ) {
+    self.id = id
+    self.recordedAt = recordedAt
+    self.valence = min(1, max(-1, valence))
+    self.labels = labels
+  }
+
+  public var requestsGentleCare: Bool {
+    labels.contains(where: \.requestsGentleCare)
+  }
+}
+
 public struct SleepStageSummary: Codable, Equatable, Sendable {
   public var coreMinutes: Int
   public var deepMinutes: Int
@@ -181,6 +221,9 @@ public struct HealthSnapshot: Codable, Equatable, Sendable {
   public var activeMinutes: Int?
   public var restingHeartRateBPM: Double?
   public var workouts: [WorkoutSummary]
+  /// Optional preserves compatibility with version-1 ledgers written before mental-wellbeing
+  /// samples were supported. New snapshots encode an array.
+  public var stateOfMindSamples: [StateOfMindSample]?
 
   public init(
     schemaVersion: Int = HealthSnapshot.currentSchemaVersion,
@@ -198,7 +241,8 @@ public struct HealthSnapshot: Codable, Equatable, Sendable {
     steps: Int? = nil,
     activeMinutes: Int? = nil,
     restingHeartRateBPM: Double? = nil,
-    workouts: [WorkoutSummary] = []
+    workouts: [WorkoutSummary] = [],
+    stateOfMindSamples: [StateOfMindSample] = []
   ) {
     self.schemaVersion = schemaVersion
     self.capturedAt = capturedAt
@@ -217,11 +261,31 @@ public struct HealthSnapshot: Codable, Equatable, Sendable {
     self.activeMinutes = activeMinutes.map { max(0, $0) }
     self.restingHeartRateBPM = restingHeartRateBPM
     self.workouts = workouts
+    self.stateOfMindSamples = stateOfMindSamples.sorted {
+      if $0.recordedAt != $1.recordedAt { return $0.recordedAt < $1.recordedAt }
+      return $0.id.uuidString < $1.id.uuidString
+    }
   }
 
   public var hasAnyMetric: Bool {
     sleepMinutes != nil || steps != nil || activeMinutes != nil || restingHeartRateBPM != nil
-      || !workouts.isEmpty
+      || !workouts.isEmpty || !(stateOfMindSamples ?? []).isEmpty
+  }
+
+  public var latestStateOfMind: StateOfMindSample? {
+    stateOfMindSamples?.max {
+      if $0.recordedAt != $1.recordedAt { return $0.recordedAt < $1.recordedAt }
+      return $0.id.uuidString < $1.id.uuidString
+    }
+  }
+
+  public var latestCareStateOfMind: StateOfMindSample? {
+    stateOfMindSamples?
+      .filter(\.requestsGentleCare)
+      .max {
+        if $0.recordedAt != $1.recordedAt { return $0.recordedAt < $1.recordedAt }
+        return $0.id.uuidString < $1.id.uuidString
+      }
   }
 
   public var canInformRules: Bool {

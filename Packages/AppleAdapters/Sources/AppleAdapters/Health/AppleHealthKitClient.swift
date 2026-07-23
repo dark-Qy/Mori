@@ -57,6 +57,13 @@
         end: window.end,
         options: .strictStartDate
       )
+      // Care can be planned for a recent explicit entry after midnight, so this query must not
+      // reset at the activity day's boundary.
+      let stateOfMindPredicate = HKQuery.predicateForSamples(
+        withStart: window.end.addingTimeInterval(-6 * 60 * 60),
+        end: window.end,
+        options: .strictStartDate
+      )
 
       let sleep = try await fetchSleep(predicate: sleepPredicate)
       let steps = try await fetchCumulativeSum(
@@ -71,13 +78,23 @@
         predicate: dailyPredicate
       )
       let workouts = try await fetchWorkouts(predicate: dailyPredicate)
+      let stateOfMind: HealthReading<[StateOfMindEntry]>
+      if #available(iOS 18.0, watchOS 11.0, *) {
+        stateOfMind = try await fetchStateOfMind(predicate: stateOfMindPredicate)
+      } else {
+        stateOfMind = HealthReading(
+          availability: .unavailable(reason: "State of Mind requires iOS 18 or watchOS 11"),
+          values: []
+        )
+      }
 
       return HealthSnapshot(
         capturedAt: Date(),
         sleep: sleep,
         steps: steps,
         restingHeartRate: restingHeartRate,
-        workouts: workouts
+        workouts: workouts,
+        stateOfMind: stateOfMind
       )
     }
 
@@ -91,6 +108,9 @@
       }
       if let resting = HKObjectType.quantityType(forIdentifier: .restingHeartRate) {
         types.insert(resting)
+      }
+      if #available(iOS 18.0, watchOS 11.0, *) {
+        types.insert(HKObjectType.stateOfMindType())
       }
       return types
     }
@@ -201,6 +221,37 @@
         )
       }
       return HealthReading(availability: values.isEmpty ? .noData : .available, values: values)
+    }
+
+    @available(iOS 18.0, watchOS 11.0, *)
+    private func fetchStateOfMind(
+      predicate: NSPredicate
+    ) async throws -> HealthReading<[StateOfMindEntry]> {
+      let samples: [HKStateOfMind] = try await fetchSamples(
+        type: HKObjectType.stateOfMindType(),
+        predicate: predicate
+      )
+      let values = samples.map { sample in
+        StateOfMindEntry(
+          id: sample.uuid,
+          recordedAt: sample.startDate,
+          valence: sample.valence,
+          labels: Set(sample.labels.map(Self.stateOfMindLabel)),
+          source: Self.source(for: sample)
+        )
+      }
+      return HealthReading(availability: values.isEmpty ? .noData : .available, values: values)
+    }
+
+    @available(iOS 18.0, watchOS 11.0, *)
+    private static func stateOfMindLabel(_ label: HKStateOfMind.Label) -> StateOfMindLabel {
+      switch label {
+      case .anxious: .anxious
+      case .stressed: .stressed
+      case .worried: .worried
+      case .overwhelmed: .overwhelmed
+      default: .other
+      }
     }
 
     private func fetchSamples<Sample: HKSample>(

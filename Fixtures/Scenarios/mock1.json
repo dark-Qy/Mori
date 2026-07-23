@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "mock1",
+  "displayName": "Mock 1",
+  "clock": {
+    "now": "2026-07-23T09:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "mock1"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": {
+      "source": "mock",
+      "dataState": "available",
+      "samples": [
+        {
+          "id": "mock1-sleep-core",
+          "type": "sleepAnalysis",
+          "start": "2026-07-22T23:20:00+08:00",
+          "end": "2026-07-23T03:10:00+08:00",
+          "value": "core",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "mock1-sleep-deep",
+          "type": "sleepAnalysis",
+          "start": "2026-07-23T03:10:00+08:00",
+          "end": "2026-07-23T04:35:00+08:00",
+          "value": "deep",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "mock1-sleep-rem",
+          "type": "sleepAnalysis",
+          "start": "2026-07-23T04:35:00+08:00",
+          "end": "2026-07-23T06:50:00+08:00",
+          "value": "rem",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "mock1-steps",
+          "type": "stepCount",
+          "start": "2026-07-23T00:00:00+08:00",
+          "end": "2026-07-23T09:00:00+08:00",
+          "value": 3250,
+          "unit": "count",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "mock1-rhr",
+          "type": "restingHeartRate",
+          "start": "2026-07-23T06:45:00+08:00",
+          "end": "2026-07-23T06:46:00+08:00",
+          "value": 58,
+          "unit": "count/min",
+          "source": "Mock Watch"
+        }
+      ]
+    },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": {
+      "lifecycle": "active",
+      "level": 2,
+      "vitality": 42,
+      "bond": 8,
+      "insight": 10,
+      "lastInteractionAt": "2026-07-22T20:00:00+08:00"
+    },
+    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "healthStatusCopy": "recentDataAvailable",
+    "eligibleThemes": ["recovery", "activity"]
+  }
+}

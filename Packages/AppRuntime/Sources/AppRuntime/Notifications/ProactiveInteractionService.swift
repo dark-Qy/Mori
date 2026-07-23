@@ -18,6 +18,46 @@ public struct ApprovedProactiveInteraction: Equatable, Sendable {
   }
 }
 
+public struct CareCheckInPlanner: Sendable {
+  public static let minimumSeededDelay: TimeInterval = 30 * 60
+  public static let maximumSeededDelay: TimeInterval = 90 * 60
+  public static let maximumEventAge: TimeInterval = 6 * 60 * 60
+
+  public init() {}
+
+  public func plan(
+    for state: CompanionState,
+    now: Date,
+    delay: TimeInterval? = nil
+  ) -> ApprovedProactiveInteraction? {
+    guard
+      let sample = state.lastStateOfMind,
+      sample.requestsGentleCare,
+      !state.handledStateOfMindSampleIDs.contains(sample.id),
+      now >= sample.recordedAt,
+      now.timeIntervalSince(sample.recordedAt) <= Self.maximumEventAge
+    else { return nil }
+    let selectedDelay = delay ?? seededDelay(for: sample)
+    return ApprovedProactiveInteraction(
+      id: "pet.state-of-mind.check-in",
+      title: "Mori 想陪你待一会",
+      body: "刚才是不是有点累？不用解释，要不要和我安静待一会儿？",
+      fireDate: now.addingTimeInterval(max(60, selectedDelay)),
+      route: "pet/care"
+    )
+  }
+
+  private func seededDelay(for sample: StateOfMindSample) -> TimeInterval {
+    let hash = sample.id.uuidString.utf8.reduce(0xCBF2_9CE4_8422_2325 as UInt64) { hash, byte in
+      (hash ^ UInt64(byte)) &* 0x0000_0100_0000_01B3
+    }
+    let minimumMinutes = Int(Self.minimumSeededDelay / 60)
+    let maximumMinutes = Int(Self.maximumSeededDelay / 60)
+    let minute = minimumMinutes + Int(hash % UInt64(maximumMinutes - minimumMinutes + 1))
+    return TimeInterval(minute * 60)
+  }
+}
+
 /// Rules select whether an interaction is allowed. This planner uses local, reviewed copy only;
 /// AI output cannot create a schedule or bypass policy.
 public struct ProactiveInteractionPlanner: Sendable {

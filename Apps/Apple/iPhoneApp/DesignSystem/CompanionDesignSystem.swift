@@ -100,7 +100,7 @@ struct PhoneMockBadge: View {
   let scenarioName: String
 
   var body: some View {
-    Label("Mock 场景 · \(scenarioName)", systemImage: "testtube.2")
+    Label("演示数据 · \(scenarioName)", systemImage: "testtube.2")
       .font(.caption.weight(.semibold))
       .foregroundStyle(CompanionPalette.blue)
       .padding(.horizontal, 10)

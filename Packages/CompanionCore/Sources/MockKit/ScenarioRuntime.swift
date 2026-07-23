@@ -170,7 +170,10 @@
         insight: Int(pet["insight"]?.numberValue ?? 0)
       )
       initialState = CompanionState(
-        pet: PetState(equippedOutfitID: selectedOutfitID),
+        pet: PetState(
+          equippedOutfitID: selectedOutfitID,
+          lastInteractionAt: try Self.date(pet, key: "lastInteractionAt")
+        ),
         growth: growth
       )
       if hasCompletedOnboarding {
@@ -259,6 +262,7 @@
       var activeMinutes: Int?
       var restingHeartRate: Double?
       var workouts: [WorkoutSummary] = []
+      var stateOfMindSamples: [StateOfMindSample] = []
       for sample in samples {
         guard let type = sample["type"]?.stringValue else { continue }
         switch type {
@@ -292,6 +296,21 @@
               activeEnergyKilocalories: activeEnergy
             )
           )
+        case "stateOfMind":
+          guard let recordedAt = try date(sample, key: "recordedAt") else { continue }
+          let labels = Set(
+            (sample["labels"]?.arrayValue ?? []).compactMap(\.stringValue).map {
+              StateOfMindLabel(rawValue: $0) ?? .other
+            }
+          )
+          stateOfMindSamples.append(
+            StateOfMindSample(
+              id: stableUUID(from: sample["id"]?.stringValue ?? "state-of-mind"),
+              recordedAt: recordedAt,
+              valence: sample["valence"]?.numberValue ?? 0,
+              labels: labels
+            )
+          )
         default:
           continue
         }
@@ -308,7 +327,8 @@
         steps: steps,
         activeMinutes: activeMinutes,
         restingHeartRateBPM: restingHeartRate,
-        workouts: workouts
+        workouts: workouts,
+        stateOfMindSamples: stateOfMindSamples
       )
     }
 

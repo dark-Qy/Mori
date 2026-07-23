@@ -63,6 +63,20 @@ struct PersistenceTests {
     #expect(restored.commitments.isEmpty)
   }
 
+  @Test("State decoding defaults a pre-care payload to no handled samples")
+  func preCareStateCompatibility() throws {
+    let currentData = try JSONEncoder().encode(CompanionState())
+    var object = try #require(
+      JSONSerialization.jsonObject(with: currentData) as? [String: Any]
+    )
+    object.removeValue(forKey: "handledStateOfMindSampleIDs")
+    let olderData = try JSONSerialization.data(withJSONObject: object)
+
+    let restored = try JSONDecoder().decode(CompanionState.self, from: olderData)
+
+    #expect(restored.handledStateOfMindSampleIDs.isEmpty)
+  }
+
   @Test("Future schemas fail closed")
   func futureSchema() throws {
     let data = try JSONEncoder().encode(

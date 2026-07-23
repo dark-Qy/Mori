@@ -118,6 +118,23 @@ delay between 10 and 90 minutes from the latest approved state. Different event 
 to different times. This changes timing only: policy may still suppress the interaction, and
 reopening or replaying the same state cannot reroll it.
 
+An explicitly logged Apple Health State of Mind with a supported label such as stressed, anxious,
+worried, or overwhelmed may create one gentle care check-in. Physiological values, inferred stress,
+sleep, steps, and heart rate can never synthesize a State of Mind. The real-data delay is a
+replay-stable whole minute between 30 and 90 minutes; `Mock 2` accelerates the same presentation
+to 60 seconds. The copy offers quiet company and never claims a diagnosis.
+
+## Relationship presence
+
+Mori may quietly miss the person after three complete local calendar days without a meaningful
+interaction. Opening the app alone is not an interaction; a pet gesture, explicit companion
+action, daily habit, repaired commitment, or successful story advance is. A new user with no
+interaction history starts neutral.
+
+This state changes expression and wording only. It never removes growth, damages Mori, blocks
+content, creates a notification by itself, or blames the user. A meaningful interaction restores
+the normal relationship presentation immediately.
+
 ## Health interpretation
 
 - Compare with the user's own baseline where possible; do not use a universal target as diagnosis.

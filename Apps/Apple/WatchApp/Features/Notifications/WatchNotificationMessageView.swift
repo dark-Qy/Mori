@@ -5,28 +5,48 @@ struct WatchNotificationMessageView: View {
   let destination: RuntimeNotificationDestination
   let onDismiss: () -> Void
 
+  private var content: (symbol: String, color: Color, title: String, detail: String) {
+    switch destination {
+    case .recoveryMessage:
+      (
+        "moon.stars.fill",
+        AdventurePalette.blue,
+        "今天可以慢一点",
+        "休息、换个轻任务，或暂时不回应都可以。"
+      )
+    case .activityMessage:
+      (
+        "figure.walk",
+        AdventurePalette.mint,
+        "要不要走两分钟？",
+        "这是邀请，不是命令；不完成也不会失去成长。"
+      )
+    case .careMessage:
+      (
+        "heart.text.square.fill",
+        AdventurePalette.rose,
+        "我可以陪你一会儿",
+        "不用解释，也不需要立刻变好。"
+      )
+    }
+  }
+
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: AdventureSpacing.medium) {
-        Image(systemName: destination == .recoveryMessage ? "moon.stars.fill" : "figure.walk")
+        Image(systemName: content.symbol)
           .font(.system(size: 34, weight: .semibold))
-          .foregroundStyle(
-            destination == .recoveryMessage ? AdventurePalette.blue : AdventurePalette.mint
-          )
+          .foregroundStyle(content.color)
           .frame(maxWidth: .infinity)
           .accessibilityHidden(true)
 
-        Text(destination == .recoveryMessage ? "今天可以慢一点" : "要不要走两分钟？")
+        Text(content.title)
           .font(.headline)
           .fixedSize(horizontal: false, vertical: true)
-        Text(
-          destination == .recoveryMessage
-            ? "休息、换个轻任务，或暂时不回应都可以。"
-            : "这是邀请，不是命令；不完成也不会失去成长。"
-        )
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .fixedSize(horizontal: false, vertical: true)
+        Text(content.detail)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
 
         Label("打开来信不会领取奖励", systemImage: "checkmark.shield.fill")
           .font(.caption2)

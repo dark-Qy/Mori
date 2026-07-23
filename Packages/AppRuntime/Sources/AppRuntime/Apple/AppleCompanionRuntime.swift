@@ -51,14 +51,17 @@
     private let connectivity: AppleWatchConnectivityClient
     private let events: CompanionEventEngine<FileEventLedgerStorage>
     private let preferences: PreferencesRepository<UserDefaultsPreferencesDataStore>
+    private let dataSourceSelection: DataSourceSelectionRepository
     private let managementOutbox: ManagementSyncOutbox<FileManagementSyncOutboxStorage>
     private let peerSyncEnabled: Bool
     private var peerSyncTask: Task<Void, Never>?
+    private var careScheduleInFlight: Set<UUID> = []
 
     public init(
       source: EventSource,
       storageDirectory: URL,
       preferencesKey: String = "app.preferences.v1",
+      dataSourceKey: String = "app.data-source.v1",
       peerSyncEnabled: Bool = true
     ) {
       self.source = source
@@ -74,6 +77,7 @@
       preferences = PreferencesRepository(
         store: UserDefaultsPreferencesDataStore(key: preferencesKey)
       )
+      dataSourceSelection = DataSourceSelectionRepository(key: dataSourceKey)
       managementOutbox = ManagementSyncOutbox(
         storage: FileManagementSyncOutboxStorage(
           fileURL: storageDirectory.appendingPathComponent("management-sync-outbox-v1.json")
@@ -99,6 +103,9 @@
       calendar: Calendar = .current,
       requestAccessIfNeeded: Bool
     ) async throws -> RuntimeHealthRefresh {
+      guard await dataSourceSelection.load() == .healthKit else {
+        throw CancellationError()
+      }
       var localCalendar = calendar
       let timeZone = calendar.timeZone
       localCalendar.timeZone = timeZone
@@ -111,6 +118,9 @@
         timeZone: timeZone,
         requestAccessIfNeeded: requestAccessIfNeeded
       )
+      guard await dataSourceSelection.load() == .healthKit else {
+        throw CancellationError()
+      }
       var state = try await events.append(ingestion.event)
       let soccerOutcome = try await events.evaluateSoccerSideStory(
         snapshot: ingestion.snapshot,
@@ -120,6 +130,9 @@
       )
       if case .unlocked(let unlockedState) = soccerOutcome {
         state = unlockedState
+      }
+      guard await dataSourceSelection.load() == .healthKit else {
+        throw CancellationError()
       }
       let notificationDecision = await scheduleProactiveIfAllowed(for: state, now: now)
       await enqueuePeerSync(state, at: now)
@@ -182,6 +195,27 @@
       try await preferences.load()
     }
 
+    public func loadDataSourceSelection() async -> CompanionDataSource {
+      await dataSourceSelection.load()
+    }
+
+    @discardableResult
+    public func saveDataSourceSelection(
+      _ value: CompanionDataSource,
+      at date: Date = Date()
+    ) async -> RuntimeSyncStatus {
+      await dataSourceSelection.save(value)
+      do {
+        let state = try await events.currentState()
+        try await stagePeerSync(state, at: date)
+      } catch {
+        return .failed(reason: String(describing: error))
+      }
+      guard peerSyncEnabled else { return .waitingForPeer }
+      schedulePeerSyncDrain()
+      return .queued
+    }
+
     @discardableResult
     public func savePreferences(_ value: AppPreferences) async throws -> RuntimeSyncStatus {
       try await preferences.save(value)
@@ -224,6 +258,7 @@
     public func cancelProactiveNotifications() async {
       await notifications.cancel(id: "pet.recovery.check-in")
       await notifications.cancel(id: "pet.activity.check-in")
+      await notifications.cancel(id: "pet.state-of-mind.check-in")
     }
 
     public func latestPeerState() async -> CompanionSyncState? {
@@ -249,26 +284,48 @@
       }
     }
 
-    public func applyPeerPreferences(_ values: [String: String]) async throws {
+    @discardableResult
+    public func applyPeerPreferences(_ values: [String: String]) async throws -> Bool {
       let current = try await preferences.load()
       try await preferences.save(PeerPreferencesMerger().merge(values, into: current))
+      if let rawValue = values["dataSource"],
+        let selection = CompanionDataSource(rawValue: rawValue)
+      {
+        return await dataSourceSelection.applyPeerSelection(
+          selection,
+          token: values["dataSourceSelectionToken"]
+        )
+      }
+      return false
     }
 
     private func scheduleProactiveIfAllowed(
       for state: CompanionState,
       now: Date
     ) async -> NotificationPolicyDecision? {
+      let careInteraction = CareCheckInPlanner().plan(for: state, now: now)
+      let careSampleID = careInteraction == nil ? nil : state.lastStateOfMind?.id
+      if let careSampleID {
+        guard careScheduleInFlight.insert(careSampleID).inserted else { return nil }
+      }
+      defer {
+        if let careSampleID {
+          careScheduleInFlight.remove(careSampleID)
+        }
+      }
       guard
         let saved = try? await preferences.load(),
         saved.proactiveMessagesEnabled,
         saved.proactiveNotificationConsentVersion
           >= AppPreferences.currentNotificationConsentVersion,
-        let interaction = ProactiveInteractionPlanner().plan(for: state, now: now)
+        let interaction =
+          careInteraction
+          ?? ProactiveInteractionPlanner().plan(for: state, now: now)
       else { return nil }
       let permission = await notifications.permissionState()
       guard permission == .authorized || permission == .provisional || permission == .ephemeral
       else { return nil }
-      return try? await ProactiveInteractionService(client: notifications).schedule(
+      let decision = try? await ProactiveInteractionService(client: notifications).schedule(
         interaction,
         policy: NotificationPolicy(
           quietHours: QuietHours(
@@ -278,6 +335,19 @@
           minimumCooldown: 4 * 3_600
         )
       )
+      if decision == .allow, let careSampleID {
+        _ = try? await events.append(
+          EventEnvelope(
+            eventID: UUID(),
+            occurredAt: now,
+            source: source,
+            payload: .stateOfMindCareScheduled(
+              StateOfMindCareSchedule(sampleID: careSampleID)
+            )
+          )
+        )
+      }
+      return decision
     }
 
     private static func mapNotificationPermission(
@@ -318,9 +388,13 @@
 
     private func stagePeerSync(_ state: CompanionState, at date: Date) async throws {
       let savedPreferences = try? await preferences.load()
+      let selectedDataSource = await dataSourceSelection.load()
+      let dataSourceSelectionToken = await dataSourceSelection.loadSelectionToken()
       let values = PeerStateProjection().makeValues(
         companion: state,
-        preferences: savedPreferences
+        preferences: savedPreferences,
+        dataSource: selectedDataSource,
+        dataSourceSelectionToken: dataSourceSelectionToken
       )
       try await managementOutbox.enqueue(values: values, updatedAt: date)
     }

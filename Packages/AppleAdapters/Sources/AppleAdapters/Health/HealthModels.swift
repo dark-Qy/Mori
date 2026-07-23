@@ -123,6 +123,36 @@ public struct WorkoutSample: Codable, Equatable, Sendable {
   }
 }
 
+public enum StateOfMindLabel: String, Codable, Equatable, Sendable {
+  case anxious
+  case stressed
+  case worried
+  case overwhelmed
+  case other
+}
+
+public struct StateOfMindEntry: Codable, Equatable, Sendable {
+  public let id: UUID
+  public let recordedAt: Date
+  public let valence: Double
+  public let labels: Set<StateOfMindLabel>
+  public let source: HealthSampleSource?
+
+  public init(
+    id: UUID,
+    recordedAt: Date,
+    valence: Double,
+    labels: Set<StateOfMindLabel>,
+    source: HealthSampleSource? = nil
+  ) {
+    self.id = id
+    self.recordedAt = recordedAt
+    self.valence = valence
+    self.labels = labels
+    self.source = source
+  }
+}
+
 public struct HealthReading<Value: Equatable & Sendable>: Equatable, Sendable {
   public let availability: HealthDataAvailability
   public let values: Value
@@ -139,19 +169,25 @@ public struct HealthSnapshot: Equatable, Sendable {
   public let steps: HealthReading<[TimedQuantity]>
   public let restingHeartRate: HealthReading<[TimedQuantity]>
   public let workouts: HealthReading<[WorkoutSample]>
+  public let stateOfMind: HealthReading<[StateOfMindEntry]>
 
   public init(
     capturedAt: Date,
     sleep: HealthReading<[SleepSample]>,
     steps: HealthReading<[TimedQuantity]>,
     restingHeartRate: HealthReading<[TimedQuantity]>,
-    workouts: HealthReading<[WorkoutSample]>
+    workouts: HealthReading<[WorkoutSample]>,
+    stateOfMind: HealthReading<[StateOfMindEntry]> = HealthReading(
+      availability: .noData,
+      values: []
+    )
   ) {
     self.capturedAt = capturedAt
     self.sleep = sleep
     self.steps = steps
     self.restingHeartRate = restingHeartRate
     self.workouts = workouts
+    self.stateOfMind = stateOfMind
   }
 }
 

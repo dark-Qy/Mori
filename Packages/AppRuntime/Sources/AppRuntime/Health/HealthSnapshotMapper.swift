@@ -28,13 +28,24 @@ public struct HealthSnapshotMapper: Sendable {
         activeEnergyKilocalories: workout.energyKilocalories
       )
     }
+    let stateOfMindSamples = source.stateOfMind.values.map { sample in
+      Domain.StateOfMindSample(
+        id: sample.id,
+        recordedAt: sample.recordedAt,
+        valence: sample.valence,
+        labels: Set(sample.labels.map(map))
+      )
+    }
 
     let latestSampleDate =
       (allSleepSamples.map(\.end)
       + source.steps.values.map(\.end)
       + source.restingHeartRate.values.map(\.end)
-      + source.workouts.values.map(\.end)).max()
-    let capturedAt = latestSampleDate ?? source.capturedAt
+      + source.workouts.values.map(\.end)
+      + source.stateOfMind.values.map(\.recordedAt)).max()
+    let capturedAt =
+      latestSampleDate
+      ?? source.capturedAt
     let availability = overallAvailability(source)
     let freshness: HealthDataFreshness
     if availability == .noData {
@@ -60,7 +71,8 @@ public struct HealthSnapshotMapper: Sendable {
       activeMinutes: workouts.isEmpty
         ? nil : workouts.reduce(0) { $0 + $1.durationMinutes },
       restingHeartRateBPM: source.restingHeartRate.values.max { $0.end < $1.end }?.value,
-      workouts: workouts
+      workouts: workouts,
+      stateOfMindSamples: stateOfMindSamples
     )
   }
 
@@ -134,6 +146,7 @@ public struct HealthSnapshotMapper: Sendable {
       + snapshot.steps.values.compactMap(\.source)
       + snapshot.restingHeartRate.values.compactMap(\.source)
       + snapshot.workouts.values.compactMap(\.source)
+      + snapshot.stateOfMind.values.compactMap(\.source)
     return Set(origins).sorted { $0.bundleIdentifier < $1.bundleIdentifier }.map { source in
       HealthSource(
         identifier: source.bundleIdentifier,
@@ -185,6 +198,16 @@ public struct HealthSnapshotMapper: Sendable {
     case .walking: .walking
     case .running: .running
     case .cycling: .cycling
+    case .other: .other
+    }
+  }
+
+  private func map(_ label: AppleAdapters.StateOfMindLabel) -> Domain.StateOfMindLabel {
+    switch label {
+    case .anxious: .anxious
+    case .stressed: .stressed
+    case .worried: .worried
+    case .overwhelmed: .overwhelmed
     case .other: .other
     }
   }

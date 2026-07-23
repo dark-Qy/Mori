@@ -12,7 +12,6 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(element("watch.mock-badge", in: app).exists)
     XCTAssertTrue(app.staticTexts["Mori · Lv.3"].exists)
     XCTAssertTrue(app.buttons["watch.interact"].waitForExistence(timeout: 5))
-
     app.buttons["watch.interact"].tap()
     XCTAssertTrue(app.staticTexts["watch.interaction-response"].waitForExistence(timeout: 5))
   }
@@ -86,19 +85,31 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertEqual(fingerprints[0], fingerprints[1])
   }
 
-  func testDefaultLaunchUsesNeutralHealthKitMode() {
-    let app = launchLiveApp(storageID: "watch-live-neutral", reset: true)
+  func testDefaultLaunchStartsWithMock1AndRemembersDemoSelection() {
+    let storageID = "watch-default-demo"
+    let app = launchDefaultApp(storageID: storageID, reset: true)
 
     XCTAssertTrue(element("watch.onboarding", in: app).waitForExistence(timeout: 8))
-    XCTAssertTrue(element("watch.live-badge", in: app).exists)
-    XCTAssertFalse(element("watch.mock-badge", in: app).exists)
+    XCTAssertTrue(element("watch.mock-badge", in: app).label.contains("Mock 1"))
+    XCTAssertFalse(element("watch.live-badge", in: app).exists)
     let onboardingButton = app.buttons["watch.onboarding.complete"]
     scrollToElement(onboardingButton, in: app)
     onboardingButton.tap()
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
     let connectButton = app.buttons["watch.connect-health"]
     scrollToElement(connectButton, in: app)
-    XCTAssertTrue(connectButton.exists)
+    connectButton.tap()
+    XCTAssertTrue(element("watch.data-source-picker", in: app).waitForExistence(timeout: 5))
+    app.buttons["watch.data-source.option.mock2"].tap()
+    XCTAssertTrue(
+      element("watch.mock-badge", in: app).waitForExistence(timeout: 5)
+        && element("watch.mock-badge", in: app).label.contains("Mock 2")
+    )
+    app.terminate()
+
+    let relaunched = launchDefaultApp(storageID: storageID, reset: false)
+    XCTAssertTrue(element("watch.pet-home", in: relaunched).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("watch.mock-badge", in: relaunched).label.contains("Mock 2"))
   }
 
   func testFreshInstallAndPetIntroductionFixturesUseExplicitOneTapEntry() {
@@ -254,6 +265,18 @@ final class WatchAppUITests: XCTestCase {
   }
 
   private func launchLiveApp(
+    storageID: String,
+    reset: Bool,
+    additionalArguments: [String] = []
+  ) -> XCUIApplication {
+    launchDefaultApp(
+      storageID: storageID,
+      reset: reset,
+      additionalArguments: ["--e2e-data-source=healthKit"] + additionalArguments
+    )
+  }
+
+  private func launchDefaultApp(
     storageID: String,
     reset: Bool,
     additionalArguments: [String] = []

@@ -9,7 +9,8 @@ struct FixtureContractTests {
     let required = Set([
       "activity_high", "ai_malformed", "ai_offline", "fresh_install", "health_no_data",
       "health_normal", "health_partial", "notification_denied", "outfit_locked",
-      "outfit_unlocked", "permission_not_requested", "pet_new", "sleep_stale",
+      "mock1", "mock2", "mock3", "outfit_unlocked", "permission_not_requested", "pet_new",
+      "sleep_stale",
       "soccer_workout", "sync_unreachable",
     ])
     let fixtureDirectory = repositoryRoot()

@@ -13,6 +13,7 @@ public struct RuntimeNotificationRoute: Equatable, Sendable {
 public enum RuntimeNotificationDestination: String, Equatable, Identifiable, Sendable {
   case recoveryMessage
   case activityMessage
+  case careMessage
 
   public var id: String { rawValue }
 }
@@ -26,6 +27,7 @@ public struct NotificationRouteCoordinator: Sendable {
     switch route.route {
     case "pet/recovery": .recoveryMessage
     case "pet/activity": .activityMessage
+    case "pet/care": .careMessage
     default: nil
     }
   }

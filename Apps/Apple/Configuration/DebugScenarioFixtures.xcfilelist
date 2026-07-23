@@ -5,6 +5,9 @@ $(SRCROOT)/../../Fixtures/Scenarios/fresh_install.json
 $(SRCROOT)/../../Fixtures/Scenarios/health_no_data.json
 $(SRCROOT)/../../Fixtures/Scenarios/health_normal.json
 $(SRCROOT)/../../Fixtures/Scenarios/health_partial.json
+$(SRCROOT)/../../Fixtures/Scenarios/mock1.json
+$(SRCROOT)/../../Fixtures/Scenarios/mock2.json
+$(SRCROOT)/../../Fixtures/Scenarios/mock3.json
 $(SRCROOT)/../../Fixtures/Scenarios/notification_denied.json
 $(SRCROOT)/../../Fixtures/Scenarios/outfit_locked.json
 $(SRCROOT)/../../Fixtures/Scenarios/outfit_unlocked.json

@@ -79,6 +79,48 @@ struct CompanionReducerTests {
     #expect(state.vitalityAwardByDay["2025-06-15"] == 5)
   }
 
+  @Test("A later neutral entry cannot hide an explicit care request")
+  func preservesLatestCareStateOfMind() throws {
+    let stressed = StateOfMindSample(
+      id: uuid(18),
+      recordedAt: start.addingTimeInterval(-60),
+      valence: -0.6,
+      labels: [.stressed]
+    )
+    let neutral = StateOfMindSample(
+      id: uuid(19),
+      recordedAt: start,
+      valence: 0.1,
+      labels: [.other]
+    )
+    let snapshot = HealthSnapshot(
+      capturedAt: start,
+      freshness: .fresh,
+      requestState: .requestCompleted,
+      availability: .available,
+      stateOfMindSamples: [stressed, neutral]
+    )
+
+    let state = try reducer.replay([healthEvent(id: uuid(20), snapshot: snapshot)])
+
+    #expect(state.lastStateOfMind == stressed)
+  }
+
+  @Test("Scheduling care consumes its State of Mind sample exactly once")
+  func consumesCareSample() throws {
+    let sampleID = uuid(21)
+    let scheduled = EventEnvelope(
+      eventID: uuid(22),
+      occurredAt: start,
+      source: .phone,
+      payload: .stateOfMindCareScheduled(StateOfMindCareSchedule(sampleID: sampleID))
+    )
+
+    let state = try reducer.replay([scheduled, scheduled])
+
+    #expect(state.handledStateOfMindSampleIDs == [sampleID])
+  }
+
   @Test("Batch replay canonicalizes event order")
   func orderedReplay() throws {
     let firstDate = start

@@ -143,6 +143,8 @@ public struct CompanionState: Codable, Equatable, Sendable {
   public var vitalityAwardByDay: [String: Int]
   public var completedHabitDays: Set<LocalDay>
   public var commitments: [CommitmentRecord]
+  public var lastStateOfMind: StateOfMindSample?
+  public var handledStateOfMindSampleIDs: Set<UUID>
   public var processedEventIDs: Set<UUID>
 
   public init(
@@ -155,6 +157,8 @@ public struct CompanionState: Codable, Equatable, Sendable {
     vitalityAwardByDay: [String: Int] = [:],
     completedHabitDays: Set<LocalDay> = [],
     commitments: [CommitmentRecord] = [],
+    lastStateOfMind: StateOfMindSample? = nil,
+    handledStateOfMindSampleIDs: Set<UUID> = [],
     processedEventIDs: Set<UUID> = []
   ) {
     self.schemaVersion = schemaVersion
@@ -166,6 +170,8 @@ public struct CompanionState: Codable, Equatable, Sendable {
     self.vitalityAwardByDay = vitalityAwardByDay.mapValues { max(0, $0) }
     self.completedHabitDays = completedHabitDays
     self.commitments = commitments
+    self.lastStateOfMind = lastStateOfMind
+    self.handledStateOfMindSampleIDs = handledStateOfMindSampleIDs
     self.processedEventIDs = processedEventIDs
   }
 
@@ -179,6 +185,8 @@ public struct CompanionState: Codable, Equatable, Sendable {
     case vitalityAwardByDay
     case completedHabitDays
     case commitments
+    case lastStateOfMind
+    case handledStateOfMindSampleIDs
     case processedEventIDs
   }
 
@@ -203,6 +211,11 @@ public struct CompanionState: Codable, Equatable, Sendable {
     )
     commitments =
       try container.decodeIfPresent([CommitmentRecord].self, forKey: .commitments) ?? []
+    lastStateOfMind =
+      try container.decodeIfPresent(StateOfMindSample.self, forKey: .lastStateOfMind)
+    handledStateOfMindSampleIDs = Set(
+      try container.decodeIfPresent([UUID].self, forKey: .handledStateOfMindSampleIDs) ?? []
+    )
     processedEventIDs = Set(try container.decode([UUID].self, forKey: .processedEventIDs))
   }
 
@@ -219,6 +232,11 @@ public struct CompanionState: Codable, Equatable, Sendable {
     try container.encode(
       commitments.sorted { $0.commitmentID.uuidString < $1.commitmentID.uuidString },
       forKey: .commitments
+    )
+    try container.encodeIfPresent(lastStateOfMind, forKey: .lastStateOfMind)
+    try container.encode(
+      handledStateOfMindSampleIDs.sorted { $0.uuidString < $1.uuidString },
+      forKey: .handledStateOfMindSampleIDs
     )
     try container.encode(
       processedEventIDs.sorted { $0.uuidString < $1.uuidString },

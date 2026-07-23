@@ -16,6 +16,16 @@ Mocks make deterministic development possible when HealthKit history, physical h
 - Mock application stores use in-memory presentation state only; changing a Mock wardrobe or
   privacy control must not mutate live UserDefaults, notifications, files, or WatchConnectivity.
 
+## Interactive demo selector
+
+The current debug product build starts with `Mock 1` when no data source has been selected. Both
+iPhone and Watch expose one compact data-source button with `Apple 健康`, `Mock 1`, `Mock 2`, and
+`Mock 3`. A single tap applies the selection, closes the chooser, remembers only the selected
+label, and projects that label through the existing WatchConnectivity state.
+
+Mock world state remains in memory. Selecting a fixture again or relaunching reconstructs its
+canonical initial state instead of persisting interactions into the next demonstration.
+
 ## Fixture format
 
 Fixtures use versioned JSON stored separately from user data:
@@ -72,6 +82,9 @@ Dates are interpreted relative to `clock.now` where possible. Fixtures never con
 | `pet_new` | Initial pet state | first chapter behavior |
 | `outfit_locked` | Locked cosmetic | clear non-punitive state |
 | `outfit_unlocked` | Available cosmetic | preview/equip/reset flow |
+| `mock1` | Everyday demo | normal sleep and activity |
+| `mock2` | Relationship and care demo | three complete days without interaction plus an explicitly logged stressful State of Mind |
+| `mock3` | High-activity story demo | high activity and an explicit soccer workout eligible for `lost_ball` |
 
 Add explicit scenarios for each bug that depends on time, permission, ordering, or randomness.
 

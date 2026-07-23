@@ -67,12 +67,18 @@ public struct CompanionReducer: Sendable {
       state.activeTheme = decision.theme
       state.pet.mood = decision.petMood
       state.lastDecisionTrace = decision.trace
+      if let sample = snapshot.latestCareStateOfMind,
+        state.lastStateOfMind.map({ sample.recordedAt >= $0.recordedAt }) ?? true
+      {
+        state.lastStateOfMind = sample
+      }
 
     case .storyBeatCompleted(let completion):
       let previousCount = state.story.completedBeatIDs.count
       state.story = story.completing(completion, in: state.story)
       if state.story.completedBeatIDs.count > previousCount {
         state.growth.insight += 10
+        state.pet.lastInteractionAt = event.occurredAt
       }
 
     case .sideStoryUnlocked(let unlock):
@@ -81,6 +87,9 @@ public struct CompanionReducer: Sendable {
     case .petInteracted:
       state.pet.lastInteractionAt = event.occurredAt
       state.pet.mood = .curious
+
+    case .stateOfMindCareScheduled(let schedule):
+      state.handledStateOfMindSampleIDs.insert(schedule.sampleID)
 
     case .dailyHabitCompleted(let completion):
       guard

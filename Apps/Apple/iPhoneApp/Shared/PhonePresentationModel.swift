@@ -1,3 +1,4 @@
+import AppRuntime
 import Domain
 import Foundation
 
@@ -51,7 +52,9 @@ struct PhonePresentationModel {
     companion: CompanionState,
     health: HealthSnapshot?,
     trend: PersonalHealthTrend?,
-    syncStatus: String
+    syncStatus: String,
+    now: Date = Date(),
+    timeZone: TimeZone = .current
   ) -> Self {
     let sleep = health?.sleepMinutes
     let steps = health?.steps
@@ -64,7 +67,11 @@ struct PhonePresentationModel {
       wardrobe: .phaseOneDefault,
       level: max(1, companion.growth.vitality / 100 + 1),
       vitality: min(100, companion.growth.vitality % 100),
-      mood: moodText(companion.pet.mood, hasHealth: health?.hasAnyMetric == true),
+      mood: moodText(
+        companion.pet.mood,
+        hasHealth: health?.hasAnyMetric == true,
+        relationship: companion.pet.relationshipPresence(at: now, timeZone: timeZone)
+      ),
       syncStatus: syncStatus,
       metrics: [
         PhoneMetric(
@@ -115,6 +122,72 @@ struct PhonePresentationModel {
     )
   }
 
+  #if DEBUG
+    static func demo(_ source: CompanionDataSource) -> Self {
+      guard let fixtureID = source.fixtureID else { return liveNoData() }
+      switch debugScenarioSelection(
+        arguments: ["--mock-scenario=\(fixtureID)"],
+        enabled: true
+      ) {
+      case .scenario(let seed): return mock(seed: seed)
+      case .none, .invalid: return invalidMock(fixtureID)
+      }
+    }
+  #endif
+
+  func addingMockCareMessage() -> Self {
+    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+    var log = activityLog.filter { $0.id != "mock2-care" }
+    log.insert(
+      PhoneActivityLog(
+        id: "mock2-care",
+        title: "Mori 来关心你了",
+        detail: "不用解释，要不要和我安静待一会儿？",
+        time: "刚刚",
+        symbol: "heart.text.square.fill"
+      ),
+      at: 0
+    )
+    return PhonePresentationModel(
+      dataMode: dataMode,
+      initialScreen: initialScreen,
+      wardrobe: wardrobe,
+      level: level,
+      vitality: vitality,
+      mood: mood,
+      syncStatus: syncStatus,
+      metrics: metrics,
+      questTitle: questTitle,
+      questDetail: questDetail,
+      questProgress: questProgress,
+      history: history,
+      trendSummary: trendSummary,
+      activityLog: log,
+      dataExplanation: dataExplanation
+    )
+  }
+
+  func resolvingMockRelationship() -> Self {
+    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+    return PhonePresentationModel(
+      dataMode: dataMode,
+      initialScreen: initialScreen,
+      wardrobe: wardrobe,
+      level: level,
+      vitality: vitality,
+      mood: "Mori 安心了一点，想和你安静待一会儿",
+      syncStatus: syncStatus,
+      metrics: metrics,
+      questTitle: questTitle,
+      questDetail: questDetail,
+      questProgress: questProgress,
+      history: history,
+      trendSummary: trendSummary,
+      activityLog: activityLog,
+      dataExplanation: dataExplanation
+    )
+  }
+
   private static func invalidMock(_ value: String) -> Self {
     let base = liveNoData()
     return PhonePresentationModel(
@@ -137,10 +210,13 @@ struct PhonePresentationModel {
   }
 
   #if DEBUG
-    private static func debugScenarioSelection(arguments: [String]) -> DebugScenarioSelection {
+    private static func debugScenarioSelection(
+      arguments: [String],
+      enabled: Bool? = nil
+    ) -> DebugScenarioSelection {
       DebugScenarioCatalog.selection(
         from: arguments,
-        enabled: arguments.contains("-UITesting")
+        enabled: enabled ?? arguments.contains("-UITesting")
       ) { identifier in
         guard
           let url = Bundle.main.url(
@@ -158,7 +234,9 @@ struct PhonePresentationModel {
         companion: seed.companionState,
         health: seed.healthSnapshot,
         trend: nil,
-        syncStatus: seed.syncAvailable ? "Mock：模拟手表可达" : "Mock：手表暂不可达"
+        syncStatus: seed.syncAvailable ? "Mock：模拟手表可达" : "Mock：手表暂不可达",
+        now: seed.now,
+        timeZone: TimeZone(identifier: seed.timeZoneIdentifier) ?? .current
       )
       let scenario = PhoneMockScenario(id: seed.id, displayName: seed.displayName)
       let fallbackExplanation =
@@ -253,7 +331,14 @@ struct PhonePresentationModel {
     return "恢复 \(sleep) · 活动 \(activity)"
   }
 
-  private static func moodText(_ mood: PetMood, hasHealth: Bool) -> String {
+  private static func moodText(
+    _ mood: PetMood,
+    hasHealth: Bool,
+    relationship: RelationshipPresence = .present
+  ) -> String {
+    if relationship == .quietlyMissingYou {
+      return "Mori 这几天有点安静，好像很想你"
+    }
     guard hasHealth else { return "还没有足够的数据，我会安静陪着你" }
     switch mood {
     case .neutral: return "今天先按自己的节奏来"

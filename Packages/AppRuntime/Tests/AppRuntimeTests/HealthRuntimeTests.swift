@@ -110,6 +110,128 @@ struct HealthRuntimeTests {
     #expect(mapped.capturedAt == oldEnd)
   }
 
+  @Test("Explicit State of Mind labels map without physiological inference")
+  func stateOfMindMapping() {
+    let sampleID = UUID(uuidString: "00000000-0000-0000-0000-000000000992")!
+    let adapter = AppleAdapters.HealthSnapshot(
+      capturedAt: now,
+      sleep: HealthReading(availability: .noData, values: []),
+      steps: HealthReading(availability: .noData, values: []),
+      restingHeartRate: HealthReading(availability: .noData, values: []),
+      workouts: HealthReading(availability: .noData, values: []),
+      stateOfMind: HealthReading(
+        availability: .available,
+        values: [
+          StateOfMindEntry(
+            id: sampleID,
+            recordedAt: now.addingTimeInterval(-60),
+            valence: -0.7,
+            labels: [.stressed, .worried]
+          )
+        ]
+      )
+    )
+
+    let mapped = HealthSnapshotMapper().map(
+      adapter,
+      requestState: .requestCompleted,
+      timeZone: TimeZone(secondsFromGMT: 0)!
+    )
+
+    #expect(mapped.latestStateOfMind?.id == sampleID)
+    #expect(mapped.latestStateOfMind?.labels == [.stressed, .worried])
+    #expect(mapped.latestStateOfMind?.requestsGentleCare == true)
+    #expect(mapped.sleepMinutes == nil)
+    #expect(mapped.steps == nil)
+  }
+
+  @Test("A newer State of Mind entry advances capture time even when physical data exists")
+  func stateOfMindAdvancesCaptureTime() {
+    let physicalEnd = now.addingTimeInterval(-3_600)
+    let stateOfMindDate = now.addingTimeInterval(-60)
+    let adapter = AppleAdapters.HealthSnapshot(
+      capturedAt: now,
+      sleep: HealthReading(availability: .noData, values: []),
+      steps: HealthReading(
+        availability: .available,
+        values: [
+          TimedQuantity(
+            start: physicalEnd.addingTimeInterval(-300),
+            end: physicalEnd,
+            value: 1_000
+          )
+        ]
+      ),
+      restingHeartRate: HealthReading(availability: .noData, values: []),
+      workouts: HealthReading(availability: .noData, values: []),
+      stateOfMind: HealthReading(
+        availability: .available,
+        values: [
+          StateOfMindEntry(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000993")!,
+            recordedAt: stateOfMindDate,
+            valence: -0.5,
+            labels: [.stressed]
+          )
+        ]
+      )
+    )
+
+    let mapped = HealthSnapshotMapper().map(
+      adapter,
+      requestState: .requestCompleted,
+      timeZone: TimeZone(secondsFromGMT: 0)!
+    )
+
+    #expect(mapped.capturedAt == stateOfMindDate)
+  }
+
+  @Test("Health event identity changes when only State of Mind changes")
+  func stateOfMindChangesEventIdentity() async throws {
+    let base = AppleAdapters.HealthSnapshot(
+      capturedAt: now,
+      sleep: HealthReading(availability: .noData, values: []),
+      steps: HealthReading(availability: .noData, values: []),
+      restingHeartRate: HealthReading(availability: .noData, values: []),
+      workouts: HealthReading(availability: .noData, values: [])
+    )
+    let withStress = AppleAdapters.HealthSnapshot(
+      capturedAt: now,
+      sleep: HealthReading(availability: .noData, values: []),
+      steps: HealthReading(availability: .noData, values: []),
+      restingHeartRate: HealthReading(availability: .noData, values: []),
+      workouts: HealthReading(availability: .noData, values: []),
+      stateOfMind: HealthReading(
+        availability: .available,
+        values: [
+          StateOfMindEntry(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000994")!,
+            recordedAt: now,
+            valence: -0.5,
+            labels: [.stressed]
+          )
+        ]
+      )
+    )
+    let client = MockHealthDataClient(requestState: .requestCompleted, snapshot: base)
+    let service = HealthIngestionService(client: client, source: .watch)
+    let window = HealthQueryWindow(start: now.addingTimeInterval(-6 * 3_600), end: now)
+
+    let first = try await service.ingest(
+      window: window,
+      timeZone: TimeZone(secondsFromGMT: 0)!,
+      requestAccessIfNeeded: false
+    )
+    await client.replaceSnapshot(withStress)
+    let second = try await service.ingest(
+      window: window,
+      timeZone: TimeZone(secondsFromGMT: 0)!,
+      requestAccessIfNeeded: false
+    )
+
+    #expect(first.event.eventID != second.event.eventID)
+  }
+
   @Test("Duplicate sleep stages from multiple sources are counted once")
   func duplicateSleepSamples() {
     let interval = SleepSample(

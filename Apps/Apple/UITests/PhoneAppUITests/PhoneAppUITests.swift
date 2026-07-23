@@ -55,15 +55,29 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertFalse(app.staticTexts["0h0m"].exists)
   }
 
-  func testDefaultLaunchNeverPretendsMockDataIsLive() {
-    let app = launchLiveApp(storageID: "phone-live-neutral", reset: true)
+  func testDefaultLaunchStartsWithMock1AndRemembersDemoSelection() {
+    let storageID = "phone-default-demo"
+    let app = launchDefaultApp(storageID: storageID, reset: true)
 
     XCTAssertTrue(element("phone.onboarding", in: app).waitForExistence(timeout: 8))
-    XCTAssertTrue(element("phone.live-badge", in: app).exists)
-    XCTAssertFalse(element("phone.mock-badge", in: app).exists)
+    XCTAssertTrue(element("phone.mock-badge", in: app).label.contains("Mock 1"))
+    XCTAssertFalse(element("phone.live-badge", in: app).exists)
     app.buttons["phone.onboarding.complete"].tap()
     XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
-    XCTAssertTrue(app.buttons["phone.connect-health"].exists)
+    let dataSource = app.buttons["phone.connect-health"]
+    scrollToElement(dataSource, in: app)
+    dataSource.tap()
+    XCTAssertTrue(element("phone.data-source-picker", in: app).waitForExistence(timeout: 5))
+    app.buttons["phone.data-source.option.mock2"].tap()
+    XCTAssertTrue(
+      element("phone.mock-badge", in: app).waitForExistence(timeout: 5)
+        && element("phone.mock-badge", in: app).label.contains("Mock 2")
+    )
+    app.terminate()
+
+    let relaunched = launchDefaultApp(storageID: storageID, reset: false)
+    XCTAssertTrue(element("phone.overview", in: relaunched).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("phone.mock-badge", in: relaunched).label.contains("Mock 2"))
   }
 
   func testFreshInstallOnboardingUsesNoPermissionPromptAndMockRemainsInMemory() {
@@ -191,10 +205,23 @@ final class PhoneAppUITests: XCTestCase {
   }
 
   private func launchLiveApp(storageID: String, reset: Bool) -> XCUIApplication {
+    launchDefaultApp(
+      storageID: storageID,
+      reset: reset,
+      additionalArguments: ["--e2e-data-source=healthKit"]
+    )
+  }
+
+  private func launchDefaultApp(
+    storageID: String,
+    reset: Bool,
+    additionalArguments: [String] = []
+  ) -> XCUIApplication {
     let app = XCUIApplication()
-    app.launchArguments = [
-      "-UITesting", "--e2e-storage-id=\(storageID)", "--e2e-offline-runtime",
-    ]
+    app.launchArguments =
+      [
+        "-UITesting", "--e2e-storage-id=\(storageID)", "--e2e-offline-runtime",
+      ] + additionalArguments
     if reset {
       app.launchArguments.append("--reset-e2e-storage")
     }

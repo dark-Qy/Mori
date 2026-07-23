@@ -1,9 +1,11 @@
+import AppRuntime
 import SwiftUI
 import WatchKit
 
 struct WatchRootView: View {
   @ObservedObject var store: WatchAppStore
   @State private var interactionCount = 0
+  @State private var showsDataSourcePicker = false
 
   private var model: WatchPresentationModel { store.model }
 
@@ -58,12 +60,14 @@ struct WatchRootView: View {
           interactionCard
           destinationLinks
           DataSourceCard(model: model)
-          if model.isLive {
+          if store.dataSourceSelectionAvailable {
             Button {
-              Task { await store.connectHealth() }
+              showsDataSourcePicker = true
             } label: {
               Label(
-                store.isRefreshingHealth ? "读取中…" : "连接健康数据",
+                store.isRefreshingHealth
+                  ? "读取中…"
+                  : "数据 · \(store.selectedDataSource.displayName)",
                 systemImage: "heart.text.clipboard"
               )
               .frame(maxWidth: .infinity)
@@ -83,6 +87,9 @@ struct WatchRootView: View {
     }
     .tint(AdventurePalette.mint)
     .accessibilityIdentifier("watch.pet-home")
+    .sheet(isPresented: $showsDataSourcePicker) {
+      WatchDataSourcePicker(store: store, isPresented: $showsDataSourcePicker)
+    }
   }
 
   private var statusHeader: some View {
@@ -99,7 +106,9 @@ struct WatchRootView: View {
   private var interactionCard: some View {
     AdventureCard {
       VStack(alignment: .leading, spacing: AdventureSpacing.small) {
-        if interactionCount == 0 && !store.actionCompleted {
+        if interactionCount == 0
+          && (model.requestsCompanionInteraction || !store.actionCompleted)
+        {
           Text(model.petPrompt)
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -115,21 +124,31 @@ struct WatchRootView: View {
 
         Button {
           WKInterfaceDevice.current().play(.click)
-          if model.isLive {
+          if model.requestsCompanionInteraction {
+            interactionCount += 1
+            Task { await store.companionInteraction() }
+          } else if model.isLive {
             Task { await store.completeSuggestedAction() }
           } else {
             interactionCount += 1
+            Task { await store.companionInteraction() }
           }
         } label: {
           Label(
-            interactionCount == 0 && !store.actionCompleted ? model.actionTitle : "今天已回应",
+            interactionCount == 0
+              && (model.requestsCompanionInteraction || !store.actionCompleted)
+              ? model.actionTitle : "今天已回应",
             systemImage: "hand.tap.fill"
           )
           .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
         .tint(AdventurePalette.mint)
-        .disabled(store.isCompletingAction || store.actionCompleted || !model.allowsInteraction)
+        .disabled(
+          store.isCompletingAction
+            || (store.actionCompleted && !model.requestsCompanionInteraction)
+            || !model.allowsInteraction
+        )
         .accessibilityIdentifier("watch.interact")
       }
     }
@@ -160,6 +179,35 @@ struct WatchRootView: View {
       }
       .buttonStyle(.plain)
       .accessibilityIdentifier("watch.open-messages")
+    }
+  }
+}
+
+private struct WatchDataSourcePicker: View {
+  @ObservedObject var store: WatchAppStore
+  @Binding var isPresented: Bool
+
+  var body: some View {
+    NavigationStack {
+      List(CompanionDataSource.allCases, id: \.self) { source in
+        Button {
+          isPresented = false
+          Task { await store.selectDataSource(source) }
+        } label: {
+          HStack {
+            Text(source.displayName)
+            Spacer()
+            if source == store.selectedDataSource {
+              Image(systemName: "checkmark")
+                .foregroundStyle(AdventurePalette.mint)
+                .accessibilityHidden(true)
+            }
+          }
+        }
+        .accessibilityIdentifier("watch.data-source.option.\(source.rawValue)")
+      }
+      .navigationTitle("数据来源")
+      .accessibilityIdentifier("watch.data-source-picker")
     }
   }
 }

@@ -76,6 +76,17 @@ enum HealthEventIdentity {
         $0.activeEnergyKilocalories.map { String($0) } ?? "nil",
       ].joined(separator: ":")
     }.joined(separator: ",")
+    let stateOfMindSamples = (snapshot.stateOfMindSamples ?? [])
+      .sorted { $0.id.uuidString < $1.id.uuidString }
+      .map {
+        [
+          $0.id.uuidString,
+          String($0.recordedAt.timeIntervalSince1970),
+          String($0.valence),
+          $0.labels.map(\.rawValue).sorted().joined(separator: ","),
+        ].joined(separator: ":")
+      }
+      .joined(separator: ",")
     let descriptor = [
       String(snapshot.schemaVersion),
       String(snapshot.capturedAt.timeIntervalSince1970),
@@ -93,6 +104,7 @@ enum HealthEventIdentity {
       String(snapshot.activeMinutes ?? -1),
       String(snapshot.restingHeartRateBPM ?? -1),
       workouts,
+      stateOfMindSamples,
     ].joined(separator: "|")
     let first = fnv1a(descriptor.utf8, seed: 0xCBF2_9CE4_8422_2325)
     let second = fnv1a(descriptor.utf8.reversed(), seed: 0x8422_2325_CBF2_9CE4)

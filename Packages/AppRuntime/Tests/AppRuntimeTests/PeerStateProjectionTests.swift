@@ -22,6 +22,8 @@ struct PeerStateProjectionTests {
     let state = PeerStateProjection().makeState(
       companion: CompanionState(),
       preferences: preferences,
+      dataSource: .mock2,
+      dataSourceSelectionToken: "selection-2",
       revision: 42,
       updatedAt: date
     )
@@ -29,6 +31,8 @@ struct PeerStateProjectionTests {
     #expect(state.revision == 42)
     #expect(state.updatedAt == date)
     #expect(state.values["outfit"] == "soccer_scarf")
+    #expect(state.values["dataSource"] == "mock2")
+    #expect(state.values["dataSourceSelectionToken"] == "selection-2")
     #expect(state.values["proactiveMessagesEnabled"] == "true")
     #expect(state.values["proactiveNotificationConsentVersion"] == "1")
     #expect(state.values["quietHoursStartMinute"] == "1260")

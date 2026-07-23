@@ -1,8 +1,10 @@
+import AppRuntime
 import SwiftUI
 
 struct OverviewView: View {
   @ObservedObject var store: PhoneAppStore
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @State private var showsDataSourcePicker = false
 
   private var model: PhonePresentationModel { store.model }
 
@@ -15,7 +17,10 @@ struct OverviewView: View {
         }
         .padding(.top, CompanionSpacing.small)
 
-        PetOverviewCard(model: model)
+        PetOverviewCard(
+          model: model,
+          onCompanionInteraction: { Task { await store.companionInteraction() } }
+        )
 
         metricTiles
 
@@ -54,12 +59,14 @@ struct OverviewView: View {
             .accessibilityIdentifier("phone.data-explanation.detail")
         }
 
-        if model.isLive {
+        if store.dataSourceSelectionAvailable {
           Button {
-            Task { await store.connectHealth() }
+            showsDataSourcePicker = true
           } label: {
             Label(
-              store.isRefreshingHealth ? "正在读取…" : "连接或刷新健康数据",
+              store.isRefreshingHealth
+                ? "正在读取…"
+                : "数据来源 · \(store.selectedDataSource.displayName)",
               systemImage: "heart.text.clipboard"
             )
             .frame(maxWidth: .infinity)
@@ -81,6 +88,9 @@ struct OverviewView: View {
     }
     .navigationTitle("Mori")
     .accessibilityIdentifier("phone.overview")
+    .sheet(isPresented: $showsDataSourcePicker) {
+      PhoneDataSourcePicker(store: store, isPresented: $showsDataSourcePicker)
+    }
   }
 
   @ViewBuilder private var metricTiles: some View {
@@ -102,6 +112,7 @@ struct OverviewView: View {
 
 private struct PetOverviewCard: View {
   let model: PhonePresentationModel
+  let onCompanionInteraction: () -> Void
 
   var body: some View {
     VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
@@ -146,6 +157,14 @@ private struct PetOverviewCard: View {
       Label(model.syncStatus, systemImage: "applewatch.radiowaves.left.and.right")
         .font(.caption)
         .foregroundStyle(.white)
+
+      Button(action: onCompanionInteraction) {
+        Label("陪陪 Mori", systemImage: "hand.wave.fill")
+          .frame(maxWidth: .infinity)
+      }
+      .buttonStyle(.bordered)
+      .tint(.white)
+      .accessibilityIdentifier("phone.companion-interaction")
     }
     .foregroundStyle(.white)
     .padding(CompanionSpacing.large)
@@ -159,6 +178,37 @@ private struct PetOverviewCard: View {
     }
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("phone.pet-overview")
+  }
+}
+
+private struct PhoneDataSourcePicker: View {
+  @ObservedObject var store: PhoneAppStore
+  @Binding var isPresented: Bool
+
+  var body: some View {
+    NavigationStack {
+      List(CompanionDataSource.allCases, id: \.self) { source in
+        Button {
+          isPresented = false
+          Task { await store.selectDataSource(source) }
+        } label: {
+          HStack {
+            Label(
+              source.displayName, systemImage: source == .healthKit ? "heart.fill" : "testtube.2")
+            Spacer()
+            if source == store.selectedDataSource {
+              Image(systemName: "checkmark")
+                .foregroundStyle(CompanionPalette.mint)
+                .accessibilityHidden(true)
+            }
+          }
+        }
+        .accessibilityIdentifier("phone.data-source.option.\(source.rawValue)")
+      }
+      .navigationTitle("选择数据来源")
+      .accessibilityIdentifier("phone.data-source-picker")
+    }
+    .presentationDetents([.medium])
   }
 }
 

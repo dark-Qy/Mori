@@ -35,6 +35,9 @@ required_scenarios=(
   pet_new
   outfit_locked
   outfit_unlocked
+  mock1
+  mock2
+  mock3
 )
 
 for scenario in "${required_scenarios[@]}"; do

@@ -64,6 +64,30 @@ struct ScenarioRuntimeTests {
     #expect(!run.state.story.unlockedSideStoryIDs.contains("lost_ball"))
   }
 
+  @Test("Three product demos remain distinct and exercise the agreed branches")
+  func productDemoFixtures() throws {
+    let normal = try runtime(named: "mock1")
+    let care = try runtime(named: "mock2")
+    let careRun = try MockScenarioRun(runtime: care)
+    let active = try runtime(named: "mock3")
+
+    #expect(normal.healthSnapshot.sleepMinutes == 450)
+    #expect(normal.healthSnapshot.steps == 3_250)
+
+    #expect(care.healthSnapshot.stateOfMindSamples?.first?.labels.contains(.stressed) == true)
+    #expect(careRun.state.lastStateOfMind?.labels.contains(.stressed) == true)
+    #expect(
+      care.initialState.pet.relationshipPresence(
+        at: care.clock.now,
+        timeZone: TimeZone(identifier: care.clock.timeZoneIdentifier)!
+      ) == .quietlyMissingYou
+    )
+
+    #expect(active.healthSnapshot.steps == 18_420)
+    #expect(active.healthSnapshot.workouts.first?.activity == .soccer)
+    #expect(active.eligibleRandomStoryID == "lost_ball")
+  }
+
   @Test("Time travel and replay remain deterministic")
   func timeTravelReplay() throws {
     var run = try MockScenarioRun(runtime: runtime(named: "health_normal"))

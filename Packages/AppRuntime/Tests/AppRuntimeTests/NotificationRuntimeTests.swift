@@ -128,6 +128,78 @@ struct NotificationRuntimeTests {
     #expect(plan.fireDate == now.addingTimeInterval(75))
   }
 
+  @Test("Only an explicit recent stressful State of Mind creates a gentle care check-in")
+  func explicitStateOfMindCare() throws {
+    var state = CompanionState()
+    state.lastStateOfMind = StateOfMindSample(
+      id: uuid(100),
+      recordedAt: now.addingTimeInterval(-300),
+      valence: -0.6,
+      labels: [.stressed]
+    )
+
+    let plan = try #require(CareCheckInPlanner().plan(for: state, now: now, delay: 60))
+
+    #expect(plan.fireDate == now.addingTimeInterval(60))
+    #expect(plan.route == "pet/care")
+    #expect(plan.body.contains("不用解释"))
+  }
+
+  @Test("A handled State of Mind sample cannot schedule care again")
+  func handledStateOfMindCareIsSilent() {
+    let sampleID = uuid(103)
+    var state = CompanionState(handledStateOfMindSampleIDs: [sampleID])
+    state.lastStateOfMind = StateOfMindSample(
+      id: sampleID,
+      recordedAt: now.addingTimeInterval(-300),
+      valence: -0.6,
+      labels: [.stressed]
+    )
+
+    #expect(CareCheckInPlanner().plan(for: state, now: now, delay: 60) == nil)
+  }
+
+  @Test("Physiological rules and non-care labels never infer a mood check-in")
+  func careIsNeverInferred() {
+    var healthOnly = CompanionState(activeTheme: .recovery)
+    healthOnly.lastDecisionTrace = DecisionTrace(
+      ruleSetVersion: 1,
+      evaluatedAt: now,
+      selectedTheme: .recovery,
+      vitalityAward: 0,
+      steps: []
+    )
+    #expect(CareCheckInPlanner().plan(for: healthOnly, now: now) == nil)
+
+    healthOnly.lastStateOfMind = StateOfMindSample(
+      id: uuid(101),
+      recordedAt: now,
+      valence: -0.8,
+      labels: [.other]
+    )
+    #expect(CareCheckInPlanner().plan(for: healthOnly, now: now) == nil)
+  }
+
+  @Test("Real care timing stays replayable inside thirty to ninety minutes")
+  func careTimingBounds() throws {
+    var state = CompanionState()
+    state.lastStateOfMind = StateOfMindSample(
+      id: uuid(102),
+      recordedAt: now,
+      valence: -0.5,
+      labels: [.anxious]
+    )
+
+    let first = try #require(CareCheckInPlanner().plan(for: state, now: now))
+    let replay = try #require(CareCheckInPlanner().plan(for: state, now: now))
+    let delay = first.fireDate.timeIntervalSince(now)
+
+    #expect(first == replay)
+    #expect(delay >= CareCheckInPlanner.minimumSeededDelay)
+    #expect(delay <= CareCheckInPlanner.maximumSeededDelay)
+    #expect(delay.truncatingRemainder(dividingBy: 60) == 0)
+  }
+
   private var utcCalendar: Calendar {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!

@@ -22,53 +22,58 @@ final class WatchAppStore: ObservableObject {
   @Published private(set) var isCompletingAction = false
   @Published private(set) var actionCompleted = false
   @Published private(set) var isAdvancingStory = false
+  @Published private(set) var selectedDataSource: CompanionDataSource
   @Published private(set) var notificationDestination: RuntimeNotificationDestination? = nil
 
-  let dataMode: WatchDataMode
+  var dataMode: WatchDataMode { model.dataMode }
+  var dataSourceSelectionAvailable: Bool { !hasLaunchScenarioOverride }
   private let runtime: AppleCompanionRuntime?
   private let notificationRouteObserver: RuntimeNotificationRouteObserver?
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private let usesE2EOfflineRuntime: Bool
+  private let hasLaunchScenarioOverride: Bool
   private var hasStarted = false
   private var latestHealth: HealthSnapshot?
   private var latestPeerValues: [String: String]?
   private var peerUpdateTask: Task<Void, Never>?
   private var notificationRouteTask: Task<Void, Never>?
   private var peerSyncRetryTask: Task<Void, Never>?
+  private var mockCareTask: Task<Void, Never>?
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
     let initialModel = WatchPresentationModel.initial(arguments: arguments)
-    dataMode = initialModel.dataMode
     model = initialModel
+    selectedDataSource =
+      initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) } ?? .mock1
     preferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
       selectedOutfitID: initialModel.outfitID ?? WardrobeCatalog.defaultOutfitID
     )
-    if dataMode == .live {
-      phase = .loading
-    } else {
+    hasLaunchScenarioOverride = initialModel.dataMode != .live
+    if hasLaunchScenarioOverride {
       phase =
         switch initialModel.initialScreen {
         case .onboarding: .onboarding
         case .petIntroduction: .petIntroduction
         case .petHome: .ready
         }
+    } else {
+      phase = .loading
     }
     #if DEBUG
       let runtimeConfiguration = Self.runtimeConfiguration(arguments: arguments)
     #else
       let runtimeConfiguration = Self.productionRuntimeConfiguration()
     #endif
-    runtime =
-      dataMode == .live
-      ? AppleCompanionRuntime(
-        source: .watch,
-        storageDirectory: runtimeConfiguration.storageDirectory,
-        preferencesKey: runtimeConfiguration.preferencesKey,
-        peerSyncEnabled: runtimeConfiguration.peerSyncEnabled
-      )
-      : nil
-    notificationRouteObserver = dataMode == .live ? RuntimeNotificationRouteObserver() : nil
+    runtime = AppleCompanionRuntime(
+      source: .watch,
+      storageDirectory: runtimeConfiguration.storageDirectory,
+      preferencesKey: runtimeConfiguration.preferencesKey,
+      dataSourceKey: runtimeConfiguration.dataSourceKey,
+      peerSyncEnabled: runtimeConfiguration.peerSyncEnabled
+    )
+    notificationRouteObserver =
+      hasLaunchScenarioOverride ? nil : RuntimeNotificationRouteObserver()
     #if DEBUG
       launchNotificationRoute =
         arguments.contains("-UITesting") ? Self.notificationRoute(from: arguments) : nil
@@ -81,6 +86,7 @@ final class WatchAppStore: ObservableObject {
   func start() async {
     guard !hasStarted else { return }
     hasStarted = true
+    guard !hasLaunchScenarioOverride else { return }
     observeNotificationRoutes()
     if let launchNotificationRoute {
       handleNotificationRoute(launchNotificationRoute)
@@ -88,22 +94,23 @@ final class WatchAppStore: ObservableObject {
     guard let runtime else { return }
     do {
       preferences = try await runtime.loadPreferences()
-      latestPeerValues = ["outfit": preferences.selectedOutfitID]
+      selectedDataSource = await runtime.loadDataSourceSelection()
+      latestPeerValues = Self.peerValues(from: preferences)
       guard preferences.hasCompletedOnboarding else {
+        #if DEBUG
+          if selectedDataSource.isMock {
+            model = WatchPresentationModel.demo(selectedDataSource)
+          }
+        #endif
         phase = .onboarding
         statusMessage = "先认识 Mori；不会自动请求健康或通知权限"
         return
       }
       phase = .ready
-      try await loadLocalExperience()
-      statusMessage =
-        usesE2EOfflineRuntime
-        ? "本地进度已载入；离线测试不会读取健康数据"
-        : "本地进度已载入，健康数据正在更新"
+      await applySelectedDataSource(requestAccessIfNeeded: false)
       guard !usesE2EOfflineRuntime else { return }
       beginPeerUpdates(runtime: runtime)
       retryPeerSyncInBackground(runtime: runtime)
-      await refreshHealth(requestAccessIfNeeded: false)
     } catch {
       phase = .ready
       statusMessage = "载入失败，请稍后重试"
@@ -111,20 +118,17 @@ final class WatchAppStore: ObservableObject {
   }
 
   private func beginPeerUpdates(runtime: AppleCompanionRuntime) {
+    guard peerUpdateTask == nil else { return }
     peerUpdateTask = Task { [weak self] in
       let peerUpdates = await runtime.peerValueUpdates()
       if let self {
-        self.latestPeerValues = await runtime.latestPeerValues()
-        if let latestPeerValues = self.latestPeerValues {
-          try? await runtime.applyPeerPreferences(latestPeerValues)
-          await self.rebuildModel()
+        if let latestPeerValues = await runtime.latestPeerValues() {
+          await self.receivePeerValues(latestPeerValues, runtime: runtime)
         }
       }
       for await values in peerUpdates {
         guard let self else { return }
-        self.latestPeerValues = values
-        try? await runtime.applyPeerPreferences(values)
-        await self.rebuildModel()
+        await self.receivePeerValues(values, runtime: runtime)
       }
     }
   }
@@ -140,11 +144,25 @@ final class WatchAppStore: ObservableObject {
   }
 
   func connectHealth() async {
-    await refreshHealth(requestAccessIfNeeded: true)
+    await selectDataSource(.healthKit)
+  }
+
+  func selectDataSource(_ source: CompanionDataSource) async {
+    guard !hasLaunchScenarioOverride else { return }
+    mockCareTask?.cancel()
+    selectedDataSource = source
+    _ = await runtime?.saveDataSourceSelection(source)
+    await applySelectedDataSource(requestAccessIfNeeded: source == .healthKit)
   }
 
   func completeOnboarding() async {
     guard phase == .onboarding, !isSavingPreferences else { return }
+    if hasLaunchScenarioOverride {
+      preferences.hasCompletedOnboarding = true
+      phase = .ready
+      statusMessage = "Mori 已准备好；Mock 不会请求系统权限"
+      return
+    }
     guard let runtime else {
       preferences.hasCompletedOnboarding = true
       phase = .ready
@@ -157,12 +175,14 @@ final class WatchAppStore: ObservableObject {
     do {
       _ = try await runtime.savePreferences(preferences)
       phase = .ready
-      try await loadLocalExperience()
+      await applySelectedDataSource(requestAccessIfNeeded: false)
       isSavingPreferences = false
-      statusMessage = "Mori 已准备好；健康数据可以稍后再连接"
+      statusMessage =
+        selectedDataSource.isMock
+        ? "Mori 已准备好；\(selectedDataSource.displayName) 已载入"
+        : "Mori 已准备好；健康数据可以稍后再连接"
       guard !usesE2EOfflineRuntime else { return }
       beginPeerUpdates(runtime: runtime)
-      await refreshHealth(requestAccessIfNeeded: false)
     } catch {
       preferences.hasCompletedOnboarding = false
       isSavingPreferences = false
@@ -177,15 +197,17 @@ final class WatchAppStore: ObservableObject {
   }
 
   func refreshHealth(requestAccessIfNeeded: Bool = false) async {
-    guard let runtime, !isRefreshingHealth else { return }
+    guard selectedDataSource == .healthKit, let runtime, !isRefreshingHealth else { return }
     isRefreshingHealth = true
     defer { isRefreshingHealth = false }
     do {
       let refresh = try await runtime.refreshHealth(
         requestAccessIfNeeded: requestAccessIfNeeded
       )
+      guard selectedDataSource == .healthKit else { return }
       latestHealth = refresh.health
       let trend = try await runtime.personalHealthTrend()
+      guard selectedDataSource == .healthKit else { return }
       model = .live(
         companion: refresh.companion,
         health: refresh.health,
@@ -194,12 +216,13 @@ final class WatchAppStore: ObservableObject {
       )
       statusMessage = refresh.health.hasAnyMetric ? "健康数据已更新" : "没有可用数据，不会扣除成长值"
     } catch {
+      guard selectedDataSource == .healthKit else { return }
       statusMessage = "健康数据暂时不可用"
     }
   }
 
   func completeSuggestedAction() async {
-    guard let runtime, !isCompletingAction else { return }
+    guard selectedDataSource == .healthKit, let runtime, !isCompletingAction else { return }
     isCompletingAction = true
     defer { isCompletingAction = false }
     do {
@@ -224,8 +247,33 @@ final class WatchAppStore: ObservableObject {
     }
   }
 
+  func companionInteraction() async {
+    if selectedDataSource.isMock || hasLaunchScenarioOverride {
+      if model.mockScenario?.id == CompanionDataSource.mock2.fixtureID {
+        model = model.resolvingMockRelationship()
+        actionCompleted = true
+      }
+      statusMessage = "Mori 靠近了一点，安静地陪着你"
+      return
+    }
+    guard let runtime else { return }
+    do {
+      let state = try await runtime.recordPetInteraction(kind: "watch_companion")
+      let trend = try await runtime.personalHealthTrend()
+      model = .live(
+        companion: state,
+        health: latestHealth,
+        trend: trend,
+        peerValues: latestPeerValues
+      )
+      statusMessage = "Mori 靠近了一点，安静地陪着你"
+    } catch {
+      statusMessage = "这次互动没能保存，但 Mori 已经看见你了"
+    }
+  }
+
   func advanceMainStory() async {
-    guard let runtime, !isAdvancingStory else { return }
+    guard selectedDataSource == .healthKit, let runtime, !isAdvancingStory else { return }
     isAdvancingStory = true
     defer { isAdvancingStory = false }
     do {
@@ -251,6 +299,7 @@ final class WatchAppStore: ObservableObject {
   }
 
   private func rebuildModel() async {
+    guard selectedDataSource == .healthKit else { return }
     guard let runtime else { return }
     do {
       let state = try await runtime.currentState()
@@ -284,6 +333,72 @@ final class WatchAppStore: ObservableObject {
     )
   }
 
+  private func applySelectedDataSource(requestAccessIfNeeded: Bool) async {
+    mockCareTask?.cancel()
+    actionCompleted = false
+    if selectedDataSource.isMock {
+      #if DEBUG
+        model = WatchPresentationModel.demo(selectedDataSource)
+        phase = .ready
+        statusMessage = "\(selectedDataSource.displayName) 已载入"
+        scheduleMockCareIfNeeded()
+      #else
+        selectedDataSource = .healthKit
+        await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
+      #endif
+      return
+    }
+    do {
+      preferences = try await runtime?.loadPreferences() ?? AppPreferences()
+      latestPeerValues = Self.peerValues(from: preferences)
+      try await loadLocalExperience()
+    } catch {
+      model = .liveNoData()
+    }
+    await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
+  }
+
+  private func scheduleMockCareIfNeeded() {
+    guard selectedDataSource == .mock2 else { return }
+    mockCareTask = Task { [weak self] in
+      try? await Task.sleep(for: .seconds(60))
+      guard !Task.isCancelled, let self, self.selectedDataSource == .mock2 else { return }
+      self.model = self.model.addingMockCareMessage()
+      self.statusMessage = "Mori 给你留了一封轻轻的来信"
+    }
+  }
+
+  private func applyPeerValues(
+    _ values: [String: String],
+    shouldReloadDataSource: Bool
+  ) async {
+    if let rawValue = values["dataSource"],
+      let incoming = CompanionDataSource(rawValue: rawValue),
+      shouldReloadDataSource
+    {
+      selectedDataSource = incoming
+      await applySelectedDataSource(requestAccessIfNeeded: false)
+      return
+    }
+    await rebuildModel()
+  }
+
+  private func receivePeerValues(
+    _ values: [String: String],
+    runtime: AppleCompanionRuntime
+  ) async {
+    do {
+      let shouldReloadDataSource = try await runtime.applyPeerPreferences(values)
+      preferences = try await runtime.loadPreferences()
+      // Presentation consumes the validated, merged management subset. Raw or partial peer
+      // payloads must never reset a valid local outfit to a default.
+      latestPeerValues = Self.peerValues(from: preferences)
+      await applyPeerValues(values, shouldReloadDataSource: shouldReloadDataSource)
+    } catch {
+      statusMessage = "配对设置暂时无法同步"
+    }
+  }
+
   private func observeNotificationRoutes() {
     guard let notificationRouteObserver else { return }
     let routes = notificationRouteObserver.routes()
@@ -303,6 +418,8 @@ final class WatchAppStore: ObservableObject {
       statusMessage = "Mori：今天可以慢一点，由你决定是否回应"
     case .activityMessage:
       statusMessage = "Mori：要不要一起走两分钟？不完成也不会失去什么"
+    case .careMessage:
+      statusMessage = "Mori：不用解释，我可以陪你安静待一会儿"
     }
   }
 
@@ -313,7 +430,12 @@ final class WatchAppStore: ObservableObject {
   private struct RuntimeConfiguration {
     let storageDirectory: URL
     let preferencesKey: String
+    let dataSourceKey: String
     let peerSyncEnabled: Bool
+  }
+
+  private static func peerValues(from preferences: AppPreferences) -> [String: String] {
+    ["outfit": preferences.selectedOutfitID]
   }
 
   private static func productionRuntimeConfiguration() -> RuntimeConfiguration {
@@ -323,6 +445,7 @@ final class WatchAppStore: ObservableObject {
     return RuntimeConfiguration(
       storageDirectory: base,
       preferencesKey: "app.preferences.v1",
+      dataSourceKey: "app.data-source.v1",
       peerSyncEnabled: true
     )
   }
@@ -357,6 +480,7 @@ final class WatchAppStore: ObservableObject {
         return RuntimeConfiguration(
           storageDirectory: base,
           preferencesKey: "app.preferences.v1",
+          dataSourceKey: "app.data-source.v1",
           peerSyncEnabled: peerSyncEnabled
         )
       }
@@ -368,12 +492,31 @@ final class WatchAppStore: ObservableObject {
       if arguments.contains("--reset-e2e-storage") {
         try? FileManager.default.removeItem(at: directory)
         UserDefaults.standard.removeObject(forKey: "app.preferences.v1.uitests.\(identifier)")
+        UserDefaults.standard.removeObject(forKey: "app.data-source.v1.uitests.\(identifier)")
+        UserDefaults.standard.removeObject(
+          forKey: "app.data-source.v1.uitests.\(identifier).selection-token"
+        )
+      }
+      if let seededSource = e2eDataSource(arguments: arguments) {
+        UserDefaults.standard.set(
+          seededSource.rawValue,
+          forKey: "app.data-source.v1.uitests.\(identifier)"
+        )
       }
       return RuntimeConfiguration(
         storageDirectory: directory,
         preferencesKey: "app.preferences.v1.uitests.\(identifier)",
+        dataSourceKey: "app.data-source.v1.uitests.\(identifier)",
         peerSyncEnabled: peerSyncEnabled
       )
+    }
+
+    private static func e2eDataSource(arguments: [String]) -> CompanionDataSource? {
+      guard
+        let rawValue = arguments.first(where: { $0.hasPrefix("--e2e-data-source=") })?
+          .replacingOccurrences(of: "--e2e-data-source=", with: "")
+      else { return nil }
+      return CompanionDataSource(rawValue: rawValue)
     }
   #endif
 }

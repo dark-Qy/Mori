@@ -46,6 +46,14 @@ public struct PetInteraction: Codable, Equatable, Sendable {
   }
 }
 
+public struct StateOfMindCareSchedule: Codable, Equatable, Sendable {
+  public var sampleID: UUID
+
+  public init(sampleID: UUID) {
+    self.sampleID = sampleID
+  }
+}
+
 public enum DailyHabitKind: String, Codable, CaseIterable, Sendable {
   case microRest
   case shortWalk
@@ -141,6 +149,7 @@ public enum DomainEvent: Codable, Equatable, Sendable {
   case storyBeatCompleted(StoryBeatCompletion)
   case sideStoryUnlocked(SideStoryUnlock)
   case petInteracted(PetInteraction)
+  case stateOfMindCareScheduled(StateOfMindCareSchedule)
   case dailyHabitCompleted(DailyHabitCompletion)
   case commitmentAccepted(CommitmentAcceptance)
   case commitmentResolved(CommitmentResolution)

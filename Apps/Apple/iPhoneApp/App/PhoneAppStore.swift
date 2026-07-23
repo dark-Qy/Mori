@@ -21,52 +21,58 @@ final class PhoneAppStore: ObservableObject {
   @Published private(set) var isSavingPreferences = false
   @Published private(set) var statusMessage: String?
   @Published private(set) var notificationStatus = "尚未请求"
+  @Published private(set) var selectedDataSource: CompanionDataSource
   @Published var selectedTab: PhoneTab = .overview
   @Published var notificationDestination: RuntimeNotificationDestination? = nil
 
-  let dataMode: PhoneDataMode
+  var dataMode: PhoneDataMode { model.dataMode }
+  var dataSourceSelectionAvailable: Bool { !hasLaunchScenarioOverride }
   private let runtime: AppleCompanionRuntime?
   private let wardrobeService = WardrobeService()
   private let notificationRouteObserver: RuntimeNotificationRouteObserver?
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private let usesE2EOfflineRuntime: Bool
+  private let hasLaunchScenarioOverride: Bool
   private var hasStarted = false
   private var latestHealth: HealthSnapshot?
   private var preferenceSaveTask: Task<Void, Never>?
   private var preferenceRevision: UInt64 = 0
   private var notificationRouteTask: Task<Void, Never>?
   private var peerSyncRetryTask: Task<Void, Never>?
+  private var peerUpdateTask: Task<Void, Never>?
+  private var mockCareTask: Task<Void, Never>?
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
     let initialModel = PhonePresentationModel.initial(arguments: arguments)
-    dataMode = initialModel.dataMode
     model = initialModel
+    selectedDataSource =
+      initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) } ?? .mock1
     preferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
       selectedOutfitID: initialModel.wardrobe.selectedOutfitID
     )
     previewOutfitID = initialModel.wardrobe.previewOutfitID
     unlockedOutfitIDs = initialModel.wardrobe.unlockedOutfitIDs
+    hasLaunchScenarioOverride = initialModel.dataMode != .live
     phase =
-      dataMode == .live
-      ? .loading
-      : (initialModel.initialScreen == .onboarding ? .onboarding : .ready)
+      hasLaunchScenarioOverride
+      ? (initialModel.initialScreen == .onboarding ? .onboarding : .ready)
+      : .loading
     selectedTab = initialModel.initialScreen == .wardrobe ? .wardrobe : .overview
     #if DEBUG
       let runtimeConfiguration = Self.runtimeConfiguration(arguments: arguments)
     #else
       let runtimeConfiguration = Self.productionRuntimeConfiguration()
     #endif
-    runtime =
-      dataMode == .live
-      ? AppleCompanionRuntime(
-        source: .phone,
-        storageDirectory: runtimeConfiguration.storageDirectory,
-        preferencesKey: runtimeConfiguration.preferencesKey,
-        peerSyncEnabled: runtimeConfiguration.peerSyncEnabled
-      )
-      : nil
-    notificationRouteObserver = dataMode == .live ? RuntimeNotificationRouteObserver() : nil
+    runtime = AppleCompanionRuntime(
+      source: .phone,
+      storageDirectory: runtimeConfiguration.storageDirectory,
+      preferencesKey: runtimeConfiguration.preferencesKey,
+      dataSourceKey: runtimeConfiguration.dataSourceKey,
+      peerSyncEnabled: runtimeConfiguration.peerSyncEnabled
+    )
+    notificationRouteObserver =
+      hasLaunchScenarioOverride ? nil : RuntimeNotificationRouteObserver()
     #if DEBUG
       launchNotificationRoute =
         arguments.contains("-UITesting") ? Self.notificationRoute(from: arguments) : nil
@@ -79,6 +85,7 @@ final class PhoneAppStore: ObservableObject {
   func start() async {
     guard !hasStarted else { return }
     hasStarted = true
+    guard !hasLaunchScenarioOverride else { return }
     observeNotificationRoutes()
     if let launchNotificationRoute {
       handleNotificationRoute(launchNotificationRoute)
@@ -86,22 +93,31 @@ final class PhoneAppStore: ObservableObject {
     guard let runtime else { return }
     do {
       preferences = try await runtime.loadPreferences()
+      selectedDataSource = await runtime.loadDataSourceSelection()
       previewOutfitID = preferences.selectedOutfitID
       unlockedOutfitIDs = PhoneWardrobePresentation.phaseOneDefault.unlockedOutfitIDs
       notificationStatus = await notificationStatusText()
       guard preferences.hasCompletedOnboarding else {
+        #if DEBUG
+          if selectedDataSource.isMock {
+            model = PhonePresentationModel.demo(selectedDataSource)
+          }
+        #endif
         phase = .onboarding
         statusMessage = "先认识 Mori；健康数据始终由你决定是否连接"
         return
       }
       phase = .ready
-      try await loadLocalExperience(syncStatus: "已载入本机记录")
+      beginPeerUpdates(runtime: runtime)
+      await applySelectedDataSource(requestAccessIfNeeded: false)
       guard !usesE2EOfflineRuntime else {
-        statusMessage = "本地设置已载入；离线测试不会读取健康数据"
+        statusMessage =
+          selectedDataSource.isMock
+          ? "\(selectedDataSource.displayName) 已载入"
+          : "本地设置已载入；离线测试不会读取健康数据"
         return
       }
       retryPeerSyncInBackground(runtime: runtime)
-      await refreshHealth(requestAccessIfNeeded: false)
     } catch {
       phase = .ready
       statusMessage = "载入失败：\(Self.safeError(error))"
@@ -109,11 +125,26 @@ final class PhoneAppStore: ObservableObject {
   }
 
   func connectHealth() async {
-    await refreshHealth(requestAccessIfNeeded: true)
+    await selectDataSource(.healthKit)
+  }
+
+  func selectDataSource(_ source: CompanionDataSource) async {
+    guard !hasLaunchScenarioOverride else { return }
+    mockCareTask?.cancel()
+    selectedDataSource = source
+    _ = await runtime?.saveDataSourceSelection(source)
+    await applySelectedDataSource(requestAccessIfNeeded: source == .healthKit)
   }
 
   func completeOnboarding() async {
     guard phase == .onboarding, !isSavingPreferences else { return }
+    if hasLaunchScenarioOverride {
+      preferences.hasCompletedOnboarding = true
+      phase = .ready
+      selectedTab = .overview
+      statusMessage = "Mori 已准备好；Mock 不会请求系统权限"
+      return
+    }
     guard let runtime else {
       preferences.hasCompletedOnboarding = true
       phase = .ready
@@ -125,14 +156,17 @@ final class PhoneAppStore: ObservableObject {
     isSavingPreferences = true
     preferences.hasCompletedOnboarding = true
     do {
-      let syncStatus = try await runtime.savePreferences(preferences)
+      _ = try await runtime.savePreferences(preferences)
       phase = .ready
       selectedTab = .overview
-      try await loadLocalExperience(syncStatus: Self.syncText(syncStatus))
-      statusMessage = "Mori 已准备好；健康数据可以稍后再连接"
+      beginPeerUpdates(runtime: runtime)
+      await applySelectedDataSource(requestAccessIfNeeded: false)
+      statusMessage =
+        selectedDataSource.isMock
+        ? "Mori 已准备好；\(selectedDataSource.displayName) 已载入"
+        : "Mori 已准备好；健康数据可以稍后再连接"
       isSavingPreferences = false
       guard !usesE2EOfflineRuntime else { return }
-      await refreshHealth(requestAccessIfNeeded: false)
     } catch {
       preferences.hasCompletedOnboarding = false
       isSavingPreferences = false
@@ -141,15 +175,17 @@ final class PhoneAppStore: ObservableObject {
   }
 
   func refreshHealth(requestAccessIfNeeded: Bool = false) async {
-    guard dataMode == .live, let runtime, !isRefreshingHealth else { return }
+    guard selectedDataSource == .healthKit, let runtime, !isRefreshingHealth else { return }
     isRefreshingHealth = true
     defer { isRefreshingHealth = false }
     do {
       let refresh = try await runtime.refreshHealth(
         requestAccessIfNeeded: requestAccessIfNeeded
       )
+      guard selectedDataSource == .healthKit else { return }
       latestHealth = refresh.health
       let trend = try await runtime.personalHealthTrend()
+      guard selectedDataSource == .healthKit else { return }
       model = .live(
         companion: refresh.companion,
         health: refresh.health,
@@ -158,7 +194,32 @@ final class PhoneAppStore: ObservableObject {
       )
       statusMessage = refresh.health.hasAnyMetric ? "健康数据已更新" : "没有可用数据；不会因此扣除成长值"
     } catch {
+      guard selectedDataSource == .healthKit else { return }
       statusMessage = "健康数据暂时不可用：\(Self.safeError(error))"
+    }
+  }
+
+  func companionInteraction() async {
+    if selectedDataSource.isMock || hasLaunchScenarioOverride {
+      if model.mockScenario?.id == CompanionDataSource.mock2.fixtureID {
+        model = model.resolvingMockRelationship()
+      }
+      statusMessage = "Mori 靠近了一点，安静地陪着你"
+      return
+    }
+    guard let runtime else { return }
+    do {
+      let state = try await runtime.recordPetInteraction(kind: "phone_companion")
+      let trend = try await runtime.personalHealthTrend()
+      model = .live(
+        companion: state,
+        health: latestHealth,
+        trend: trend,
+        syncStatus: "互动已保存"
+      )
+      statusMessage = "Mori 靠近了一点，安静地陪着你"
+    } catch {
+      statusMessage = "这次互动没能保存，但 Mori 已经看见你了"
     }
   }
 
@@ -171,6 +232,10 @@ final class PhoneAppStore: ObservableObject {
     Task {
       guard let runtime else { return }
       if enabled {
+        guard selectedDataSource == .healthKit else {
+          notificationStatus = "Mock 不请求权限"
+          return
+        }
         notificationStatus = Self.notificationText(
           await runtime.requestNotificationPermissionStatus())
       } else {
@@ -242,6 +307,11 @@ final class PhoneAppStore: ObservableObject {
   }
 
   private func persistPreferences(successPrefix: String = "设置已保存在本机") {
+    guard !hasLaunchScenarioOverride else { return }
+    if selectedDataSource.isMock {
+      statusMessage = "\(successPrefix)；Mock 互动不会写入真实设置"
+      return
+    }
     guard let runtime else {
       guard case .mock = dataMode else { return }
       statusMessage =
@@ -281,6 +351,79 @@ final class PhoneAppStore: ObservableObject {
       trend: trend,
       syncStatus: syncStatus
     )
+  }
+
+  private func applySelectedDataSource(requestAccessIfNeeded: Bool) async {
+    mockCareTask?.cancel()
+    if selectedDataSource.isMock {
+      #if DEBUG
+        model = PhonePresentationModel.demo(selectedDataSource)
+        previewOutfitID = model.wardrobe.previewOutfitID
+        unlockedOutfitIDs = model.wardrobe.unlockedOutfitIDs
+        phase = .ready
+        statusMessage = "\(selectedDataSource.displayName) 已载入"
+        scheduleMockCareIfNeeded()
+      #else
+        selectedDataSource = .healthKit
+        await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
+      #endif
+      return
+    }
+    do {
+      preferences = try await runtime?.loadPreferences() ?? AppPreferences()
+      previewOutfitID = preferences.selectedOutfitID
+      unlockedOutfitIDs = PhoneWardrobePresentation.phaseOneDefault.unlockedOutfitIDs
+      try await loadLocalExperience(syncStatus: "已载入本机记录")
+    } catch {
+      model = .liveNoData()
+    }
+    await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
+  }
+
+  private func scheduleMockCareIfNeeded() {
+    guard selectedDataSource == .mock2 else { return }
+    mockCareTask = Task { [weak self] in
+      try? await Task.sleep(for: .seconds(60))
+      guard !Task.isCancelled, let self, self.selectedDataSource == .mock2 else { return }
+      self.model = self.model.addingMockCareMessage()
+      self.statusMessage = "Mori 给你留了一封轻轻的来信"
+    }
+  }
+
+  private func beginPeerUpdates(runtime: AppleCompanionRuntime) {
+    guard peerUpdateTask == nil else { return }
+    peerUpdateTask = Task { [weak self] in
+      let peerUpdates = await runtime.peerValueUpdates()
+      if let self, let values = await runtime.latestPeerValues() {
+        await self.applyPeerValues(values, runtime: runtime)
+      }
+      for await values in peerUpdates {
+        guard let self else { return }
+        await self.applyPeerValues(values, runtime: runtime)
+      }
+    }
+  }
+
+  private func applyPeerValues(
+    _ values: [String: String],
+    runtime: AppleCompanionRuntime
+  ) async {
+    let shouldReloadDataSource: Bool
+    do {
+      shouldReloadDataSource = try await runtime.applyPeerPreferences(values)
+      preferences = try await runtime.loadPreferences()
+      previewOutfitID = preferences.selectedOutfitID
+    } catch {
+      statusMessage = "配对设置暂时无法同步"
+      return
+    }
+    guard
+      let rawValue = values["dataSource"],
+      let incoming = CompanionDataSource(rawValue: rawValue),
+      shouldReloadDataSource
+    else { return }
+    selectedDataSource = incoming
+    await applySelectedDataSource(requestAccessIfNeeded: false)
   }
 
   private var wardrobeSessionState: WardrobeSessionState {
@@ -327,10 +470,14 @@ final class PhoneAppStore: ObservableObject {
     guard let destination = NotificationRouteCoordinator().destination(for: value) else { return }
     selectedTab = .overview
     notificationDestination = destination
-    statusMessage =
-      destination == .recoveryMessage
-      ? "已打开 Mori 的恢复来信；不会自动完成任务或领取奖励"
-      : "已打开 Mori 的活动来信；由你决定是否回应"
+    switch destination {
+    case .recoveryMessage:
+      statusMessage = "已打开 Mori 的恢复来信；不会自动完成任务或领取奖励"
+    case .activityMessage:
+      statusMessage = "已打开 Mori 的活动来信；由你决定是否回应"
+    case .careMessage:
+      statusMessage = "已打开 Mori 的陪伴来信；不需要解释，也不用立刻回应"
+    }
   }
 
   func dismissNotificationDestination() {
@@ -340,6 +487,7 @@ final class PhoneAppStore: ObservableObject {
   private struct RuntimeConfiguration {
     let storageDirectory: URL
     let preferencesKey: String
+    let dataSourceKey: String
     let peerSyncEnabled: Bool
   }
 
@@ -350,6 +498,7 @@ final class PhoneAppStore: ObservableObject {
     return RuntimeConfiguration(
       storageDirectory: base,
       preferencesKey: "app.preferences.v1",
+      dataSourceKey: "app.data-source.v1",
       peerSyncEnabled: true
     )
   }
@@ -375,6 +524,7 @@ final class PhoneAppStore: ObservableObject {
         return RuntimeConfiguration(
           storageDirectory: base,
           preferencesKey: "app.preferences.v1",
+          dataSourceKey: "app.data-source.v1",
           peerSyncEnabled: peerSyncEnabled
         )
       }
@@ -384,13 +534,20 @@ final class PhoneAppStore: ObservableObject {
         .appendingPathComponent("UITests", isDirectory: true)
         .appendingPathComponent(identifier, isDirectory: true)
       let preferencesKey = "app.preferences.v1.uitests.\(identifier)"
+      let dataSourceKey = "app.data-source.v1.uitests.\(identifier)"
       if arguments.contains("--reset-e2e-storage") {
         try? FileManager.default.removeItem(at: directory)
         UserDefaults.standard.removeObject(forKey: preferencesKey)
+        UserDefaults.standard.removeObject(forKey: dataSourceKey)
+        UserDefaults.standard.removeObject(forKey: "\(dataSourceKey).selection-token")
+      }
+      if let seededSource = e2eDataSource(arguments: arguments) {
+        UserDefaults.standard.set(seededSource.rawValue, forKey: dataSourceKey)
       }
       return RuntimeConfiguration(
         storageDirectory: directory,
         preferencesKey: preferencesKey,
+        dataSourceKey: dataSourceKey,
         peerSyncEnabled: peerSyncEnabled
       )
     }
@@ -405,6 +562,14 @@ final class PhoneAppStore: ObservableObject {
         })
       else { return nil }
       return identifier
+    }
+
+    private static func e2eDataSource(arguments: [String]) -> CompanionDataSource? {
+      guard
+        let rawValue = arguments.first(where: { $0.hasPrefix("--e2e-data-source=") })?
+          .replacingOccurrences(of: "--e2e-data-source=", with: "")
+      else { return nil }
+      return CompanionDataSource(rawValue: rawValue)
     }
   #endif
 

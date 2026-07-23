@@ -1,3 +1,4 @@
+import AppRuntime
 import Domain
 import Foundation
 import SwiftUI
@@ -20,6 +21,7 @@ struct WatchPresentationModel {
   let petMood: String
   let petSymbol: String
   let outfitID: String?
+  let relationshipPresence: RelationshipPresence
   let dayStatus: String
   let petPrompt: String
   let actionTitle: String
@@ -37,6 +39,9 @@ struct WatchPresentationModel {
   }
 
   var isLive: Bool { dataMode == .live }
+  var requestsCompanionInteraction: Bool {
+    relationshipPresence == .quietlyMissingYou
+  }
   var allowsInteraction: Bool {
     if case .invalidMock = dataMode { return false }
     return true
@@ -59,24 +64,36 @@ struct WatchPresentationModel {
     companion: CompanionState,
     health: HealthSnapshot?,
     trend: PersonalHealthTrend?,
-    peerValues: [String: String]? = nil
+    peerValues: [String: String]? = nil,
+    now: Date = Date(),
+    timeZone: TimeZone = .current
   ) -> Self {
     // Health and growth remain Watch-local. Phone sync is currently authoritative only for
     // management settings such as cosmetics, so delayed peer state cannot override fresh rules.
     let vitality = companion.growth.vitality
     let hasHealth = health?.hasAnyMetric == true
     let trends = makeTrends(from: trend)
+    let relationship = companion.pet.relationshipPresence(at: now, timeZone: timeZone)
     return WatchPresentationModel(
       dataMode: .live,
       initialScreen: .petHome,
       level: max(1, vitality / 100 + 1),
       vitality: min(100, vitality % 100),
-      petMood: moodText(companion.pet.mood, hasHealth: hasHealth),
+      petMood: moodText(
+        companion.pet.mood,
+        hasHealth: hasHealth,
+        relationship: relationship
+      ),
       petSymbol: "pawprint.fill",
       outfitID: peerValues?["outfit"] ?? companion.pet.equippedOutfitID,
+      relationshipPresence: relationship,
       dayStatus: statusText(companion.activeTheme, hasHealth: hasHealth),
-      petPrompt: promptText(companion.activeTheme, hasHealth: hasHealth),
-      actionTitle: actionTitle(companion.activeTheme, hasHealth: hasHealth),
+      petPrompt: relationship == .quietlyMissingYou
+        ? "这几天没见到你。要不要抱抱 Mori？"
+        : promptText(companion.activeTheme, hasHealth: hasHealth),
+      actionTitle: relationship == .quietlyMissingYou
+        ? "抱抱 Mori"
+        : actionTitle(companion.activeTheme, hasHealth: hasHealth),
       metrics: [
         WatchMetric(
           id: "recovery",
@@ -130,6 +147,43 @@ struct WatchPresentationModel {
     live(companion: CompanionState(), health: nil, trend: nil)
   }
 
+  #if DEBUG
+    static func demo(_ source: CompanionDataSource) -> Self {
+      guard let fixtureID = source.fixtureID else { return liveNoData() }
+      switch debugScenarioSelection(
+        arguments: ["--mock-scenario=\(fixtureID)"],
+        enabled: true
+      ) {
+      case .scenario(let seed): return mock(seed: seed)
+      case .none, .invalid: return invalidMock(fixtureID)
+      }
+    }
+  #endif
+
+  func resolvingMockRelationship() -> Self {
+    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+    return replacing(
+      petMood: "Mori 又靠近了一点：我也很想你",
+      relationshipPresence: .present,
+      petPrompt: "Mori 已经收到你的回应。",
+      actionTitle: "今天已回应"
+    )
+  }
+
+  func addingMockCareMessage() -> Self {
+    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+    let care = WatchMessage(
+      id: "mock2-care",
+      title: "要不要安静待一会儿？",
+      body: "刚才是不是有点累？不用解释，我可以在这里陪你。",
+      relativeTime: "刚刚",
+      symbol: "heart.text.square.fill",
+      tint: AdventurePalette.rose,
+      isUnread: true
+    )
+    return replacing(messages: [care] + messages.filter { $0.id != care.id })
+  }
+
   private static func invalidMock(_ value: String) -> Self {
     let base = liveNoData()
     return WatchPresentationModel(
@@ -140,6 +194,7 @@ struct WatchPresentationModel {
       petMood: "Mock 场景无效，已停止读取真实数据",
       petSymbol: base.petSymbol,
       outfitID: nil,
+      relationshipPresence: base.relationshipPresence,
       dayStatus: "Mock 无效",
       petPrompt: "请修正启动参数；当前不会访问 HealthKit。",
       actionTitle: "不可用",
@@ -154,10 +209,13 @@ struct WatchPresentationModel {
   }
 
   #if DEBUG
-    private static func debugScenarioSelection(arguments: [String]) -> DebugScenarioSelection {
+    private static func debugScenarioSelection(
+      arguments: [String],
+      enabled: Bool? = nil
+    ) -> DebugScenarioSelection {
       DebugScenarioCatalog.selection(
         from: arguments,
-        enabled: arguments.contains("-UITesting")
+        enabled: enabled ?? arguments.contains("-UITesting")
       ) { identifier in
         guard
           let url = Bundle.main.url(
@@ -175,7 +233,9 @@ struct WatchPresentationModel {
         companion: seed.companionState,
         health: seed.healthSnapshot,
         trend: nil,
-        peerValues: seed.selectedOutfitID.map { ["outfit": $0] }
+        peerValues: seed.selectedOutfitID.map { ["outfit": $0] },
+        now: seed.now,
+        timeZone: TimeZone(identifier: seed.timeZoneIdentifier) ?? .current
       )
       let scenario = WatchMockScenario(id: seed.id, displayName: seed.displayName)
       let quest = WatchQuest(
@@ -206,6 +266,7 @@ struct WatchPresentationModel {
         petMood: base.petMood,
         petSymbol: base.petSymbol,
         outfitID: base.outfitID,
+        relationshipPresence: base.relationshipPresence,
         dayStatus: base.dayStatus,
         petPrompt: base.petPrompt,
         actionTitle: base.actionTitle,
@@ -281,7 +342,14 @@ struct WatchPresentationModel {
     return "最近 7 个已知日与最多 30 天个人历史比较，不与其他人比较。"
   }
 
-  private static func moodText(_ mood: PetMood, hasHealth: Bool) -> String {
+  private static func moodText(
+    _ mood: PetMood,
+    hasHealth: Bool,
+    relationship: RelationshipPresence = .present
+  ) -> String {
+    if relationship == .quietlyMissingYou {
+      return "Mori 这几天有点安静，好像很想你"
+    }
     guard hasHealth else { return "还没有足够的数据，我会安静陪着你" }
     return switch mood {
     case .neutral: "今天先按自己的节奏来"
@@ -367,6 +435,35 @@ struct WatchPresentationModel {
     case .rhythm, .connection, .neutral:
       return []
     }
+  }
+
+  private func replacing(
+    petMood: String? = nil,
+    relationshipPresence: RelationshipPresence? = nil,
+    petPrompt: String? = nil,
+    actionTitle: String? = nil,
+    messages: [WatchMessage]? = nil
+  ) -> Self {
+    WatchPresentationModel(
+      dataMode: dataMode,
+      initialScreen: initialScreen,
+      level: level,
+      vitality: vitality,
+      petMood: petMood ?? self.petMood,
+      petSymbol: petSymbol,
+      outfitID: outfitID,
+      relationshipPresence: relationshipPresence ?? self.relationshipPresence,
+      dayStatus: dayStatus,
+      petPrompt: petPrompt ?? self.petPrompt,
+      actionTitle: actionTitle ?? self.actionTitle,
+      metrics: metrics,
+      quest: quest,
+      trends: trends,
+      trendSummary: trendSummary,
+      trendDetail: trendDetail,
+      messages: messages ?? self.messages,
+      dataExplanation: dataExplanation
+    )
   }
 }
 
