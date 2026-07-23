@@ -31,12 +31,55 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(element("phone.privacy", in: app).waitForExistence(timeout: 5))
     let socialSharing = app.switches["phone.privacy.social-sharing"]
     XCTAssertTrue(socialSharing.exists)
+    XCTAssertTrue(element("phone.privacy.social-state-locked", in: app).exists)
+    XCTAssertFalse(app.buttons["phone.privacy.social-state-picker"].exists)
     XCTAssertTrue(element("phone.privacy.sharing-scope", in: app).exists)
     XCTAssertTrue(element("phone.privacy.sharing-scope-status", in: app).exists)
     XCTAssertFalse(app.buttons["phone.privacy.sharing-scope-picker"].exists)
     socialSharing.tap()
-    XCTAssertTrue(app.buttons["phone.privacy.sharing-scope-picker"].waitForExistence(timeout: 5))
+    let socialStatePicker = app.buttons["phone.privacy.social-state-picker"]
+    scrollToElement(socialStatePicker, in: app)
+    XCTAssertTrue(socialStatePicker.waitForExistence(timeout: 5))
+    XCTAssertFalse(element("phone.privacy.social-state-locked", in: app).exists)
+    socialStatePicker.tap()
+    let walkState = app.buttons["想一起散步"]
+    XCTAssertTrue(walkState.waitForExistence(timeout: 5))
+    walkState.tap()
+    let socialStateSummary = element(
+      "phone.privacy.social-state-summary",
+      in: app
+    )
+    scrollToElement(socialStateSummary, in: app)
+    XCTAssertTrue(
+      socialStateSummary.waitForExistence(timeout: 5)
+        && socialStateSummary.label.contains("想一起散步")
+    )
+
+    let sharingScope = app.buttons["phone.privacy.sharing-scope-picker"]
+    scrollToElement(sharingScope, in: app)
+    XCTAssertTrue(sharingScope.waitForExistence(timeout: 5))
     XCTAssertFalse(element("phone.privacy.sharing-scope-status", in: app).exists)
+  }
+
+  func testCharacterAndSharedBackgroundSelectionUpdateThePreview() {
+    let app = launchApp(scenario: "health_normal")
+
+    app.tabBars.buttons["衣橱"].tap()
+    XCTAssertTrue(element("phone.wardrobe", in: app).waitForExistence(timeout: 5))
+    let polarBear = app.buttons["phone.character.polar_bear"]
+    scrollToElement(polarBear, in: app)
+    polarBear.tap()
+    XCTAssertTrue(polarBear.label.contains("白熊伙伴"))
+
+    let firstBackground = app.buttons["phone.background.ice_ocean_day"]
+    scrollToElement(firstBackground, in: app)
+    let aurora = app.buttons["phone.background.aurora_observatory"]
+    scrollHorizontallyToElement(aurora, in: app)
+    aurora.tap()
+    XCTAssertTrue(app.staticTexts["背景已更新；Mock 模拟手表可达"].waitForExistence(timeout: 5))
+    let preview = element("phone.companion-preview", in: app)
+    XCTAssertTrue(preview.exists)
+    XCTAssertEqual(preview.value as? String, "白熊伙伴，极光观星台")
   }
 
   func testPartialHealthUsesKnownMetricsAndKeepsMissingValuesNeutral() {
@@ -230,9 +273,17 @@ final class PhoneAppUITests: XCTestCase {
   }
 
   private func scrollToElement(_ element: XCUIElement, in app: XCUIApplication) {
-    let scrollView = app.scrollViews.firstMatch
+    guard
+      let scrollSurface =
+        app.scrollViews.allElementsBoundByIndex.first
+        ?? app.collectionViews.allElementsBoundByIndex.first
+        ?? app.tables.allElementsBoundByIndex.first
+    else {
+      XCTFail("Expected a scrollable phone surface")
+      return
+    }
     for _ in 0..<8 {
-      let visibleFrame = scrollView.frame.insetBy(dx: 0, dy: 8)
+      let visibleFrame = scrollSurface.frame.insetBy(dx: 0, dy: 8)
       if element.exists,
         element.frame.minY >= visibleFrame.minY,
         element.frame.maxY <= visibleFrame.maxY
@@ -240,10 +291,30 @@ final class PhoneAppUITests: XCTestCase {
         return
       }
       if element.exists && element.frame.maxY < visibleFrame.minY {
-        scrollView.swipeDown()
+        scrollSurface.swipeDown()
       } else {
-        scrollView.swipeUp()
+        scrollSurface.swipeUp()
       }
+    }
+  }
+
+  private func scrollHorizontallyToElement(
+    _ element: XCUIElement,
+    in app: XCUIApplication
+  ) {
+    guard let horizontalScroll = app.scrollViews.allElementsBoundByIndex.last else {
+      XCTFail("Expected a horizontal background picker")
+      return
+    }
+    for _ in 0..<8 {
+      let visibleFrame = horizontalScroll.frame.insetBy(dx: 8, dy: 0)
+      if element.exists,
+        element.frame.minX >= visibleFrame.minX,
+        element.frame.maxX <= visibleFrame.maxX
+      {
+        return
+      }
+      horizontalScroll.swipeLeft()
     }
   }
 

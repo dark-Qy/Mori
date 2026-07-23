@@ -12,6 +12,12 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(element("watch.mock-badge", in: app).exists)
     XCTAssertTrue(app.staticTexts["Mori · Lv.3"].exists)
     XCTAssertTrue(app.buttons["watch.interact"].waitForExistence(timeout: 5))
+    let scene = app.buttons["watch.companion-scene"]
+    XCTAssertTrue(scene.exists)
+    XCTAssertEqual(scene.value as? String, "企鹅伙伴，冰海白昼")
+    scene.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
+    XCTAssertTrue(app.staticTexts["Mori 开心地眨了眨眼"].waitForExistence(timeout: 5))
+
     app.buttons["watch.interact"].tap()
     XCTAssertTrue(app.staticTexts["watch.interaction-response"].waitForExistence(timeout: 5))
   }
@@ -34,6 +40,254 @@ final class WatchAppUITests: XCTestCase {
     messageLink.tap()
     XCTAssertTrue(element("watch.messages", in: app).waitForExistence(timeout: 5))
     XCTAssertTrue(element("watch.message.live-activity", in: app).exists)
+  }
+
+  func testTouchExchangeRequiresFriendSharingBeforeStarting() {
+    let app = launchApp(scenario: "activity_high")
+
+    openTouchExchange(in: app)
+    let sharingGate = element("watch.touch-exchange.sharing-gate", in: app)
+    scrollToElement(sharingGate, in: app)
+    XCTAssertTrue(sharingGate.label.contains("iPhone"))
+    XCTAssertTrue(sharingGate.label.contains("不会上传公开宠物卡"))
+
+    let startButton = app.buttons["watch.touch-exchange.start"]
+    scrollToElement(startButton, in: app)
+    XCTAssertEqual(startButton.label, "需先开启好友分享")
+    XCTAssertFalse(startButton.isEnabled)
+    XCTAssertFalse(element("watch.touch-exchange.progress", in: app).exists)
+  }
+
+  func testTouchExchangeDemoRequiresPreviewAndBothConfirmations() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: [
+        "--touch-exchange-demo",
+        "--touch-exchange-social-state=walk",
+      ]
+    )
+
+    openTouchExchange(in: app)
+    XCTAssertFalse(element("watch.touch-exchange.peer-card", in: app).exists)
+    let localSocialState = element(
+      "watch.touch-exchange.local-social-state",
+      in: app
+    )
+    scrollToElement(localSocialState, in: app)
+    XCTAssertTrue(localSocialState.label.contains("想一起散步"))
+    let startButton = app.buttons["watch.touch-exchange.start"]
+    scrollToElement(startButton, in: app)
+    XCTAssertEqual(startButton.label, "开始触碰")
+    XCTAssertTrue(startButton.isEnabled)
+    XCTAssertEqual(app.textFields.count, 0)
+    startButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.peer-card", in: app).waitForExistence(timeout: 5)
+    )
+    XCTAssertFalse(element("watch.touch-exchange.completed", in: app).exists)
+
+    let confirmButton = app.buttons["watch.touch-exchange.confirm"]
+    scrollToElement(confirmButton, in: app)
+    confirmButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.completed", in: app).waitForExistence(timeout: 5)
+    )
+    XCTAssertTrue(app.staticTexts["遇见卡交换成功"].exists)
+    let persistenceStatus = app.descendants(matching: .any).matching(
+      NSPredicate(format: "label CONTAINS %@", "相遇记录已保存")
+    ).firstMatch
+    scrollToElement(persistenceStatus, in: app)
+    XCTAssertTrue(
+      persistenceStatus.waitForExistence(timeout: 5)
+    )
+  }
+
+  func testTouchExchangePeerFirstStillRequiresLocalConfirmation() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: [
+        "--touch-exchange-demo",
+        "--touch-exchange-peer-first",
+      ]
+    )
+
+    openTouchExchange(in: app)
+    let startButton = app.buttons["watch.touch-exchange.start"]
+    scrollToElement(startButton, in: app)
+    startButton.tap()
+
+    XCTAssertTrue(
+      element("watch.touch-exchange.peer-first-message", in: app)
+        .waitForExistence(timeout: 5)
+    )
+    XCTAssertFalse(element("watch.touch-exchange.completed", in: app).exists)
+    let confirmButton = app.buttons["watch.touch-exchange.confirm"]
+    scrollToElement(confirmButton, in: app)
+    XCTAssertTrue(confirmButton.isEnabled)
+    confirmButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.completed", in: app).waitForExistence(timeout: 5)
+    )
+  }
+
+  func testTouchExchangeCancellationIgnoresOldDemoCallbacks() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: ["--touch-exchange-demo"]
+    )
+
+    openTouchExchange(in: app)
+    let startButton = app.buttons["watch.touch-exchange.start"]
+    scrollToElement(startButton, in: app)
+    startButton.tap()
+    let cancelButton = app.buttons["watch.touch-exchange.cancel"]
+    scrollToElement(cancelButton, in: app)
+    XCTAssertTrue(cancelButton.waitForExistence(timeout: 5))
+    cancelButton.tap()
+
+    XCTAssertTrue(
+      app.buttons["watch.touch-exchange.retry"].waitForExistence(timeout: 5)
+    )
+    let latePreview = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "exists == true"),
+      object: element("watch.touch-exchange.peer-card", in: app)
+    )
+    latePreview.isInverted = true
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [latePreview], timeout: 1),
+      .completed
+    )
+    XCTAssertFalse(element("watch.touch-exchange.completed", in: app).exists)
+  }
+
+  func testTouchExchangeCancelFailureRetriesCleanupBeforeNewSession() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: [
+        "--touch-exchange-demo",
+        "--touch-exchange-cancel-failure",
+      ]
+    )
+
+    openTouchExchange(in: app)
+    let startButton = app.buttons["watch.touch-exchange.start"]
+    scrollToElement(startButton, in: app)
+    startButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.peer-card", in: app).waitForExistence(timeout: 5)
+    )
+
+    let cancelButton = app.buttons["watch.touch-exchange.cancel"]
+    scrollToElement(cancelButton, in: app)
+    cancelButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.cancel-unconfirmed", in: app)
+        .waitForExistence(timeout: 5)
+    )
+    XCTAssertFalse(element("watch.touch-exchange.cancelled", in: app).exists)
+    XCTAssertTrue(
+      app.staticTexts.matching(
+        NSPredicate(format: "label CONTAINS %@", "不会开始新的交换")
+      ).firstMatch.exists
+    )
+
+    let prematureNewCandidate = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "exists == true"),
+      object: element("watch.touch-exchange.peer-card", in: app)
+    )
+    prematureNewCandidate.isInverted = true
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [prematureNewCandidate], timeout: 0.8),
+      .completed
+    )
+
+    let retryButton = app.buttons["watch.touch-exchange.retry"]
+    scrollToElement(retryButton, in: app)
+    retryButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.peer-card", in: app).waitForExistence(timeout: 5)
+    )
+    XCTAssertFalse(
+      element("watch.touch-exchange.cancel-unconfirmed", in: app).exists
+    )
+  }
+
+  func testTouchExchangeServerCompletionWinsCancelConfirmRace() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: [
+        "--touch-exchange-demo",
+        "--touch-exchange-cancel-confirm-race",
+      ]
+    )
+
+    openTouchExchange(in: app)
+    let startButton = app.buttons["watch.touch-exchange.start"]
+    scrollToElement(startButton, in: app)
+    startButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.peer-card", in: app).waitForExistence(timeout: 5)
+    )
+
+    let confirmButton = app.buttons["watch.touch-exchange.confirm"]
+    scrollToElement(confirmButton, in: app)
+    confirmButton.tap()
+    let cancelButton = app.buttons["watch.touch-exchange.cancel"]
+    scrollToElement(cancelButton, in: app)
+    XCTAssertTrue(cancelButton.waitForExistence(timeout: 5))
+    cancelButton.tap()
+
+    XCTAssertTrue(
+      element("watch.touch-exchange.completed", in: app).waitForExistence(timeout: 5)
+    )
+    XCTAssertFalse(element("watch.touch-exchange.cancelled", in: app).exists)
+    let persistenceStatus = app.descendants(matching: .any).matching(
+      NSPredicate(format: "label CONTAINS %@", "相遇记录已保存")
+    ).firstMatch
+    scrollToElement(persistenceStatus, in: app)
+    XCTAssertTrue(persistenceStatus.waitForExistence(timeout: 5))
+  }
+
+  func testTouchExchangeAccessibilityAcrossConsentStates() throws {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: ["--touch-exchange-demo"]
+    )
+
+    openTouchExchange(in: app)
+    try auditCurrentScreen(app)
+    let startButton = app.buttons["watch.touch-exchange.start"]
+    scrollToElement(startButton, in: app)
+    startButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.peer-card", in: app).waitForExistence(timeout: 5)
+    )
+    try auditCurrentScreen(app)
+    let confirmButton = app.buttons["watch.touch-exchange.confirm"]
+    scrollToElement(confirmButton, in: app)
+    confirmButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.completed", in: app).waitForExistence(timeout: 5)
+    )
+    try auditCurrentScreen(app)
+    app.terminate()
+
+    let peerFirstApp = launchApp(
+      scenario: "activity_high",
+      additionalArguments: [
+        "--touch-exchange-demo",
+        "--touch-exchange-peer-first",
+      ]
+    )
+    openTouchExchange(in: peerFirstApp)
+    let peerFirstStart = peerFirstApp.buttons["watch.touch-exchange.start"]
+    scrollToElement(peerFirstStart, in: peerFirstApp)
+    peerFirstStart.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.peer-first-message", in: peerFirstApp)
+        .waitForExistence(timeout: 5)
+    )
+    try auditCurrentScreen(peerFirstApp)
   }
 
   func testPartialHealthAndExplanationUseKnownValuesOnly() {
@@ -262,6 +516,15 @@ final class WatchAppUITests: XCTestCase {
     app.launchArguments = ["-UITesting", "--mock-scenario=\(scenario)"] + additionalArguments
     app.launch()
     return app
+  }
+
+  private func openTouchExchange(in app: XCUIApplication) {
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    let exchangeLink = app.buttons["watch.open-touch-exchange"]
+    scrollToElement(exchangeLink, in: app)
+    XCTAssertTrue(exchangeLink.exists)
+    exchangeLink.tap()
+    XCTAssertTrue(element("watch.touch-exchange", in: app).waitForExistence(timeout: 5))
   }
 
   private func launchLiveApp(
