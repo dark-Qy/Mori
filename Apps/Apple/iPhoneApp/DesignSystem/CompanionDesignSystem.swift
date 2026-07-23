@@ -23,6 +23,12 @@ enum CompanionPalette {
     highContrastLight: UIColor(red: 0.78, green: 0.92, blue: 0.85, alpha: 1),
     highContrastDark: UIColor(red: 0.05, green: 0.30, blue: 0.21, alpha: 1)
   )
+  static let heroMint = adaptive(
+    light: UIColor(red: 0.00, green: 0.38, blue: 0.26, alpha: 1),
+    dark: UIColor(red: 0.03, green: 0.28, blue: 0.20, alpha: 1),
+    highContrastLight: UIColor(red: 0.00, green: 0.28, blue: 0.19, alpha: 1),
+    highContrastDark: UIColor(red: 0.00, green: 0.22, blue: 0.15, alpha: 1)
+  )
   static let blue = adaptive(
     light: UIColor(red: 0.00, green: 0.32, blue: 0.70, alpha: 1),
     dark: UIColor(red: 0.42, green: 0.72, blue: 1.00, alpha: 1),
@@ -133,7 +139,17 @@ struct PhoneDataBadge: View {
 struct PhonePage<Content: View>: View {
   @ViewBuilder let content: Content
 
+  @ViewBuilder
   var body: some View {
+    if #available(iOS 26.0, *) {
+      scrollView
+        .scrollEdgeEffectStyle(.hard, for: .bottom)
+    } else {
+      scrollView
+    }
+  }
+
+  private var scrollView: some View {
     ScrollView {
       content
         .padding(.horizontal, CompanionSpacing.page)

@@ -237,17 +237,25 @@ final class PhoneAppUITests: XCTestCase {
       ]
     ) { issue in
       guard issue.auditType == .contrast,
-        let element = issue.element
+        let element = issue.element,
+        element.elementType == .staticText
       else {
         return false
       }
 
       let tabBar = app.tabBars.firstMatch
       guard tabBar.exists else { return false }
-      // XCTest measures pixels after the translucent OS tab bar and its shadow cover scroll content.
-      // Suppress only contrast reports inside that system-owned material footprint.
-      let systemMaterialFrame = tabBar.frame.insetBy(dx: 0, dy: -32)
-      return element.frame.intersects(systemMaterialFrame)
+
+      let elementFrame = element.frame
+      let systemEdgeFrame = tabBar.frame.insetBy(dx: 0, dy: -8)
+      let overlap = elementFrame.intersection(systemEdgeFrame)
+      guard !overlap.isNull, overlap.height > 0, elementFrame.height > 0 else {
+        return false
+      }
+
+      // iOS 26 intentionally renders scrolling text beneath the system tab bar's hard edge effect.
+      // Ignore only a static label clipped by its measured 8 pt boundary, never interactive content.
+      return true
     }
   }
 }

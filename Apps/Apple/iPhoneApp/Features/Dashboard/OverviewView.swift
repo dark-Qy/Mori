@@ -121,7 +121,7 @@ private struct PetOverviewCard: View {
             .accessibilityIdentifier("phone.pet-level")
           Text(model.mood)
             .font(.subheadline)
-            .foregroundStyle(.white.opacity(0.82))
+            .foregroundStyle(.white)
             .fixedSize(horizontal: false, vertical: true)
         }
       }
@@ -144,13 +144,13 @@ private struct PetOverviewCard: View {
 
       Label(model.syncStatus, systemImage: "applewatch.radiowaves.left.and.right")
         .font(.caption)
-        .foregroundStyle(.white.opacity(0.72))
+        .foregroundStyle(.white)
     }
     .foregroundStyle(.white)
     .padding(CompanionSpacing.large)
     .background {
       LinearGradient(
-        colors: [Color(red: 0.055, green: 0.34, blue: 0.27), CompanionPalette.mint],
+        colors: [Color(red: 0.055, green: 0.34, blue: 0.27), CompanionPalette.heroMint],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
       )
