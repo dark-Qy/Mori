@@ -203,6 +203,24 @@ struct WatchRootView: View {
       }
       .buttonStyle(.plain)
       .accessibilityIdentifier("watch.open-messages")
+
+      NavigationLink {
+        TouchExchangeView(
+          localCard: store.touchExchangeLocalCard,
+          socialSharingEnabled: store.preferences.socialSharingEnabled
+        )
+      } label: {
+        DestinationRow(
+          title: "触碰交换",
+          detail:
+            store.preferences.socialSharingEnabled
+            ? "和附近的宠物交换遇见卡"
+            : "需先在 iPhone 开启好友分享",
+          systemImage: "wave.3.right.circle.fill"
+        )
+      }
+      .buttonStyle(.plain)
+      .accessibilityIdentifier("watch.open-touch-exchange")
     }
   }
 }

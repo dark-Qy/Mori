@@ -40,14 +40,47 @@ final class WatchAppStore: ObservableObject {
   private var peerSyncRetryTask: Task<Void, Never>?
   private var mockCareTask: Task<Void, Never>?
 
+  var touchExchangeLocalCard: TouchExchangeLocalCard {
+    TouchExchangeLocalCard(
+      displayName: model.isLive ? "Mori" : "Mori（演示）",
+      petAssetID: preferences.selectedCharacterIDs.first
+        ?? CompanionVisualCatalog.defaultCharacterID,
+      outfitAssetID: preferences.selectedOutfitID,
+      backgroundAssetID: preferences.selectedBackgroundID,
+      socialState: preferences.publicPetSocialState
+    )
+  }
+
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
     let initialModel = WatchPresentationModel.initial(arguments: arguments)
+    #if DEBUG
+      let touchExchangeDemoEnabled =
+        arguments.contains("-UITesting")
+        && arguments.contains("--touch-exchange-demo")
+      let touchExchangeDemoSocialState =
+        arguments.first(where: { $0.hasPrefix("--touch-exchange-social-state=") })
+        .flatMap {
+          PublicPetSocialStateV1(
+            rawValue: $0.replacingOccurrences(
+              of: "--touch-exchange-social-state=",
+              with: ""
+            )
+          )
+        } ?? .greeting
+    #else
+      let touchExchangeDemoEnabled = false
+      let touchExchangeDemoSocialState = PublicPetSocialStateV1.greeting
+    #endif
     model = initialModel
     selectedDataSource =
       initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) } ?? .mock1
     preferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
-      selectedOutfitID: initialModel.outfitID ?? WardrobeCatalog.defaultOutfitID
+      socialSharingEnabled: touchExchangeDemoEnabled,
+      publicPetSocialState: touchExchangeDemoSocialState,
+      selectedOutfitID: initialModel.outfitID ?? WardrobeCatalog.defaultOutfitID,
+      selectedCharacterIDs: initialModel.scene.slots.map(\.characterID),
+      selectedBackgroundID: initialModel.scene.backgroundID
     )
     hasLaunchScenarioOverride = initialModel.dataMode != .live
     if hasLaunchScenarioOverride {

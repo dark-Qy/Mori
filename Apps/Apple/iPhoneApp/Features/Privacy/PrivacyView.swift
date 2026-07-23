@@ -39,13 +39,49 @@ struct PrivacyView: View {
           .padding(.top, CompanionSpacing.small)
         settingToggle(
           title: "启用好友分享",
-          detail: "默认关闭。当前只保存本地预设，阶段 2 社交上线后才会按此范围发送派生摘要。",
+          detail: "默认关闭。开启后，也只有双方主动进入触碰交换并确认，才会发送公开宠物卡。",
           isOn: Binding(
             get: { store.preferences.socialSharingEnabled },
             set: store.setSocialSharing
           ),
           identifier: "phone.privacy.social-sharing"
         )
+
+        CompanionCard {
+          VStack(alignment: .leading, spacing: CompanionSpacing.small) {
+            Text("公开宠物社交状态")
+              .font(.subheadline.weight(.semibold))
+            if store.preferences.socialSharingEnabled {
+              Picker(
+                "公开状态",
+                selection: Binding(
+                  get: { store.preferences.publicPetSocialState },
+                  set: store.setPublicPetSocialState
+                )
+              ) {
+                ForEach(PublicPetSocialStateV1.allCases, id: \.rawValue) { state in
+                  Text(socialStateTitle(state)).tag(state)
+                }
+              }
+              .pickerStyle(.navigationLink)
+              .accessibilityIdentifier("phone.privacy.social-state-picker")
+            } else {
+              Label("好友分享已关闭，触碰交换不会发送宠物卡", systemImage: "lock.fill")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(CompanionPalette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("phone.privacy.social-state-locked")
+            }
+
+            Text("当前：\(socialStateTitle(store.preferences.publicPetSocialState))")
+              .font(.footnote.weight(.semibold))
+              .accessibilityIdentifier("phone.privacy.social-state-summary")
+            Text("只描述宠物想怎样社交；不会包含睡眠、心率、生命力或其他健康推导。")
+              .font(.footnote)
+              .foregroundStyle(CompanionPalette.secondaryText)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+        }
 
         CompanionCard {
           VStack(alignment: .leading, spacing: CompanionSpacing.small) {
@@ -86,8 +122,8 @@ struct PrivacyView: View {
               .foregroundStyle(CompanionPalette.secondaryText)
               .fixedSize(horizontal: false, vertical: true)
             Label(
-              "尚未连接社交服务；这个选择现在不会发送任何数据。",
-              systemImage: "network.slash"
+              "此健康分享范围不用于触碰交换；触碰交换只发送上方明确列出的公开宠物卡。",
+              systemImage: "lock.shield"
             )
             .font(.footnote.weight(.semibold))
             .foregroundStyle(CompanionPalette.secondaryText)
@@ -135,6 +171,17 @@ struct PrivacyView: View {
       "关心摘要"
     case .limitedHealthSummary:
       "有限健康摘要"
+    }
+  }
+
+  private func socialStateTitle(_ state: PublicPetSocialStateV1) -> String {
+    switch state {
+    case .greeting:
+      "想打个招呼"
+    case .walk:
+      "想一起散步"
+    case .quietCompany:
+      "想安静陪伴"
     }
   }
 

@@ -35,6 +35,7 @@ xcodebuild build \
   -configuration Release \
   -destination "generic/platform=iOS Simulator" \
   -derivedDataPath "$derived_data_path" \
+  SOCIAL_GATEWAY_BASE_URL="https://release-boundary.invalid" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   COMPILER_INDEX_STORE_ENABLE=NO
@@ -74,6 +75,11 @@ for marker in \
   "MockScenarios" \
   "-UITesting" \
   "--notification-route=" \
+  "--touch-exchange-demo" \
+  "--touch-exchange-peer-first" \
+  "--touch-exchange-cancel-confirm-race" \
+  "--touch-exchange-cancel-failure" \
+  "--touch-exchange-social-state=" \
   "--e2e-storage-id=" \
   "--e2e-offline-runtime" \
   "--reset-e2e-storage"; do
