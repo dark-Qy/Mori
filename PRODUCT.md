@@ -1,0 +1,80 @@
+# Product
+
+## Register
+
+product
+
+## Users
+
+Mori serves people who wear an Apple Watch and want a quiet virtual companion
+rather than another fitness dashboard. The primary context is short wrist
+glances while moving through daily life. The iPhone is the deeper surface for
+conversation, tasks, memories, collection management, permissions, and
+development data.
+
+The current audience is the development and evaluation team. Real Apple Health
+data and isolated Mock profiles are both first-class inputs during development.
+
+## Product Purpose
+
+Mori turns locally derived activity, sleep, location, and interaction evidence
+into small moments of companionship, optional tasks, cosmetic rewards, and
+shared memories.
+
+The product succeeds when Mori feels present without demanding attention:
+useful events appear naturally, uncertain inferences remain quiet, health data
+does not become a score, and the user can understand or disable every source of
+interruption.
+
+Mori is not a medical product, a sports tracker, a traditional task manager, or
+an RPG progression system.
+
+## Brand Personality
+
+Gentle, alive, restrained.
+
+Mori speaks with warmth and specific shared context. The voice is observant
+without pretending certainty, playful without becoming childish, and supportive
+without judging health outcomes.
+
+## Anti-references
+
+- Card-heavy dashboards that shrink an iPhone app onto the Watch.
+- Fitness apps centered on rings, trends, health scores, or performance verdicts.
+- Traditional to-do lists with many equally prominent tasks.
+- RPG interfaces built around levels, XP, vitality, streak pressure, or punishment.
+- Constant haptics, noisy alerts, and visible numerical confidence scores.
+- Chatbots that invent sensor facts or claim authority over tasks, rewards, or
+  permissions.
+- Decorative UI that replaces native Apple affordances with unfamiliar controls.
+
+## Design Principles
+
+1. **Companion before dashboard.** Mori and the shared world are the primary
+   surface; data appears only when it strengthens the relationship.
+2. **Watch for presence, iPhone for depth.** Watch interactions stay glanceable
+   and passive. Conversation and management live on iPhone.
+3. **Earn every claim.** Exact facts may be stated directly, uncertain
+   interpretations use natural tentative language, and low-confidence
+   inferences remain silent.
+4. **Quiet is a valid behavior.** Reminder mode, quiet hours, expiry, cooldowns,
+   and replacement rules outrank the desire to show more content.
+5. **Reward controllable actions, never health outcomes.** Tasks may be detected
+   or confirmed, but sleep, recovery, or other outcomes never cause punishment.
+6. **Local and minimal by default.** Prefer on-device inference and synchronize
+   only approved derived experience events, never raw HealthKit payloads or
+   precise GPS tracks. Remote conversation receives approved derived facts and
+   memory references only.
+
+## Accessibility & Inclusion
+
+- Support VoiceOver, Dynamic Type, increased contrast, Reduce Motion, and
+  non-color state cues.
+- Long press, touch regions, haptics, and wrist activation must have visible and
+  assistive alternatives.
+- Watch layouts must remain usable on the smallest supported display.
+- Haptics accompany but never replace visual or textual feedback.
+- Missing, denied, partial, stale, and unavailable health or location data remain
+  neutral.
+- Language must avoid medical conclusions, moral judgment, and pressure based on
+  health results.

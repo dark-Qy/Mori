@@ -10,7 +10,9 @@ This document is an engineering policy, not the final public privacy policy. Sto
 
 1. **Purpose limitation:** collect only the types and windows required by an implemented feature.
 2. **On-device first:** normalize, deduplicate, derive baselines, and evaluate rules on device when practical.
-3. **Bounded context:** send only the relevant raw window, derived features, rule hits, and necessary story state to a remote narrator.
+3. **Bounded derived context:** remote narration and Chat receive only approved
+   derived facts, rule results, and memory references. Raw HealthKit samples,
+   precise location, routes, and sensor windows remain on device.
 4. **No repeated consent theater:** use clear one-time feature explanation and system permissions, then automate within that scope.
 5. **Owner-controlled sharing:** social access is directional and can be revoked independently.
 6. **Neutral absence:** never infer denial or poor health from missing data.
@@ -25,10 +27,12 @@ in-app action, but cannot settle a task or reward.
 
 | Category | Examples | Default location | Remote use |
 |---|---|---|---|
-| Health samples | sleep stages, workouts, heart rate, steps | device | bounded narration request only after consent and only if needed |
-| Derived features | personal baseline, trend, freshness, rule hit | device | limited to current interaction where needed |
-| Game state | pet state, growth, inventory, story node | device | optional sync and narration context |
-| User settings | quiet hours, permissions, wardrobe | device | optional account sync |
+| Health samples | sleep stages, workouts, heart rate, steps | device | never sent to narration or Chat |
+| Location and motion evidence | precise fixes, routes, motion samples | device | never sent to narration or Chat |
+| Approved derived facts | step total, completed sleep duration, coarse event type, freshness, rule hit | device | limited to the current approved interaction or memory reference |
+| Profile experience state | tasks, coins, collection, memories, letters, conversation | device | derived cross-device sync; remote narration receives only approved fact and memory references |
+| Global preferences | active data profile, Mock scenario, companion sensing, reminder mode, quiet hours | device | automatic peer preference sync |
+| Device capabilities | HealthKit, location, motion, notification, background availability | current device | never synchronized as if the peer had the same permission |
 | Social state | friendship, sharing scope, shared story | server when social ships | authoritative access-controlled service |
 | Diagnostics | event type, rule ID, error category | device or redacted telemetry | never raw health values or prompts by default |
 
@@ -42,9 +46,14 @@ in-app action, but cannot settle a task or reward.
 
 ## AI narration
 
-The narration context builder may automatically select relevant data after informed consent. Automation does not justify sending entire history.
+The narration context builder may automatically select approved derived facts
+after informed consent. Automation does not justify sending raw samples or
+entire history.
 
-A typical sleep interaction may include last night's relevant sleep samples, a recent summary window, a longer personal baseline, recent compatible context, rule identifiers, and current pet/story state. It should not include unrelated months of heart-rate samples.
+A typical sleep interaction may include an approved fact such as “last completed
+sleep duration: 7 hours 30 minutes,” its freshness, a rule identifier, and a
+memory reference. It must not include sleep-stage samples, heart-rate samples,
+precise timestamps that reveal a route or schedule, or raw HealthKit payloads.
 
 The gateway must:
 
