@@ -1,0 +1,88 @@
+{
+  "pairs": [
+    {
+      "pair": "horizontal-1",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A's face and hood opening turn toward the right; B's facial offset and visible side of the head suggest a slight left turn."
+    },
+    {
+      "pair": "horizontal-2",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A has a clear three-quarter right-facing pose; B is subtler but the face sits slightly toward the left side."
+    },
+    {
+      "pair": "horizontal-3",
+      "A": "screen-left",
+      "B": "screen-right",
+      "reason": "The nose, mouth, and hood opening clearly point left in A and right in B."
+    },
+    {
+      "pair": "horizontal-4",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "Both are strong side profiles, with A facing right and B facing left."
+    },
+    {
+      "pair": "horizontal-5",
+      "A": "screen-left",
+      "B": "screen-right",
+      "reason": "A presents a left-facing profile while B's face and body lean toward the right."
+    },
+    {
+      "pair": "horizontal-6",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A's three-quarter pose points right; B's face, hood, and torso turn left."
+    },
+    {
+      "pair": "horizontal-7",
+      "A": "screen-left",
+      "B": "ambiguous",
+      "reason": "A has a readable leftward turn, but B appears nearly frontal with no reliable horizontal cue."
+    },
+    {
+      "pair": "vertical-1",
+      "A": "down",
+      "B": "up",
+      "reason": "A tucks the chin and lowers the gaze; B lifts the chin and exposes more of the upward-tilted face."
+    },
+    {
+      "pair": "vertical-2",
+      "A": "down",
+      "B": "up",
+      "reason": "A's face sits in a lowered, slightly tucked posture; B is visibly tilted upward."
+    },
+    {
+      "pair": "vertical-3",
+      "A": "down",
+      "B": "up",
+      "reason": "A leans and angles the face downward-right, while B raises it upward-right."
+    },
+    {
+      "pair": "vertical-4",
+      "A": "down",
+      "B": "up",
+      "reason": "A has a lowered head and downward diagonal lean; B carries the face higher with a mild upward tilt."
+    },
+    {
+      "pair": "vertical-5",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "Both poses mainly differ horizontally; neither shows a dependable chin, gaze, or head-angle cue for up versus down."
+    },
+    {
+      "pair": "vertical-6",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "The profile-versus-frontal difference dominates, and the vertical head angle is not visually distinct in either image."
+    },
+    {
+      "pair": "vertical-7",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "Both read primarily as left-facing poses, without a sufficiently clear upward or downward tilt."
+    }
+  ]
+}

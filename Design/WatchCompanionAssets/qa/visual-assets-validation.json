@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "allowPending": true,
+  "backgrounds": {
+    "count": 10,
+    "ready": 10
+  },
+  "characters": {
+    "count": 2,
+    "ready": 0
+  },
+  "runtime": {
+    "platforms": 2,
+    "backgroundImages": 40,
+    "characterFrames": 256
+  },
+  "composites": {
+    "single": 20,
+    "duo": 10
+  },
+  "errors": []
+}

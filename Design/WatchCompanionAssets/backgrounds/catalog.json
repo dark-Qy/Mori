@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "canvas": {
+    "master": { "width": 832, "height": 1024 },
+    "small": { "width": 352, "height": 430 },
+    "large": { "width": 416, "height": 496 }
+  },
+  "safeRegions": {
+    "top": { "x": 0.12, "y": 0.03, "width": 0.76, "height": 0.15 },
+    "bottom": { "x": 0.08, "y": 0.82, "width": 0.84, "height": 0.16 }
+  },
+  "defaultSlots": {
+    "solo.center": {
+      "x": 0.5,
+      "footY": 0.78,
+      "scale": 1.0,
+      "facing": "front",
+      "zIndex": 10
+    },
+    "duo.left": {
+      "x": 0.32,
+      "footY": 0.79,
+      "scale": 0.76,
+      "facing": "right",
+      "zIndex": 10
+    },
+    "duo.right": {
+      "x": 0.68,
+      "footY": 0.79,
+      "scale": 0.76,
+      "facing": "left",
+      "zIndex": 11
+    }
+  },
+  "backgrounds": [
+    {
+      "id": "ice_ocean_day",
+      "displayName": "冰海白昼",
+      "accessibilityDescription": "明亮冰海、远处冰山和开阔雪地",
+      "status": "ready",
+      "cropCenter": { "x": 0.5, "y": 0.5 },
+      "source": "Design/WatchCompanionAssets/backgrounds/ice_ocean_day/source.png",
+      "master": "Design/WatchCompanionAssets/backgrounds/ice_ocean_day/background-master.png",
+      "small": "Design/WatchCompanionAssets/backgrounds/ice_ocean_day/background-small.png",
+      "large": "Design/WatchCompanionAssets/backgrounds/ice_ocean_day/background-large.png",
+      "foreground": null
+    },
+    {
+      "id": "spring_meadow_stream",
+      "displayName": "春日花溪",
+      "accessibilityDescription": "春日花草、小溪和远处缓坡",
+      "status": "ready",
+      "cropCenter": { "x": 0.5, "y": 0.5 },
+      "source": "Design/WatchCompanionAssets/backgrounds/spring_meadow_stream/source.png",
+      "master": "Design/WatchCompanionAssets/backgrounds/spring_meadow_stream/background-master.png",
+      "small": "Design/WatchCompanionAssets/backgrounds/spring_meadow_stream/background-small.png",
+      "large": "Design/WatchCompanionAssets/backgrounds/spring_meadow_stream/background-large.png",
+      "foreground": null
+    },
+    {
+      "id": "rainy_cabin_dusk",
+      "displayName": "雨夜木屋",
+      "accessibilityDescription": "黄昏雨幕外的木屋和温暖灯光",
+      "status": "ready",
+      "cropCenter": { "x": 0.5, "y": 0.5 },
+      "source": "Design/WatchCompanionAssets/backgrounds/rainy_cabin_dusk/source.png",
+      "master": "Design/WatchCompanionAssets/backgrounds/rainy_cabin_dusk/background-master.png",
+      "small": "Design/WatchCompanionAssets/backgrounds/rainy_cabin_dusk/background-small.png",
+      "large": "Design/WatchCompanionAssets/backgrounds/rainy_cabin_dusk/background-large.png",
+      "foreground": null
+    },
+    {
+      "id": "moonlit_forest_camp",
+      "displayName": "月光森林营地",
+      "accessibilityDescription": "月光、松林、萤火虫和安静营地",
+      "status": "ready",
+      "cropCenter": { "x": 0.5, "y": 0.5 },
+      "source": "Design/WatchCompanionAssets/backgrounds/moonlit_forest_camp/source.png",
+      "master": "Design/WatchCompanionAssets/backgrounds/moonlit_forest_camp/background-master.png",
+      "small": "Design/WatchCompanionAssets/backgrounds/moonlit_forest_camp/background-small.png",
+      "large": "Design/WatchCompanionAssets/backgrounds/moonlit_forest_camp/background-large.png",
+      "foreground": null
+    },
+    {
+      "id": "snow_birch_sunrise",
+      "displayName": "雪林日出",
+      "accessibilityDescription": "粉金色日出照亮白桦与雪地",
+      "status": "ready",
+      "cropCenter": { "x": 0.5, "y": 0.5 },
+      "source": "Design/WatchCompanionAssets/backgrounds/snow_birch_sunrise/source.png",
+      "master": "Design/WatchCompanionAssets/backgrounds/snow_birch_sunrise/background-master.png",
+      "small": "Design/WatchCompanionAssets/backgrounds/snow_birch_sunrise/background-small.png",
+      "large": "Design/WatchCompanionAssets/backgrounds/snow_birch_sunrise/background-large.png",
+      "foreground": null
+    },
+    {
+      "id": "summer_lake",
+      "displayName": "夏日湖畔",
+      "accessibilityDescription": "晴朗夏日的湖面、芦苇和远山",
+      "status": "ready",
+      "cropCenter": { "x": 0.5, "y": 0.5 },
+      "source": "Design/WatchCompanionAssets/backgrounds/summer_lake/source.png",
+      "master": "Design/WatchCompanionAssets/backgrounds/summer_lake/background-master.png",
+      "small": "Design/WatchCompanionAssets/backgrounds/summer_lake/background-small.png",
+      "large": "Design/WatchCompanionAssets/backgrounds/summer_lake/background-large.png",
+      "foreground": null
+    },
+    {
+      "id": "rainy_reading_room",
+      "displayName": "雨日阅读室",
+      "accessibilityDescription": "雨窗、书架、植物和暖灯组成的阅读角",
+      "status": "ready",
+      "cropCenter": { "x": 0.5, "y": 0.5 },
+      "source": "Design/WatchCompanionAssets/backgrounds/rainy_reading_room/source.png",
+      "master": "Design/WatchCompanionAssets/backgrounds/rainy_reading_room/background-master.png",
+      "small": "Design/WatchCompanionAssets/backgrounds/rainy_reading_room/background-small.png",
+      "large": "Design/WatchCompanionAssets/backgrounds/rainy_reading_room/background-large.png",
+      "foreground": null
+    },
+    {
+      "id": "aurora_observatory",
+      "displayName": "极光观星台",
+      "accessibilityDescription": "极光、星空、远山和山顶观测平台",
+      "status": "ready",
+      "cropCenter": { "x": 0.5, "y": 0.5 },
+      "source": "Design/WatchCompanionAssets/backgrounds/aurora_observatory/source.png",
+      "master": "Design/WatchCompanionAssets/backgrounds/aurora_observatory/background-master.png",
+      "small": "Design/WatchCompanionAssets/backgrounds/aurora_observatory/background-small.png",
+      "large": "Design/WatchCompanionAssets/backgrounds/aurora_observatory/background-large.png",
+      "foreground": null
+    },
+    {
+      "id": "sunset_coast",
+      "displayName": "黄昏海岸",
+      "accessibilityDescription": "桃紫色晚霞、平静海面和开阔海岸",
+      "status": "ready",
+      "cropCenter": { "x": 0.5, "y": 0.5 },
+      "source": "Design/WatchCompanionAssets/backgrounds/sunset_coast/source.png",
+      "master": "Design/WatchCompanionAssets/backgrounds/sunset_coast/background-master.png",
+      "small": "Design/WatchCompanionAssets/backgrounds/sunset_coast/background-small.png",
+      "large": "Design/WatchCompanionAssets/backgrounds/sunset_coast/background-large.png",
+      "foreground": null
+    },
+    {
+      "id": "lantern_festival_square",
+      "displayName": "灯火节日广场",
+      "accessibilityDescription": "暖色灯笼围绕夜晚的石质小广场",
+      "status": "ready",
+      "cropCenter": { "x": 0.5, "y": 0.5 },
+      "source": "Design/WatchCompanionAssets/backgrounds/lantern_festival_square/source.png",
+      "master": "Design/WatchCompanionAssets/backgrounds/lantern_festival_square/background-master.png",
+      "small": "Design/WatchCompanionAssets/backgrounds/lantern_festival_square/background-small.png",
+      "large": "Design/WatchCompanionAssets/backgrounds/lantern_festival_square/background-large.png",
+      "foreground": null
+    }
+  ]
+}
+

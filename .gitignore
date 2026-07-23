@@ -47,3 +47,8 @@ venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Visual-generation scratch iterations (approved outputs use canonical names)
+Design/WatchCompanionAssets/characters/*/decoded/*candidate*
+Design/WatchCompanionAssets/characters/*/qa/*candidate*
+Design/WatchCompanionAssets/characters/*/qa/direction-blind-verdicts-retry-*.json

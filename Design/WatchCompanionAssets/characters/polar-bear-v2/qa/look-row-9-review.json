@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "directions": ["000", "022.5", "045", "067.5", "090", "112.5", "135", "157.5"],
+  "geometry": {
+    "edgePixels": 0,
+    "baseline": 203,
+    "heightRange": [191, 198],
+    "widthRange": [86, 109]
+  },
+  "identity": {
+    "ok": true,
+    "evidence": [
+      "ash-gray hair, amber eyes, bear hood muzzle, pale belly, paws, tail, and open-mouth smile remain present",
+      "exactly one silver dangling earring is visible when projection and hair occlusion permit"
+    ]
+  },
+  "semantics": {
+    "ok": true,
+    "evidence": "The ordered poses progress monotonically from up through screen-right toward down; the final pose remains upright and uses lowered pupils rather than a crouch."
+  },
+  "warnings": [
+    "The earring crosses the face projection between front and three-quarter poses; labeled review accepts it as the same physical-left-ear accessory because it remains singly attached and never duplicates."
+  ],
+  "errors": []
+}

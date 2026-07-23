@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "characterID": "polar_bear",
+  "spriteVersionNumber": 2,
+  "atlas": "final/spritesheet-extended.webp",
+  "package": "final/pet.json",
+  "validation": "final/validation-extended.json",
+  "despill": "qa/chroma-despill-extended.json",
+  "contactSheet": "qa/contact-sheet-extended.png",
+  "directionSheet": "qa/look-directions.png",
+  "directionSemantics": "qa/direction-semantics.json",
+  "blindValidation": "qa/direction-blind-validation.json",
+  "blindReviewResolution": "qa/blind-review-resolution.json",
+  "continuity": "qa/look-continuity.json",
+  "standardReview": "qa/review.json"
+}

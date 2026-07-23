@@ -1,0 +1,88 @@
+{
+  "pairs": [
+    {
+      "pair": "horizontal-1",
+      "A": "screen-right",
+      "B": "ambiguous",
+      "reason": "A 的脸和视线明显偏向画面右侧；B 基本正面，左右指向不清楚。"
+    },
+    {
+      "pair": "horizontal-2",
+      "A": "screen-right",
+      "B": "ambiguous",
+      "reason": "A 的头脸朝画面右侧转动；B 接近正面，缺少明确横向指向。"
+    },
+    {
+      "pair": "horizontal-3",
+      "A": "screen-left",
+      "B": "screen-right",
+      "reason": "A 的侧脸朝画面左侧，B 的侧脸朝画面右侧。"
+    },
+    {
+      "pair": "horizontal-4",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A 是朝画面右侧的侧面轮廓，B 是朝画面左侧的侧面轮廓。"
+    },
+    {
+      "pair": "horizontal-5",
+      "A": "screen-left",
+      "B": "screen-right",
+      "reason": "A 的鼻尖和面部朝画面左侧；B 的脸转向画面右侧。"
+    },
+    {
+      "pair": "horizontal-6",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A 的脸偏向画面右侧，B 的脸偏向画面左侧。"
+    },
+    {
+      "pair": "horizontal-7",
+      "A": "screen-left",
+      "B": "ambiguous",
+      "reason": "A 的面部和视线朝画面左侧；B 基本正面，没有稳定的左右朝向。"
+    },
+    {
+      "pair": "vertical-1",
+      "A": "down",
+      "B": "up",
+      "reason": "A 的眼睑和视线明显下压；B 仰头并朝上看。"
+    },
+    {
+      "pair": "vertical-2",
+      "A": "ambiguous",
+      "B": "up",
+      "reason": "A 的头脸接近水平正视；B 的下巴抬起，视线朝上。"
+    },
+    {
+      "pair": "vertical-3",
+      "A": "down",
+      "B": "up",
+      "reason": "A 低头并向下看；B 抬头并向上看。"
+    },
+    {
+      "pair": "vertical-4",
+      "A": "down",
+      "B": "ambiguous",
+      "reason": "A 的头和视线明显下倾；B 主要表现为横向转头，垂直指向不明确。"
+    },
+    {
+      "pair": "vertical-5",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "A 接近水平正视；B 主要朝侧面，二者都没有清楚的上下指向。"
+    },
+    {
+      "pair": "vertical-6",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "A 主要表现为侧向朝向，B 接近正面，均缺少明确的上看或下看特征。"
+    },
+    {
+      "pair": "vertical-7",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "A 与 B 都主要表现为横向侧脸，头部俯仰和视线的上下指向都不明确。"
+    }
+  ]
+}

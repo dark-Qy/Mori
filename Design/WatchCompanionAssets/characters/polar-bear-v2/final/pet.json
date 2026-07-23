@@ -1,0 +1,16 @@
+{
+  "id": "polar_bear",
+  "displayName": "白熊伙伴",
+  "description": "灰色短发、琥珀眼睛与单枚银色耳饰的白熊装互动伙伴。",
+  "spriteVersionNumber": 2,
+  "spritesheetPath": "spritesheet-extended.webp",
+  "atlas": {
+    "columns": 8,
+    "rows": 11,
+    "cellWidth": 192,
+    "cellHeight": 208,
+    "width": 1536,
+    "height": 2288
+  },
+  "framesPerSecond": 10
+}

@@ -1,0 +1,88 @@
+{
+  "pairs": [
+    {
+      "pair": "horizontal-1",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A's pupils sit toward the right sides of the eye openings; B's pupils and face turn toward screen-left."
+    },
+    {
+      "pair": "horizontal-2",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A's eye line and nose/face aim right, while B's pupils are displaced toward screen-left."
+    },
+    {
+      "pair": "horizontal-3",
+      "A": "screen-left",
+      "B": "screen-right",
+      "reason": "A's pupils and face surface turn left; B's pupils and nose/face shift clearly right."
+    },
+    {
+      "pair": "horizontal-4",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A's pupils sit on the right side of the eyes, whereas B's pupils sit on the left side."
+    },
+    {
+      "pair": "horizontal-5",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A's pupils and head presentation aim right; B's visible pupils aim left."
+    },
+    {
+      "pair": "horizontal-6",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A has a clear rightward pupil shift; B's right eye pupil and face cue are biased left."
+    },
+    {
+      "pair": "horizontal-7",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A's head and pupils visibly turn right; B's pupils are subtly but consistently left-biased."
+    },
+    {
+      "pair": "vertical-1",
+      "A": "down",
+      "B": "up",
+      "reason": "A's pupils sit low with the face tipped down; B's pupils and face are lifted upward."
+    },
+    {
+      "pair": "vertical-2",
+      "A": "down",
+      "B": "up",
+      "reason": "A reads as a lowered gaze, while B's pupils sit high and the head is visibly lifted."
+    },
+    {
+      "pair": "vertical-3",
+      "A": "up",
+      "B": "down",
+      "reason": "A's pupils and face pitch upward; B's pupils sit lower with a downward face pitch."
+    },
+    {
+      "pair": "vertical-4",
+      "A": "up",
+      "B": "down",
+      "reason": "A's pupils sit higher in the eyes and the face lifts; B's gaze and head pitch lower."
+    },
+    {
+      "pair": "vertical-5",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "Both poses read mainly as lateral/front gaze; neither pupil height nor head pitch gives a definite vertical direction."
+    },
+    {
+      "pair": "vertical-6",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "Both cells have nearly level eye lines and only lateral gaze cues, so the requested vertical axis is not definite."
+    },
+    {
+      "pair": "vertical-7",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "The two faces are vertically near-neutral, with no independently readable up/down pupil or head cue."
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "ok": true,
+  "reviewer": "primary-labeled-visual-review",
+  "coordinateSystem": {
+    "000": "up",
+    "090": "screen-right",
+    "180": "down",
+    "270": "screen-left"
+  },
+  "identity": {
+    "ok": true,
+    "evidence": [
+      "turquoise X hair clip remains on the character's fixed side",
+      "penguin hood eyes, yellow beak, scarf, white belly, flippers, and yellow feet remain present",
+      "both character eyes remain visible throughout the look-only sequence"
+    ]
+  },
+  "cardinals": {
+    "000": {
+      "verdict": "pass",
+      "evidence": "pupils and gaze are visibly raised"
+    },
+    "090": {
+      "verdict": "pass",
+      "evidence": "pupils and face cue screen-right without translating the body"
+    },
+    "180": {
+      "verdict": "pass",
+      "evidence": "pupils and gaze are visibly lowered"
+    },
+    "270": {
+      "verdict": "pass",
+      "evidence": "pupils and face cue screen-left without translating the body"
+    }
+  },
+  "directions": [
+    { "degrees": "000", "verdict": "pass" },
+    { "degrees": "022.5", "verdict": "pass" },
+    { "degrees": "045", "verdict": "pass" },
+    { "degrees": "067.5", "verdict": "pass" },
+    { "degrees": "090", "verdict": "pass" },
+    { "degrees": "112.5", "verdict": "pass" },
+    { "degrees": "135", "verdict": "pass" },
+    { "degrees": "157.5", "verdict": "pass" },
+    { "degrees": "180", "verdict": "pass" },
+    { "degrees": "202.5", "verdict": "pass" },
+    { "degrees": "225", "verdict": "pass" },
+    { "degrees": "247.5", "verdict": "pass" },
+    { "degrees": "270", "verdict": "pass" },
+    { "degrees": "292.5", "verdict": "pass" },
+    { "degrees": "315", "verdict": "pass" },
+    { "degrees": "337.5", "verdict": "pass" }
+  ],
+  "continuityResolution": {
+    "verdict": "pass",
+    "evidence": "Labeled full-size review confirms monotonic gaze progression, a fixed foot baseline, stable character identity, and acceptable silhouette changes at the three metric outliers."
+  }
+}

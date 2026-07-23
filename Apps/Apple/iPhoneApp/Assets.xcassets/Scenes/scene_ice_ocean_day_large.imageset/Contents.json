@@ -1,0 +1,16 @@
+{
+  "images": [
+    {
+      "filename": "scene_ice_ocean_day_large.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "preserves-vector-representation": false
+  }
+}

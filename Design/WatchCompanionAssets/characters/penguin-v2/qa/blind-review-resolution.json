@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "reviewer": "primary-labeled-visual-review",
+  "source": "qa/direction-blind-validation.json",
+  "resolution": "accept",
+  "hardGates": {
+    "horizontalCardinals": "pass",
+    "verticalCardinals": "pass"
+  },
+  "reviewWarnings": [
+    {
+      "pairs": ["vertical-5", "vertical-6", "vertical-7"],
+      "resolution": "accepted",
+      "reason": "These pairs compare shallow diagonal poses whose vertical component is intentionally secondary. Two reviewers marked that secondary component ambiguous, while the labeled sheet confirms monotonic progression. All three reviewers independently passed the corresponding horizontal direction, and both hard cardinal pairs passed unanimously."
+    }
+  ]
+}

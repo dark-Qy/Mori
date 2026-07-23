@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "directions": ["180", "202.5", "225", "247.5", "270", "292.5", "315", "337.5"],
+  "geometry": {
+    "edgePixels": 0,
+    "baseline": 203,
+    "heightRange": [189, 197],
+    "widthRange": [85, 101],
+    "boundaryAreaRatios": {
+      "157.5_to_180": 1.042,
+      "337.5_to_000": 1.099
+    }
+  },
+  "identity": {
+    "ok": true,
+    "evidence": [
+      "ash-gray hair, amber eyes, bear hood muzzle, pale belly, paws, tail, and friendly open mouth remain present",
+      "exactly one silver dangling earring remains attached throughout the turn"
+    ]
+  },
+  "semantics": {
+    "ok": true,
+    "evidence": "The row progresses monotonically from down through literal screen-left toward up; 270 has both nose and pupils pointing to the image's left edge."
+  },
+  "warnings": [
+    "The 337.5-to-000 area ratio is 1.099; labeled normal-size review finds the shallow scale step acceptable and free of clipping, sliding, or identity change."
+  ],
+  "errors": []
+}

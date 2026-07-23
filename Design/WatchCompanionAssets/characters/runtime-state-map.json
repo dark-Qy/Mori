@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "framesPerSecond": 10,
+  "runtimeFrameCount": 8,
+  "states": [
+    {
+      "id": "idle_neutral",
+      "sourceRow": "idle",
+      "sourceFrameCount": 6,
+      "behavior": "loop",
+      "trigger": "mood.neutral",
+      "reduceMotionFrame": 0
+    },
+    {
+      "id": "idle_resting",
+      "sourceRow": "waiting",
+      "sourceFrameCount": 6,
+      "behavior": "loop",
+      "trigger": "mood.resting",
+      "reduceMotionFrame": 0
+    },
+    {
+      "id": "idle_curious",
+      "sourceRow": "review",
+      "sourceFrameCount": 6,
+      "behavior": "loop",
+      "trigger": "mood.curious",
+      "reduceMotionFrame": 0
+    },
+    {
+      "id": "idle_lively",
+      "sourceRow": "waving",
+      "sourceFrameCount": 4,
+      "behavior": "loop",
+      "trigger": "mood.lively",
+      "reduceMotionFrame": 0
+    },
+    {
+      "id": "touch_head",
+      "sourceRow": "waving",
+      "sourceFrameCount": 4,
+      "behavior": "transient",
+      "trigger": "tap.head",
+      "durationMilliseconds": 850,
+      "haptic": "click",
+      "reduceMotionFrame": 1
+    },
+    {
+      "id": "touch_body",
+      "sourceRow": "failed",
+      "sourceFrameCount": 8,
+      "behavior": "transient",
+      "trigger": "tap.body",
+      "durationMilliseconds": 850,
+      "haptic": "directionUp",
+      "reduceMotionFrame": 1
+    },
+    {
+      "id": "action_success",
+      "sourceRow": "jumping",
+      "sourceFrameCount": 5,
+      "behavior": "oneShot",
+      "trigger": "event.action_success",
+      "reduceMotionFrame": 2
+    },
+    {
+      "id": "story_reaction",
+      "sourceRow": "review",
+      "sourceFrameCount": 6,
+      "behavior": "oneShot",
+      "trigger": "event.story_reaction",
+      "reduceMotionFrame": 2
+    }
+  ]
+}

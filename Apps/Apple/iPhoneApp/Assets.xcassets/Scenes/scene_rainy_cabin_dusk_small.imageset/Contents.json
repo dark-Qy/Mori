@@ -1,0 +1,16 @@
+{
+  "images": [
+    {
+      "filename": "scene_rainy_cabin_dusk_small.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "preserves-vector-representation": false
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-07-24",
+  "checks": [
+    {
+      "id": "app-runtime-tests",
+      "status": "pass",
+      "evidence": "83 tests in 14 suites passed"
+    },
+    {
+      "id": "strict-visual-asset-validation",
+      "status": "pass",
+      "evidence": "10/10 backgrounds ready, 2/2 v2 characters ready, 40 platform background exports, 256 runtime character frames, 20 single and 10 duo composites, zero errors"
+    },
+    {
+      "id": "independent-final-visual-review",
+      "status": "pass",
+      "evidence": "No actionable findings across both extended contact sheets, both 16-direction sheets, the 10-background sheet, and single/duo composite sheets"
+    },
+    {
+      "id": "watch-generic-build",
+      "status": "pass",
+      "evidence": "WatchCompanion-Watch generic watchOS Simulator build"
+    },
+    {
+      "id": "phone-generic-build",
+      "status": "pass",
+      "evidence": "WatchCompanion generic iOS Simulator build"
+    },
+    {
+      "id": "phone-scene-selection",
+      "status": "pass",
+      "evidence": "Computer Use selected the white-bear role and a shared background; preview updated"
+    },
+    {
+      "id": "watch-small-layout",
+      "status": "pass",
+      "evidence": "Computer Use visually checked the complete scene on Apple Watch SE 3 40mm"
+    },
+    {
+      "id": "watch-large-layout",
+      "status": "pass",
+      "evidence": "Design/WatchCompanionAssets/qa/runtime/watch-46mm-home.png"
+    },
+    {
+      "id": "watch-touch-ui-test",
+      "status": "infrastructure_blocked",
+      "evidence": "Simulator UI-test runner failed before assertions with NSMachErrorDomain -308 while concurrent Simulator sessions were active"
+    },
+    {
+      "id": "reduce-motion-and-voiceover-runtime",
+      "status": "pending",
+      "evidence": "compiled behavior and accessibility values reviewed; system-mode runtime pass still required"
+    },
+    {
+      "id": "physical-watch",
+      "status": "pending",
+      "evidence": "frame pacing, memory, energy, and haptics require a paired physical Apple Watch"
+    }
+  ]
+}

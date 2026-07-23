@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-07-23T15:04:35Z",
+  "row": "look-row-9",
+  "source": "decoded/look-row-9.png",
+  "registered_row": "qa/look-row-9-registered.png",
+  "registration_manifest": "qa/look-row-9-registration.json",
+  "verdict": "pass",
+  "hard_failures": [],
+  "warnings": [],
+  "identity": {
+    "verdict": "pass",
+    "evidence": "All eight cells preserve the penguin hood, black bob, blue-gray eyes, patterned scarf with red accent, white belly, navy flippers, and yellow feet. The turquoise X hair clip stays on screen-left and is never mirrored."
+  },
+  "geometry": {
+    "verdict": "pass",
+    "registration_scale": 0.515625,
+    "cell_size": [
+      192,
+      208
+    ],
+    "edge_pixels": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "baseline_bottom_range": [
+      203,
+      203
+    ],
+    "sprite_height_range": [
+      193,
+      198
+    ],
+    "max_adjacent_center_delta": 1.118,
+    "max_adjacent_area_ratio": 1.013,
+    "approved_000_area_ratio": 1.0354,
+    "approved_180_boundary_area_ratio": 1.1082,
+    "evidence": "All cells are non-empty RGBA sprites with transparent corners, a shared planted baseline, no final-cell edge contact, and no visible scale or registration pop."
+  },
+  "semantics": [
+    {
+      "direction": "000",
+      "expected": "up",
+      "observed": "Both pupils sit high toward the upper eyelids while the face and lower body remain frontal.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "022.5",
+      "expected": "up-right",
+      "observed": "The high gaze gains a small screen-right component without changing the planted body.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "045",
+      "expected": "up-right",
+      "observed": "Eyes and restrained head follow-through read as an even up-right diagonal.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "067.5",
+      "expected": "right-up",
+      "observed": "The screen-right cue becomes dominant while a smaller upward eye cue remains.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "090",
+      "expected": "right",
+      "observed": "Both pupils and the face surface point unmistakably toward the screen-right edge.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "112.5",
+      "expected": "right-down",
+      "observed": "The rightward gaze moves slightly below center with continuous head follow-through.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "135",
+      "expected": "down-right",
+      "observed": "Both eyes occupy the down-right quadrant and the chin lowers without moving the feet.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "157.5",
+      "expected": "down-right near down",
+      "observed": "The gaze is predominantly down with a restrained screen-right component, one smooth step before the approved 180 anchor.",
+      "verdict": "pass"
+    }
+  ],
+  "adjacent_continuity": [
+    {
+      "from": "000",
+      "to": "022.5",
+      "center_delta": 0.707,
+      "area_ratio": 1.0113,
+      "verdict": "pass"
+    },
+    {
+      "from": "022.5",
+      "to": "045",
+      "center_delta": 0.5,
+      "area_ratio": 1.0031,
+      "verdict": "pass"
+    },
+    {
+      "from": "045",
+      "to": "067.5",
+      "center_delta": 1.118,
+      "area_ratio": 1.0105,
+      "verdict": "pass"
+    },
+    {
+      "from": "067.5",
+      "to": "090",
+      "center_delta": 0.707,
+      "area_ratio": 1.013,
+      "verdict": "pass"
+    },
+    {
+      "from": "090",
+      "to": "112.5",
+      "center_delta": 0.5,
+      "area_ratio": 1.0069,
+      "verdict": "pass"
+    },
+    {
+      "from": "112.5",
+      "to": "135",
+      "center_delta": 0.0,
+      "area_ratio": 1.0075,
+      "verdict": "pass"
+    },
+    {
+      "from": "135",
+      "to": "157.5",
+      "center_delta": 0.5,
+      "area_ratio": 1.0049,
+      "verdict": "pass"
+    },
+    {
+      "from": "157.5",
+      "to": "approved-180",
+      "center_delta": 2.55,
+      "area_ratio": 1.1082,
+      "verdict": "pass"
+    }
+  ]
+}

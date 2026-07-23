@@ -1,0 +1,69 @@
+{
+  "ok": true,
+  "reviewer": "primary-labeled-visual-review",
+  "coordinateSystem": {
+    "000": "up",
+    "090": "screen-right",
+    "180": "down",
+    "270": "screen-left"
+  },
+  "identity": {
+    "ok": true,
+    "evidence": [
+      "ash-gray hair, amber eyes, white bear hood muzzle, pale belly, paws, tail, and friendly open mouth remain recognizable",
+      "one silver dangling earring remains attached with projection-dependent visibility and no duplicated accessory"
+    ]
+  },
+  "cardinals": {
+    "000": {
+      "verdict": "pass",
+      "evidence": "pupils and eyelids visibly cue up"
+    },
+    "090": {
+      "verdict": "pass",
+      "evidence": "nose, face, and pupils point toward the literal screen-right edge"
+    },
+    "180": {
+      "verdict": "pass",
+      "evidence": "pupils and eyelids visibly cue down"
+    },
+    "270": {
+      "verdict": "pass",
+      "evidence": "nose, face, and pupils point toward the literal screen-left edge"
+    }
+  },
+  "directions": [
+    { "degrees": "000", "verdict": "pass" },
+    { "degrees": "022.5", "verdict": "pass" },
+    { "degrees": "045", "verdict": "pass" },
+    { "degrees": "067.5", "verdict": "pass" },
+    { "degrees": "090", "verdict": "pass" },
+    { "degrees": "112.5", "verdict": "pass" },
+    { "degrees": "135", "verdict": "pass" },
+    {
+      "degrees": "157.5",
+      "verdict": "warning",
+      "evidence": "down component is clear; horizontal component is subtle but remains on the expected side"
+    },
+    { "degrees": "180", "verdict": "pass" },
+    { "degrees": "202.5", "verdict": "pass" },
+    { "degrees": "225", "verdict": "pass" },
+    { "degrees": "247.5", "verdict": "pass" },
+    { "degrees": "270", "verdict": "pass" },
+    { "degrees": "292.5", "verdict": "pass" },
+    { "degrees": "315", "verdict": "pass" },
+    {
+      "degrees": "337.5",
+      "verdict": "warning",
+      "evidence": "up component is clear; horizontal component is intentionally shallow one step before 000"
+    }
+  ],
+  "continuityResolution": {
+    "verdict": "pass",
+    "evidence": "Labeled normal-size review confirms a monotonic clockwise loop, a fixed foot baseline, no clipping, no wrong cardinal, and no identity replacement. Metric outliers match deliberate transitions between front, three-quarter, and profile pose families."
+  },
+  "alphaHoleResolution": {
+    "verdict": "pass",
+    "evidence": "The reported 000 transparent row is the intentional exterior gap around the separated bear ears at the top silhouette, not a hole inside the character."
+  }
+}

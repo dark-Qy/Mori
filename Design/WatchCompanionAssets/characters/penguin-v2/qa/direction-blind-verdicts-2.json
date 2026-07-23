@@ -1,0 +1,88 @@
+{
+  "pairs": [
+    {
+      "pair": "horizontal-1",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A 的脸部和瞳孔略偏画面右侧，B 的脸部与视线明显偏画面左侧。"
+    },
+    {
+      "pair": "horizontal-2",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A 的双眼与面部朝画面右侧偏转，B 的双眼与面部朝画面左侧偏转。"
+    },
+    {
+      "pair": "horizontal-3",
+      "A": "screen-left",
+      "B": "screen-right",
+      "reason": "A 的瞳孔和脸部集中在画面左侧，B 则向画面右侧偏移。"
+    },
+    {
+      "pair": "horizontal-4",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A 的视线和脸部轮廓指向画面右侧，B 的视线与脸部指向画面左侧。"
+    },
+    {
+      "pair": "horizontal-5",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A 的瞳孔偏画面右侧，B 的瞳孔及脸部重心偏画面左侧。"
+    },
+    {
+      "pair": "horizontal-6",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A 的眼睛和面部重心向画面右侧，B 则向画面左侧。"
+    },
+    {
+      "pair": "horizontal-7",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A 的侧向视线落在画面右侧，B 的侧向视线落在画面左侧。"
+    },
+    {
+      "pair": "vertical-1",
+      "A": "down",
+      "B": "up",
+      "reason": "A 的脸部位置较低、视线压低，B 的脸部抬高且眼神上扬。"
+    },
+    {
+      "pair": "vertical-2",
+      "A": "down",
+      "B": "up",
+      "reason": "A 的面部和视线略向下收，B 的面部抬起、视线更向上。"
+    },
+    {
+      "pair": "vertical-3",
+      "A": "up",
+      "B": "down",
+      "reason": "A 的脸部与眼睛位置更高，B 的脸部下沉且视线较低。"
+    },
+    {
+      "pair": "vertical-4",
+      "A": "up",
+      "B": "down",
+      "reason": "A 呈抬头、眼神上扬，B 的脸部和眼神相对下压。"
+    },
+    {
+      "pair": "vertical-5",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "两者主要呈水平侧视，脸部高度和瞳孔位置都不足以可靠区分向上或向下。"
+    },
+    {
+      "pair": "vertical-6",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "两者的可见变化以水平视线为主，没有稳定、清晰的上下朝向线索。"
+    },
+    {
+      "pair": "vertical-7",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "A、B 都近似水平侧视，面部与瞳孔的垂直差异过小，无法可靠判定。"
+    }
+  ]
+}

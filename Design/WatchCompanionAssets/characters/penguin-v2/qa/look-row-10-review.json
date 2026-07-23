@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-07-23T18:31:23Z",
+  "row": "look-row-10",
+  "source": "decoded/look-row-10.png",
+  "registration_manifest": "qa/look-row-9-registration.json",
+  "verdict": "pass",
+  "hard_failures": [],
+  "warnings": [],
+  "identity": {
+    "verdict": "pass",
+    "evidence": "All eight poses preserve the penguin hood, black bob, blue-gray eyes, cheerful open-mouth smile, patterned scarf with red accent, white belly, navy flippers, and yellow feet. The turquoise X hair clip remains on screen-left in every pose and is never mirrored."
+  },
+  "geometry": {
+    "verdict": "pass",
+    "registration_scale": 0.515625,
+    "cell_size": [
+      192,
+      208
+    ],
+    "edge_pixels": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "baseline_bottom_range": [
+      203,
+      203
+    ],
+    "sprite_height_range": [
+      192,
+      195
+    ],
+    "sprite_width_range": [
+      103,
+      106
+    ],
+    "max_adjacent_center_delta": 1.699,
+    "max_adjacent_area_ratio": 1.0244,
+    "boundary_157_5_to_180": {
+      "height_ratio": 1.0104,
+      "width_ratio": 1.0283,
+      "area_ratio": 1.0112,
+      "center_delta": 1.238
+    },
+    "boundary_337_5_to_000": {
+      "height_ratio": 1.0312,
+      "width_ratio": 1.0874,
+      "area_ratio": 1.0995,
+      "center_delta": 3.328
+    },
+    "evidence": "Using the persisted row-9 scale and neutral-cell baseline, every pose fits its final 192x208 cell with transparent edges and one planted y=203 foot line. Both loop boundaries remain visually continuous in final height, width, area, and lower-body registration."
+  },
+  "semantics": [
+    {
+      "direction": "180",
+      "expected": "down",
+      "observed": "Both pupils point clearly toward the lower eyelids while the smiling face and planted body remain frontal.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "202.5",
+      "expected": "down-left",
+      "observed": "The downward gaze gains a small screen-left component without changing the body anchor.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "225",
+      "expected": "down-left diagonal",
+      "observed": "Both eyes occupy the down-left quadrant in a restrained diagonal step.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "247.5",
+      "expected": "left-down",
+      "observed": "Screen-left becomes dominant while a smaller downward cue remains.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "270",
+      "expected": "screen-left",
+      "observed": "Both pupils and the restrained face follow-through point unmistakably toward the screen-left X clip.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "292.5",
+      "expected": "left-up",
+      "observed": "The screen-left gaze rises slightly while both eyes, smile, and X clip stay fully visible.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "315",
+      "expected": "up-left diagonal",
+      "observed": "Both eyes read as an even up-left diagonal without profile rotation.",
+      "verdict": "pass"
+    },
+    {
+      "direction": "337.5",
+      "expected": "up-left near up",
+      "observed": "The gaze is predominantly upward with a restrained screen-left component, one smooth step before row 9's 000 pose.",
+      "verdict": "pass"
+    }
+  ],
+  "cross_row_continuity": {
+    "verdict": "pass",
+    "from_157_5_to_180": "The smiling 157.5 pose advances to a down-facing 180 pose with matched scale, body width, y=203 baseline, and no direction reversal.",
+    "from_337_5_to_000": "The smiling 337.5 pose advances to row 9's up-facing 000 pose with both eyes and the screen-left X clip visible, matched planted geometry, and no mirror or expression pop."
+  }
+}

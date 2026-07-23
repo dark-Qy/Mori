@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
+DEFAULT_PYTHON="/Users/shubing/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3"
+
+if [[ -n "${VISUAL_ASSET_PYTHON:-}" ]]; then
+  PYTHON="$VISUAL_ASSET_PYTHON"
+elif [[ -x "$DEFAULT_PYTHON" ]]; then
+  PYTHON="$DEFAULT_PYTHON"
+else
+  PYTHON="$(command -v python3)"
+fi
+readonly PYTHON
+
+exec "$PYTHON" "$REPO_ROOT/Tools/VisualAssets/install_watch_backgrounds.py" \
+  --repo-root "$REPO_ROOT" "$@"

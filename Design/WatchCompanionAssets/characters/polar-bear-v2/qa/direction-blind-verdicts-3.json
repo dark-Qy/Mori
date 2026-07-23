@@ -1,0 +1,88 @@
+{
+  "pairs": [
+    {
+      "pair": "horizontal-1",
+      "A": "screen-right",
+      "B": "ambiguous",
+      "reason": "A 的脸和视线明显偏向画面右侧；B 基本正视，缺少稳定的左右指向。"
+    },
+    {
+      "pair": "horizontal-2",
+      "A": "screen-right",
+      "B": "ambiguous",
+      "reason": "A 的头部呈右向三分之四角度；B 的脸部接近正面，左右偏转过弱。"
+    },
+    {
+      "pair": "horizontal-3",
+      "A": "screen-left",
+      "B": "screen-right",
+      "reason": "两者的脸、刘海开口和身体朝向分别形成清楚的左向与右向三分之四视角。"
+    },
+    {
+      "pair": "horizontal-4",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A 和 B 分别呈明确的右侧面与左侧面轮廓。"
+    },
+    {
+      "pair": "horizontal-5",
+      "A": "screen-left",
+      "B": "screen-right",
+      "reason": "A 的面部轮廓朝左，B 的脸与躯干明显朝右。"
+    },
+    {
+      "pair": "horizontal-6",
+      "A": "screen-right",
+      "B": "screen-left",
+      "reason": "A 的脸部和身体重心偏右，B 的可见侧脸与身体朝左。"
+    },
+    {
+      "pair": "horizontal-7",
+      "A": "screen-left",
+      "B": "ambiguous",
+      "reason": "A 有可辨认的左向三分之四角度；B 接近完全正视，左右方向不明确。"
+    },
+    {
+      "pair": "vertical-1",
+      "A": "down",
+      "B": "up",
+      "reason": "A 的眼睑、脸部位置和收下巴姿态明显向下；B 抬头、张口并把视线送向上方。"
+    },
+    {
+      "pair": "vertical-2",
+      "A": "ambiguous",
+      "B": "up",
+      "reason": "A 基本平视，缺少清楚的俯仰线索；B 的脸和视线带有明显抬升。"
+    },
+    {
+      "pair": "vertical-3",
+      "A": "down",
+      "B": "up",
+      "reason": "A 的头部向右下压低，B 的下巴和面部朝右上抬起。"
+    },
+    {
+      "pair": "vertical-4",
+      "A": "down",
+      "B": "ambiguous",
+      "reason": "A 有清楚的低头和向下倾斜；B 主要表现为向右转头，垂直俯仰不够明确。"
+    },
+    {
+      "pair": "vertical-5",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "A 近似正面平视，B 主要体现左向转头；两者都没有足够稳定的上下视线线索。"
+    },
+    {
+      "pair": "vertical-6",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "A 的左侧面看起来接近平视，B 近似正视；垂直方向均无法可靠判断。"
+    },
+    {
+      "pair": "vertical-7",
+      "A": "ambiguous",
+      "B": "ambiguous",
+      "reason": "A 与 B 的主要差异是左向转头程度，头部和眼睛都没有清楚的上看或下看信号。"
+    }
+  ]
+}

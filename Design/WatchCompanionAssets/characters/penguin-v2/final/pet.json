@@ -1,0 +1,16 @@
+{
+  "id": "penguin",
+  "displayName": "企鹅伙伴",
+  "description": "黑色短发、蓝灰眼睛与蓝绿色 X 发夹的企鹅装互动伙伴。",
+  "spriteVersionNumber": 2,
+  "spritesheetPath": "spritesheet-extended.webp",
+  "atlas": {
+    "columns": 8,
+    "rows": 11,
+    "cellWidth": 192,
+    "cellHeight": 208,
+    "width": 1536,
+    "height": 2288
+  },
+  "framesPerSecond": 10
+}
