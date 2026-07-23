@@ -104,17 +104,22 @@ in either executable.
 
 `Scripts/test-e2e` normalizes the iPhone Simulator to light appearance, standard contrast, and the
 default large content size before the suite, then restores the user's previous settings even when a
-test shuts the device down. `Scripts/test-accessibility` adds a reproducible visual matrix:
+test shuts the device down. A custom destination must include an explicit Simulator `id=<UDID>`, so
+normalization and restoration cannot be silently skipped. Script-owned DerivedData is removed on
+exit, while an explicit caller-owned path is preserved. `Scripts/test-accessibility` adds a
+reproducible visual matrix:
 
 - iPhone in light appearance with standard contrast and default large text;
 - iPhone in dark appearance, increased contrast, and accessibility XXXL text;
 - a 40 mm Apple Watch Simulator primary-surface audit.
 
 The UI audit checks contrast, Dynamic Type, element detection, hit regions, descriptions, clipping,
-and accessibility traits. Its only suppression is a contrast report whose audited frame intersects
-the system-owned translucent tab-bar material and shadow; application-owned content outside that
-footprint must pass normally. This automated audit covers the current viewport and does not prove
-VoiceOver reading order, physical tap comfort, haptics, or device rendering.
+and accessibility traits. Every matrix invocation parses its `.xcresult` and requires exactly one
+executed, passing test. On iOS 26 the page uses a hard bottom scroll-edge effect. The only suppression
+is a contrast report for static text intersecting the measured system tab-bar frame expanded by 8
+pt; buttons, other interactive controls, and application content outside that frame are never
+ignored. This automated audit covers the current viewport and does not prove VoiceOver reading
+order, physical tap comfort, haptics, or device rendering.
 
 ### Visual and functional review
 
