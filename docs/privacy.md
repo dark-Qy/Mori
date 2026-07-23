@@ -71,6 +71,23 @@ Friendship does not imply health access. The data owner chooses one directional 
 
 A recipient cannot elevate a scope. Removing the relationship, disabling the feature, or deleting the account revokes future retrieval and notification. Avoid deterministic emission for every health event because timing itself can reveal sensitive information.
 
+### Touch exchange boundary
+
+Touch exchange sends a temporary Nearby Interaction discovery token, an anonymous installation
+identifier, and an allowlisted public pet card to the social gateway. The card contains only pet
+name, character, cosmetics, and an explicit game-only social state. It excludes HealthKit samples,
+derived health or mood signals, vitality, story internals, free text, and sharing preferences.
+
+Candidate matching alone releases no pet card. The gateway releases the preview only after both
+Watches report overlapping UWB proximity, and an encounter completes only after both people
+confirm. The iPhone friend-sharing switch defaults off, synchronizes to Watch, and blocks the
+network exchange while disabled. The user-selected public social state is game-only
+(`greeting`, `walk`, or `quiet_company`). Candidate requests are bound to a per-encounter identifier
+and nonce to reject delayed requests after rotation. Cancellation prevents relationship creation,
+but cannot retract a preview that the other person has already seen. Timeout or an unverified
+candidate clears the temporary token and card according to the gateway TTL. The anonymous MVP
+identifier is not production authentication.
+
 ## Retention and deletion
 
 Before remote storage ships, define and test category-specific retention. At minimum:

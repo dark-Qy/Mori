@@ -79,6 +79,9 @@ Use launch arguments and synthetic fixture IDs. Test both Watch and iPhone surfa
 - iPhone wardrobe preview, equip, reset, offline queue, and Watch reconciliation;
 - AI unavailable and invalid response fallback;
 - process termination and relaunch;
+- zero-input Watch touch exchange through discovery, UWB-gated preview, bilateral confirmation,
+  friend-sharing privacy gating, public game-state selection, candidate-generation rotation,
+  cancellation retry, confirm/cancel arbitration, and candidate retry;
 - VoiceOver labels, largest supported text, Reduce Motion, high contrast, and non-color cues.
 
 Use stable accessibility identifiers for actions and semantic state. Do not test implementation hierarchy.
@@ -87,6 +90,13 @@ The Watch persistence E2E uses `--e2e-offline-runtime` together with `-UITesting
 real event ledger and reducers while intentionally suppressing HealthKit refresh and
 WatchConnectivity startup, so the test proves offline main-story/habit settlement without being
 coupled to Simulator framework latency. The argument has no effect without `-UITesting`.
+
+The touch-exchange UI test additionally requires `--touch-exchange-demo`. That DEBUG-only mode
+drives a deterministic synthetic candidate and synthetic distance result so the simulator can
+verify navigation, preview-before-confirm, bilateral-confirmation UI, and the completion animation.
+Additional DEBUG-only variants cover peer-first consent, cancellation failure before retry, and
+server-completion/cancel arbitration. They do not validate Nearby Interaction hardware, candidate
+accuracy, or physical haptic quality.
 
 The iPhone stateful E2E uses isolated Application Support and UserDefaults namespaces to verify
 onboarding, wardrobe preview versus equip, offline persistence across termination, reset, and
@@ -100,7 +110,9 @@ Apple clients require the compile-time `DEBUG` condition and the runtime `-UITes
 they resolve an allowlisted fixture through `DebugScenarioSupport`. `Scripts/test-release-boundaries`
 builds the Release iPhone app and embedded Watch app, then rejects fixture resources, fixture
 identifiers, E2E storage selectors, offline-runtime selectors, and notification-route launch hooks
-in either executable.
+in either executable. It also rejects the touch-exchange demo selector and injects a reserved
+non-production HTTPS URL solely so the Release configuration check can build; an actual archive
+must receive its deployment URL through `SOCIAL_GATEWAY_BASE_URL`.
 
 `Scripts/test-e2e` normalizes the iPhone Simulator to light appearance, standard contrast, and the
 default large content size before the suite, then restores the user's previous settings even when a

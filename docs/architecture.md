@@ -157,6 +157,37 @@ or notification preferences. Full event-queue reconciliation, server sync, and t
 later milestones and must not be claimed as shipped behavior. Physical disconnect/reconnect timing
 also remains unverified until the paired-device runbook passes.
 
+## Touch exchange
+
+The Watch touch-exchange flow is intentionally zero-input: both people open the flow and tap
+`开始触碰`. Each Watch creates a temporary Nearby Interaction discovery token and joins a bounded
+HTTPS discovery pool. The service may nominate a candidate, but nomination is not proof of
+proximity and does not release either public pet card. The iPhone-owned friend-sharing preference
+and public game-only social state are synchronized one way to Watch. Watch does not project those
+fields back to iPhone, so stale Watch state cannot re-enable sharing. The preference gates the flow
+before the network client is constructed.
+
+```text
+explicit start on both Watches
+  -> anonymous temporary candidate discovery
+  -> exchange only Nearby Interaction discovery tokens
+  -> stable UWB distance samples on both Watches
+  -> server verifies overlapping proximity reports
+  -> release allowlisted game-only preview
+  -> explicit confirmation on both Watches
+  -> create the encounter
+```
+
+An unverified candidate times out and returns to discovery; it never becomes an encounter. The
+server stores the temporary token and allowlisted card only for the session TTL. Every
+candidate-level request is bound to the current encounter identifier and nonce, so a delayed
+proximity or confirmation request from an expired candidate cannot affect a replacement candidate.
+The current MVP uses anonymous installation identifiers and an in-memory gateway, so production
+deployment still requires an injected HTTPS `SOCIAL_GATEWAY_BASE_URL`, authenticated identities,
+abuse controls, a shared atomic store, and the two-Watch device runbook. Release builds fail when
+the HTTPS gateway setting is absent. Apple Watch reports distance rather than direction, and the
+app does not claim that the hardware detects literal case-to-case contact.
+
 ## Apple capability lifecycle
 
 - HealthKit request state is reconstructed with the system authorization-request status after
@@ -178,7 +209,7 @@ also remains unverified until the paired-device runbook passes.
 | AI or network | Local narration template; identical authoritative state |
 | APNs on Personal Team | Local scheduled notification or in-app mock event |
 | Smart alarm not device-verified | Fixed local alarm and post-wake summary |
-| Nearby Interaction unavailable | No proximity claim; bounded mock or mutual short-code flow for testing |
+| Nearby Interaction unavailable | No proximity claim; bounded, visibly synthetic mock for testing only |
 | Watch-iPhone connectivity | Local queue and later idempotent reconciliation |
 
 ## Observability

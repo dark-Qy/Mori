@@ -81,16 +81,25 @@ Do not claim precise real-time sleep-stage detection. Describe the feature as a 
 This test is independent of Phase 1 and requires two compatible physical Apple Watches and two test identities.
 
 1. Both users explicitly enter the proximity flow.
-2. Exchange temporary discovery tokens through an authenticated HTTPS rendezvous.
-3. Validate expiration, replay protection, cancellation, and multiple-candidate handling.
-4. Test approaching, separating, foreground interruption, permission denial, and `nil` distance.
-5. Require a stable threshold for multiple samples, then show a preview.
-6. Require confirmation on both Watches before creating friendship.
-7. Repeat at least twenty times in representative environments.
+2. Verify friend sharing is enabled on both paired iPhones, then tap `开始触碰` on both Watches;
+   there is no user-entered pairing code.
+3. Verify the HTTPS discovery service exchanges only temporary discovery tokens before proximity.
+4. Validate expiration, replay protection, cancellation, candidate timeout/retry, and
+   multiple-candidate handling.
+   Confirm delayed requests from an expired candidate are rejected by encounter ID and nonce.
+5. Test approaching, separating, foreground interruption, permission denial, and `nil` distance.
+6. Require a stable threshold for multiple samples, then show a preview.
+7. Require confirmation on both Watches before creating an encounter.
+8. Interrupt a cancel request and verify the Watch reports an unconfirmed cancellation, retries
+   cleanup, and does not start a new session first.
+9. Repeat at least twenty times in representative environments.
 
 Target: at least eighteen of twenty sessions identify proximity within ten seconds, with zero incorrect or duplicate friendship creation. Treat this as a product target, not a guarantee of the framework.
 
-Nearby Interaction supplies proximity context only. It does not discover peers, transfer pet data, establish identity, provide secure ranging, or replace bilateral consent. If unverified, do not expose or advertise tap-to-connect behavior.
+Nearby Interaction supplies proximity context only. It does not discover peers, transfer pet data,
+establish identity, or replace bilateral consent. The app's service performs candidate discovery,
+and the UWB result gates preview and confirmation. If unverified, do not advertise physical
+tap-to-connect reliability.
 
 ## 6. Phase 1 product journey
 
