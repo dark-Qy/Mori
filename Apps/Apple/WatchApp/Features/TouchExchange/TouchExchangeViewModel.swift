@@ -51,7 +51,7 @@ enum TouchExchangeViewPhase: Equatable, Sendable {
 @MainActor
 final class TouchExchangeViewModel: ObservableObject {
   @Published private(set) var phase: TouchExchangeViewPhase = .idle
-  @Published private(set) var statusText = "双方都需要主动进入触碰交换"
+  @Published private(set) var statusText = "等待另一块手表进入触碰交换"
   @Published private(set) var peerCard: TouchExchangePeerCard?
   @Published private(set) var canConfirm = false
   @Published private(set) var encounterWasSaved = false
@@ -60,7 +60,7 @@ final class TouchExchangeViewModel: ObservableObject {
 
   var localSocialStatusText: String { localCard.socialStatusText }
 
-  private let localCard: TouchExchangeLocalCard
+  private var localCard: TouchExchangeLocalCard
   private let isDeterministicDemo: Bool
   private let isPeerFirstDemo: Bool
   private let isCancelConfirmRaceDemo: Bool
@@ -158,6 +158,11 @@ final class TouchExchangeViewModel: ObservableObject {
     beginAttempt()
   }
 
+  func updateLocalCard(_ card: TouchExchangeLocalCard) {
+    guard phase == .idle || phase == .failed || phase == .cancelled else { return }
+    localCard = card
+  }
+
   func runVisualDemoIfRequested() async {
     #if DEBUG
       guard shouldAutoCompleteDemo, phase == .idle else { return }
@@ -183,12 +188,12 @@ final class TouchExchangeViewModel: ObservableObject {
         statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
       }
     } else if phase == .idle {
-      statusText = "双方都需要主动进入触碰交换"
+      statusText = "等待另一块手表进入触碰交换"
     }
   }
 
   func confirm() {
-    guard canConfirm else { return }
+    guard canConfirm, socialSharingEnabled else { return }
     let generation = replaceOperation()
     didSubmitConfirmation = true
     canConfirm = false
@@ -344,6 +349,23 @@ final class TouchExchangeViewModel: ObservableObject {
         || phase == .cancelled
     else { return }
     beginAttempt()
+  }
+
+  func finishCompletedPresentation() {
+    guard phase == .completed else { return }
+    replaceOperation()
+    coordinator = nil
+    rangingClient = nil
+    peerCard = nil
+    transferPresentation = nil
+    canConfirm = false
+    didRevealCard = false
+    didSubmitConfirmation = false
+    phase = .idle
+    statusText =
+      socialSharingEnabled
+      ? "等待另一块手表进入触碰交换"
+      : "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
   }
 
   private func beginAttempt() {
@@ -790,7 +812,7 @@ final class TouchExchangeViewModel: ObservableObject {
     case .idle:
       phase = .idle
       canConfirm = false
-      statusText = "双方都需要主动进入触碰交换"
+      statusText = "等待另一块手表进入触碰交换"
     case .rendezvous:
       phase = .joining
       canConfirm = false

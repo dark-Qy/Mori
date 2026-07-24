@@ -32,7 +32,6 @@ final class WatchAppStore: ObservableObject {
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private let usesE2EOfflineRuntime: Bool
   private let hasLaunchScenarioOverride: Bool
-  private let requiresPhoneSocialSettingsAuthorityForTesting: Bool
   private var hasStarted = false
   private var latestHealth: HealthSnapshot?
   private var latestPeerValues: [String: String]?
@@ -52,16 +51,10 @@ final class WatchAppStore: ObservableObject {
     )
   }
 
-  var isTouchExchangeSharingReady: Bool {
-    if hasLaunchScenarioOverride && !requiresPhoneSocialSettingsAuthorityForTesting {
-      return true
-    }
-    return (preferences.phoneSocialSettingsAuthorityVersion ?? 0)
-      >= AppPreferences.currentPhoneSocialSettingsAuthorityVersion
-  }
-
+  /// Starting an encounter is explicit, per-session consent on Watch. A synchronized iPhone
+  /// opt-out still wins by setting `socialSharingEnabled` to false.
   var isTouchExchangeSharingEnabled: Bool {
-    isTouchExchangeSharingReady && preferences.socialSharingEnabled
+    preferences.socialSharingEnabled
   }
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
@@ -79,12 +72,9 @@ final class WatchAppStore: ObservableObject {
         } ?? .greeting
       let touchExchangeSharingEnabled =
         !arguments.contains("--touch-exchange-sharing-disabled")
-      let requiresPhoneSocialSettingsAuthorityForTesting =
-        arguments.contains("--touch-exchange-phone-authority-missing")
     #else
       let touchExchangeDemoSocialState = PublicPetSocialStateV1.greeting
       let touchExchangeSharingEnabled = true
-      let requiresPhoneSocialSettingsAuthorityForTesting = false
     #endif
     model = initialModel
     selectedDataSource =
@@ -99,8 +89,6 @@ final class WatchAppStore: ObservableObject {
       selectedBackgroundID: initialModel.scene.backgroundID
     )
     hasLaunchScenarioOverride = initialModel.dataMode != .live
-    self.requiresPhoneSocialSettingsAuthorityForTesting =
-      requiresPhoneSocialSettingsAuthorityForTesting
     if hasLaunchScenarioOverride {
       phase =
         switch initialModel.initialScreen {

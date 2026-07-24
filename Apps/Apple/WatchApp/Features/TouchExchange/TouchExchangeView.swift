@@ -2,26 +2,25 @@ import SwiftUI
 import WatchKit
 
 struct TouchExchangeView: View {
-  @StateObject private var exchange: TouchExchangeViewModel
+  @ObservedObject private var exchange: TouchExchangeViewModel
   private let socialSharingEnabled: Bool
-  private let socialSharingReady: Bool
   @State private var successPulse = false
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+  private var automaticallyConfirmsExchange: Bool {
+    #if DEBUG
+      !ProcessInfo.processInfo.arguments.contains("--touch-exchange-manual-confirm")
+    #else
+      true
+    #endif
+  }
+
   init(
-    localCard: TouchExchangeLocalCard,
-    socialSharingEnabled: Bool,
-    socialSharingReady: Bool
+    exchange: TouchExchangeViewModel,
+    socialSharingEnabled: Bool
   ) {
+    self.exchange = exchange
     self.socialSharingEnabled = socialSharingEnabled
-    self.socialSharingReady = socialSharingReady
-    _exchange = StateObject(
-      wrappedValue: TouchExchangeViewModel(
-        localCard: localCard,
-        socialSharingEnabled: socialSharingEnabled,
-        arguments: ProcessInfo.processInfo.arguments
-      )
-    )
   }
 
   var body: some View {
@@ -64,12 +63,13 @@ struct TouchExchangeView: View {
       }
       .onChange(of: socialSharingEnabled) { _, enabled in
         exchange.updateSocialSharingEnabled(enabled)
-      }
-      .onDisappear {
-        exchange.cancelIfNeeded()
+        guard enabled, exchange.phase == .idle else { return }
+        exchange.start()
       }
       .task {
         await exchange.runVisualDemoIfRequested()
+        guard exchange.phase == .idle, exchange.socialSharingEnabled else { return }
+        exchange.start()
       }
     }
   }
@@ -78,30 +78,23 @@ struct TouchExchangeView: View {
     switch exchange.phase {
     case .idle:
       explanationCard
-      Text(
-        !socialSharingReady
-          ? "正在从配对的 iPhone 自动同步好友分享设置，无需进入 iPhone 设置；完成后这里会自动可用。"
-          : exchange.socialSharingEnabled
-            ? "好友分享已默认开启。请让对方也打开这个页面，然后把两块手表靠近，系统会自动发现并提醒。"
-            : "好友分享已关闭。关闭时不会寻找设备，也不会上传公开宠物卡；可以稍后在 iPhone 隐私设置中重新开启。"
-      )
-      .font(.caption2)
-      .foregroundStyle(.secondary)
-      .fixedSize(horizontal: false, vertical: true)
-      .accessibilityIdentifier("watch.touch-exchange.sharing-gate")
-      primaryButton(
-        !socialSharingReady
-          ? "好友分享准备中"
-          : exchange.socialSharingEnabled ? "开始触碰" : "好友分享已关闭",
-        systemImage:
-          !socialSharingReady
-          ? "arrow.triangle.2.circlepath"
-          : exchange.socialSharingEnabled ? "wave.3.right" : "lock.fill"
-      ) {
-        exchange.start()
+      if exchange.socialSharingEnabled {
+        progressCard(
+          title: "准备自动发现",
+          detail: "另一块手表进入触碰交换并靠近后，会自动完成配对与交换。"
+        )
+      } else {
+        Text(
+          "好友分享已关闭。关闭时不会寻找设备，也不会上传公开宠物卡；可以稍后在 iPhone 隐私设置中重新开启。"
+        )
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityIdentifier("watch.touch-exchange.sharing-gate")
+        primaryButton("好友分享已关闭", systemImage: "lock.fill") {}
+          .disabled(true)
+          .accessibilityIdentifier("watch.touch-exchange.start")
       }
-      .disabled(!exchange.socialSharingEnabled)
-      .accessibilityIdentifier("watch.touch-exchange.start")
 
     case .joining:
       progressCard(
@@ -122,10 +115,17 @@ struct TouchExchangeView: View {
       if let peer = exchange.peerCard {
         peerCard(peer)
       }
-      primaryButton("确认交换", systemImage: "checkmark.circle.fill") {
-        exchange.confirm()
+      if automaticallyConfirmsExchange {
+        progressCard(
+          title: "距离已确认",
+          detail: "正在自动完成交换"
+        )
+      } else {
+        primaryButton("确认交换", systemImage: "checkmark.circle.fill") {
+          exchange.confirm()
+        }
+        .accessibilityIdentifier("watch.touch-exchange.confirm")
       }
-      .accessibilityIdentifier("watch.touch-exchange.confirm")
       cancelButton
 
     case .awaitingPeer:
@@ -133,15 +133,22 @@ struct TouchExchangeView: View {
         if let peer = exchange.peerCard {
           peerCard(peer)
         }
-        Text("对方已经确认。还需要你主动确认，交换才会完成。")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .fixedSize(horizontal: false, vertical: true)
-          .accessibilityIdentifier("watch.touch-exchange.peer-first-message")
-        primaryButton("确认交换", systemImage: "checkmark.circle.fill") {
-          exchange.confirm()
+        if automaticallyConfirmsExchange {
+          progressCard(
+            title: "对方已经确认",
+            detail: "正在自动完成你的确认"
+          )
+        } else {
+          Text("对方已经确认。还需要你主动确认，交换才会完成。")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("watch.touch-exchange.peer-first-message")
+          primaryButton("确认交换", systemImage: "checkmark.circle.fill") {
+            exchange.confirm()
+          }
+          .accessibilityIdentifier("watch.touch-exchange.confirm")
         }
-        .accessibilityIdentifier("watch.touch-exchange.confirm")
       } else {
         progressCard(
           title: "已确认",
@@ -260,7 +267,7 @@ struct TouchExchangeView: View {
       Label("只交换公开的宠物状态", systemImage: "lock.shield.fill")
         .font(.subheadline.weight(.semibold))
         .foregroundStyle(AdventurePalette.blue)
-      Text("双方都需要主动进入并确认。不会交换睡眠、心率、生命力或其他健康推导信息。")
+      Text("两块手表都保持 Mori 在前台，靠近后会自动交换。不会交换睡眠、心率、生命力或其他健康推导信息。")
         .font(.caption)
         .foregroundStyle(.secondary)
         .padding(.top, 4)

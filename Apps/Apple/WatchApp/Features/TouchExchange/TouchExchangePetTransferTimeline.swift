@@ -70,19 +70,21 @@ struct TouchExchangeTransferPresentation: Equatable {
     guard cue.isSupported else { return nil }
     let serverDuration = TimeInterval(cue.durationMilliseconds) / 1_000
     let scheduledEnd = cue.startsAt.addingTimeInterval(serverDuration)
-    let isLate = receivedAt >= scheduledEnd
+    let remainingScheduledPlayback = scheduledEnd.timeIntervalSince(receivedAt)
+    let minimumVisiblePlayback = min(serverDuration, 0.6)
+    let needsLateFallback = remainingScheduledPlayback < minimumVisiblePlayback
     return TouchExchangeTransferPresentation(
       eventID: cue.eventID,
       role: cue.role,
       scheduledStartsAt: cue.startsAt,
-      playbackStartsAt: isLate ? receivedAt : cue.startsAt,
-      duration: isLate ? 0.35 : serverDuration,
+      playbackStartsAt: needsLateFallback ? receivedAt : cue.startsAt,
+      duration: serverDuration,
       movingCharacterID: normalizedCharacterID(
         cue.role == .source ? localCharacterID : peerCharacterID
       ),
       localCharacterID: normalizedCharacterID(localCharacterID),
       backgroundID: normalizedBackgroundID(backgroundID),
-      isLateFallback: isLate
+      isLateFallback: needsLateFallback
     )
   }
 

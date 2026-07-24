@@ -4,10 +4,24 @@ import WatchKit
 
 struct WatchRootView: View {
   @ObservedObject var store: WatchAppStore
+  @StateObject private var exchange: TouchExchangeViewModel
+  @Environment(\.scenePhase) private var scenePhase
   @State private var interactionCount = 0
   @State private var showsDataSourcePicker = false
   @State private var sceneReactionSequence = 0
   @State private var sceneReaction: WatchSceneReaction?
+  @State private var restartsExchangeAfterCancellation = false
+
+  init(store: WatchAppStore) {
+    self.store = store
+    _exchange = StateObject(
+      wrappedValue: TouchExchangeViewModel(
+        localCard: store.touchExchangeLocalCard,
+        socialSharingEnabled: store.isTouchExchangeSharingEnabled,
+        arguments: ProcessInfo.processInfo.arguments
+      )
+    )
+  }
 
   private var model: WatchPresentationModel { store.model }
   private var showsTouchExchangeDirectly: Bool {
@@ -16,6 +30,33 @@ struct WatchRootView: View {
     #else
       false
     #endif
+  }
+
+  private var automaticallyRunsTouchExchange: Bool {
+    #if DEBUG
+      if ProcessInfo.processInfo.arguments.contains("-UITesting") {
+        return ProcessInfo.processInfo.arguments.contains("--touch-exchange-demo")
+      }
+    #endif
+    return true
+  }
+
+  private var automaticallyConfirmsTouchExchange: Bool {
+    #if DEBUG
+      !ProcessInfo.processInfo.arguments.contains("--touch-exchange-manual-confirm")
+    #else
+      true
+    #endif
+  }
+
+  private var showsAutomaticTouchExchange: Bool {
+    switch exchange.phase {
+    case .idle, .joining, .cancelling, .failed, .cancellationUnconfirmed,
+      .cancelled:
+      false
+    case .approaching, .preview, .awaitingPeer, .completed:
+      true
+    }
   }
 
   var body: some View {
@@ -31,11 +72,10 @@ struct WatchRootView: View {
       case .petIntroduction:
         WatchOnboardingView(store: store, isPetIntroduction: true)
       case .ready:
-        if showsTouchExchangeDirectly {
+        if showsTouchExchangeDirectly || showsAutomaticTouchExchange {
           TouchExchangeView(
-            localCard: store.touchExchangeLocalCard,
-            socialSharingEnabled: store.isTouchExchangeSharingEnabled,
-            socialSharingReady: store.isTouchExchangeSharingReady
+            exchange: exchange,
+            socialSharingEnabled: store.isTouchExchangeSharingEnabled
           )
         } else if let destination = store.notificationDestination {
           WatchNotificationMessageView(
@@ -49,7 +89,72 @@ struct WatchRootView: View {
     }
     .task {
       await store.start()
+      startAutomaticTouchExchangeIfAllowed()
     }
+    .task(id: exchange.phase) {
+      guard exchange.phase == .completed else { return }
+      try? await Task.sleep(for: .seconds(6))
+      guard !Task.isCancelled, exchange.phase == .completed else { return }
+      exchange.finishCompletedPresentation()
+    }
+    .onChange(of: store.phase) { _, phase in
+      guard phase == .ready else { return }
+      startAutomaticTouchExchangeIfAllowed()
+    }
+    .onChange(of: store.isTouchExchangeSharingEnabled) { _, enabled in
+      exchange.updateSocialSharingEnabled(enabled)
+      guard enabled else {
+        restartsExchangeAfterCancellation = false
+        return
+      }
+      if exchange.phase == .cancelling {
+        restartsExchangeAfterCancellation = true
+        return
+      }
+      startAutomaticTouchExchangeIfAllowed()
+    }
+    .onChange(of: exchange.phase) { _, phase in
+      guard phase == .cancelled, restartsExchangeAfterCancellation else { return }
+      restartsExchangeAfterCancellation = false
+      startAutomaticTouchExchangeIfAllowed()
+    }
+    .onChange(of: exchange.canConfirm) { _, canConfirm in
+      guard
+        canConfirm,
+        automaticallyConfirmsTouchExchange,
+        store.isTouchExchangeSharingEnabled,
+        exchange.socialSharingEnabled
+      else { return }
+      exchange.confirm()
+    }
+    .onChange(of: scenePhase) { _, phase in
+      switch phase {
+      case .active:
+        if exchange.phase == .cancelling {
+          restartsExchangeAfterCancellation = true
+        } else {
+          startAutomaticTouchExchangeIfAllowed()
+        }
+      case .inactive, .background:
+        restartsExchangeAfterCancellation = false
+        exchange.cancelIfNeeded()
+      @unknown default:
+        restartsExchangeAfterCancellation = false
+        exchange.cancelIfNeeded()
+      }
+    }
+  }
+
+  private func startAutomaticTouchExchangeIfAllowed() {
+    guard
+      automaticallyRunsTouchExchange,
+      store.phase == .ready,
+      store.isTouchExchangeSharingEnabled,
+      scenePhase == .active
+    else { return }
+    exchange.updateLocalCard(store.touchExchangeLocalCard)
+    exchange.updateSocialSharingEnabled(true)
+    exchange.start()
   }
 
   private var petHome: some View {
@@ -219,19 +324,16 @@ struct WatchRootView: View {
 
       NavigationLink {
         TouchExchangeView(
-          localCard: store.touchExchangeLocalCard,
-          socialSharingEnabled: store.isTouchExchangeSharingEnabled,
-          socialSharingReady: store.isTouchExchangeSharingReady
+          exchange: exchange,
+          socialSharingEnabled: store.isTouchExchangeSharingEnabled
         )
       } label: {
         DestinationRow(
           title: "触碰交换",
           detail:
-            !store.isTouchExchangeSharingReady
-            ? "正在自动同步好友分享"
-            : store.isTouchExchangeSharingEnabled
-              ? "和附近的宠物交换遇见卡"
-              : "好友分享已关闭",
+            store.isTouchExchangeSharingEnabled
+            ? "和附近的宠物交换遇见卡"
+            : "好友分享已关闭",
           systemImage: "wave.3.right.circle.fill"
         )
       }

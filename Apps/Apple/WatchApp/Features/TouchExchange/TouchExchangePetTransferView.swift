@@ -117,6 +117,7 @@ struct TouchExchangePetTransferView: View {
   }
 
   private func idleFrameIndex(at date: Date) -> Int {
-    Int(date.timeIntervalSinceReferenceDate * 10) % 8
+    let tick = Int64(date.timeIntervalSinceReferenceDate * 10)
+    return Int(tick % 8)
   }
 }

@@ -188,9 +188,10 @@ struct CompanionSceneView: View {
     at date: Date
   ) -> Int {
     guard let transientStartedAt, transientAnimation != nil else {
-      return Int(
+      let tick = Int64(
         date.timeIntervalSinceReferenceDate * WatchScenePresentation.framesPerSecond
-      ) % WatchScenePresentation.frameCount
+      )
+      return Int(tick % Int64(WatchScenePresentation.frameCount))
     }
     let elapsed = max(0, date.timeIntervalSince(transientStartedAt))
     let index = Int(elapsed * WatchScenePresentation.framesPerSecond)
