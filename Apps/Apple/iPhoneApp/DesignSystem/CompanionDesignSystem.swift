@@ -153,7 +153,9 @@ struct PhonePage<Content: View>: View {
     ScrollView {
       content
         .padding(.horizontal, CompanionSpacing.page)
-        .padding(.bottom, 40)
+        // Tab bars remain translucent and can visually overlap the final
+        // accessibility element while a page is scrolled to its end.
+        .padding(.bottom, 112)
     }
     .background(CompanionPalette.background.ignoresSafeArea())
   }

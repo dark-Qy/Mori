@@ -83,7 +83,7 @@ public struct RuntimeStorageLayout: Sendable {
       && Self.isWithin(namespace.rootURL, parent: ownedProfilesURL)
   }
 
-  private static func namespaceID(for profile: RuntimeProfile) -> String {
+  static func namespaceID(for profile: RuntimeProfile) -> String {
     let sourceComponents: [String]
     switch profile.source {
     case .real:

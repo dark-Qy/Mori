@@ -248,6 +248,30 @@ public actor GlobalAuthorityRepository<Storage: GlobalAuthorityStorage> {
     return result
   }
 
+  /// Atomically replaces content-bearing authority with a newer deletion
+  /// fence. Ordinary preference/consent changes must continue to use `merge`.
+  func replaceForDeletion(
+    with replacement: GlobalAuthoritySnapshot
+  ) async throws {
+    await acquireOperation()
+    defer { releaseOperation() }
+
+    let current = try await loadIfNeeded()
+    let currentProfile = current.preferences.profileSelection.profile
+    let replacementProfile = replacement.preferences.profileSelection.profile
+    guard
+      replacement.isValid,
+      replacementProfile.deletionEpoch > currentProfile.deletionEpoch,
+      replacement.preferences.companionSensing.value.enabled == false,
+      MoriConsentKind.allCases.allSatisfy({
+        replacement.consent[$0].enabled == false
+      })
+    else {
+      throw GlobalAuthorityCodecError.invalidSnapshot
+    }
+    try await persist(replacement)
+  }
+
   private func acquireOperation() async {
     guard operationIsActive else {
       operationIsActive = true

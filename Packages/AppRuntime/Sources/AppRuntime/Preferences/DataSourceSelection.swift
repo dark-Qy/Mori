@@ -101,6 +101,12 @@ public actor DataSourceSelectionRepository {
     return token
   }
 
+  public func clearForDeletion() {
+    pendingPeerPlan = nil
+    defaults.removeObject(forKey: key)
+    defaults.removeObject(forKey: tokenKey)
+  }
+
   public func loadSelectionToken() -> String? {
     defaults.string(forKey: tokenKey)
   }

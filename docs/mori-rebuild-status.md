@@ -6,11 +6,11 @@
 | --- | --- |
 | Branch | `codex/mori-product-rebuild` |
 | Base revision | `51b9a58` |
-| Current revision | G5 Mock-first Watch experience checkpoint |
-| Active goal | G6 — iPhone Experience; G4 motion merge remains deferred |
-| Goal state | G5 automated, visually verified, and independently reviewed; P0=0, P1=0 |
-| Contract | G0–G3 and G5 committed; black G4 handoff ready but not merged; white Mori deferred |
-| Simulator validation | Watch Debug/Release builds, 23/23 full UI tests on 46 mm, 40 mm core journeys, and Computer Use on both sizes pass |
+| Current revision | G6 Mock-first iPhone experience checkpoint |
+| Active goal | G7 — Authority-Bounded Mori Conversation; G4 motion merge remains deferred |
+| Goal state | G5 and the Mock-first G6 checkpoint are automated, visually verified, and independently reviewed; P0=0, P1=0 |
+| Contract | G0–G3, G5, and G6 committed by this checkpoint; black G4 handoff ready but not merged; white Mori deferred |
+| Simulator validation | Watch Debug/Release, 23/23 Watch UI tests on 46 mm, 40 mm Watch core journeys, iPhone 17 UI 9/9, iPhone 17e core/a11y journeys, Release boundary, and iPhone Computer Use pass |
 | Physical-device validation | UNVERIFIED |
 
 ## Goal Ledger
@@ -22,9 +22,9 @@
 | G2 Evidence and profile runtime | Committed | `92e5486`, `867af19` | Profile-aware `MoriRuntime`; seven deterministic Mock scenarios; normalized bounded evidence; passive inference; global/profile sensing intent fences; isolated real/Mock storage and reset; lazy production adapters and serialized mode switching; Debug 136/136, Release 130/130, CompanionCore 164/164; iPhone/Watch Debug and Release builds; independent review PASS | Complete for Mock-first runtime; physical sensors, background behavior, paired timing, haptics, power, and thermal behavior remain `DEVICE_UNVERIFIED` |
 | G3 Sync, reminder, daily memory | Committed | `dba02bd`, `344ff55`, `fe55606`, `c6c1b89` | Durable at-most-once glance fence; deterministic iPhone-owned 22:00 memory sealing; independent GSP/GCS peer sync; automatic experience transfer and Debug paired Mock link; dual-consent notification policy with durable FIFO OS outbox and delivered-state revocation; exact canonical bounded persistence; Debug 214/214, Release 206/206; four app builds; independent final review PASS | Real WatchConnectivity, app-lifecycle and notification-center adapters are deferred to G5/G6 composition; add authority-revocation integration race and long-term fence/outbox compaction |
 | G4 Mori motion system | External handoff ready; merge deferred | `codex/mori-motion-g4` / `ef80865` | Black `penguin`: 16 actions, 256 installed assets, Reduce Motion, deterministic priority/interruption/cooldown/recovery/fallback/haptic policy; validator 7/7 and runtime 24/24; independent code/visual review has no blocker | Per current scope, do not merge while establishing the UI; when integrating, remove three legacy placeholder mappings. White `polar_bear` is explicitly deferred and disabled; physical Watch playback remains unverified |
-| G5 Watch experience | Committed | This checkpoint | Cardless full-scene home; tap/long-press hierarchy; native companion/settings/letters; one recommended Today task; exact-fact daily memory; isolated durable Mock glance/task receipts; GSP-backed local preferences; real mode fails closed as waiting; AppRuntime 217/217; Watch UI 23/23 on 46 mm; 40 mm layout/a11y journeys; Debug/Release, strict checks, Release boundary, Computer Use, and independent review PASS | Complete for the approved Mock-first scope without G4 motion; physical haptics/background behavior remain `DEVICE_UNVERIFIED`; continue G6 |
-| G6 iPhone experience | Pending | — | Route/state and UI journeys assigned | Depends on G2, G3, G4, G7 |
-| G7 Mori conversation | Pending | — | Authority and privacy ADR plus adversarial cases assigned | Depends on G2, G3 |
+| G5 Watch experience | Committed | `ef8ef2f` | Cardless full-scene home; tap/long-press hierarchy; native companion/settings/letters; one recommended Today task; exact-fact daily memory; isolated durable Mock glance/task receipts; GSP-backed local preferences; real mode fails closed as waiting; AppRuntime 217/217; Watch UI 23/23 on 46 mm; 40 mm layout/a11y journeys; Debug/Release, strict checks, Release boundary, Computer Use, and independent review PASS | Complete for the approved Mock-first scope without G4 motion; physical haptics/background behavior remain `DEVICE_UNVERIFIED`; continue G6 |
+| G6 iPhone experience | Mock-first checkpoint committed | This checkpoint | Four-tab native hierarchy; full-scene Mori presence and local Mock conversation; one recommended Today task with exact facts; sealed-memory-only empty state; coin catalog and idempotent purchase/equip; native Settings with companion/reminder/quiet hours, sharing, local data mode, honest automatic-sync status, Apple Settings recovery, and fenced all-data deletion; real/Mock profile isolation; authority-atomic sensing settlement; durable real identity; runtime 7/7, phone unit 17/17, iPhone 17 UI 9/9, and iPhone 17e core/a11y coverage; Debug/Release, strict checks, Release boundary, Computer Use, and independent review PASS | Real conversation processor, remote/social deletion processors, Watch deletion/sync transport, G4 motion, adaptive appearance matrix, and physical-device behavior remain owned by G7–G9 or `DEVICE_UNVERIFIED` |
+| G7 Mori conversation | Pending | — | The G6 UI has a bounded local Mock shell; streaming, cancellation, retry, malformed/oversize handling, and authority-bounded real processing remain assigned | Depends on G2, G3 |
 | G8 End-to-end product loops | Pending | — | Cross-device cases assigned | Depends on G5, G6, G7 |
 | G9 Release and open-source quality | Pending | — | Release and open-source gates assigned | Depends on G8 |
 
@@ -64,11 +64,20 @@
 | `Scripts/check`, `Scripts/test-release-boundaries`, and `git diff --check` | G5 Watch tree | PASS; Release contains no fixture resources, selectors, or Mock identifiers |
 | Computer Use visual review | G5 Watch tree | PASS on 46 mm home/settings/memory and 40 mm home; no clipping or Mori/text overlap observed |
 | Independent G5 review | G5 Watch tree | PASS; P0=0, P1=0 |
+| `MoriGlobalPreferenceRuntimeTests` | G6 iPhone tree | PASS: 7/7, including sensing epochs, durable real identity, and deletion-root-preserving real/Mock round trips |
+| `PhoneAppTests` | G6 iPhone tree | PASS: 17/17, including source-event cooldowns, at-most-once rewards and purchases, profile isolation, late sensing revocation, collection independence, and fenced global Mock deletion |
+| iPhone product UI journeys | G6 iPhone tree | PASS: 9/9 on iPhone 17, covering four-tab hierarchy, cardless Mori home, bounded local conversation, one-coin Today settlement across relaunch, sealed-memory-only history, collection purchase/equip persistence, invalid-Mock fail-closed behavior, settings ownership, and destructive deletion; core hierarchy also passes on iPhone 17e |
+| iPhone accessibility audit | G6 iPhone tree | PASS across Mori, Today, Memories, Collection, and Settings on iPhone 17 and iPhone 17e; the iOS 26 audit-only translucent-tab overlap is narrowly identified rather than disabling other categories |
+| iPhone Debug and generic Release builds | G6 iPhone tree | PASS without product-source compile warnings |
+| `Scripts/check`, `Scripts/test-release-boundaries`, and `git diff --check` | G6 iPhone tree | PASS; Release contains no fixture resources, selectors, or Mock identifiers |
+| Computer Use visual and functional review | G6 iPhone tree | PASS for Mori Home, Today, empty Memories, Settings, honest sync state, Apple Settings recovery, and delete-confirmation scope on iPhone 17; small-screen Mori Home and Collection preview also visually pass on iPhone 17e |
+| Independent G6 review | G6 iPhone tree | PASS; P0=0, P1=0 after closing late sensing settlement, deletion-root rollback, and durable-real round-trip counterexamples |
 
 ### EXACT BASELINE FAILURES
 
 These tests describe the pre-rebuild UI and are not accepted product behavior.
-They remain exact evidence until their owning G5/G6 replacements pass.
+Their G5/G6 replacements now pass; the failures remain below only as exact
+historical baseline evidence.
 
 #### iPhone UI
 
@@ -127,11 +136,9 @@ current product behavior.
 
 ### NOT RUN
 
-- Dedicated `Scripts/test-accessibility`; contrast failures are already present
-  in both platform E2E suites, but this command still needs a fresh result.
-- Computer Use visual review of the rebuilt iPhone UI.
-
-Computer Use remains a mandatory G6 gate for the rebuilt iPhone surfaces.
+- Dedicated `Scripts/test-accessibility`; the rebuilt platform-specific UI
+  audits pass, but this aggregate wrapper still needs a fresh result.
+- Physical iPhone and Watch validation.
 
 ### UNVERIFIED EXTERNAL CAPABILITIES
 
@@ -197,12 +204,26 @@ Non-blocking follow-up for later runtime goals:
 | Initial G5 Watch UI review | first rebuilt Watch tree | FAIL: P0=0, P1=6 | Closed persistence/availability, evidence-grounded memory, reward authority, haptic duplication, permission wording, and quiet-hour validity; added durable restart coverage |
 | G5 boundary re-review | corrected Watch tree | FAIL: P0=0, P1=2 | Bound availability to Mock profiles; atomically terminalized presented, replaced, expired, disabled, and invalid glance candidates |
 | G5 final review | final Watch tree | PASS; P0=0, P1=0 | 217 runtime tests, 23 Watch UI tests, 40 mm coverage, Debug/Release, strict checks, Release boundary, Computer Use, and exact Mock/real fail-closed behavior passed |
+| Initial G6 iPhone review | first complete Mock-first iPhone tree | FAIL: P0=0, P1=4 | Closed stale-sensing settlement, cross-profile presentation leakage, fenced full deletion plus Apple Settings recovery, and strict lint |
+| G6 authority/deletion re-review | first corrected iPhone tree | FAIL: P0=0, P1=2 | Made sensing validation and synchronous ledger settlement one authority-actor operation; preserved deletion roots across profile switches |
+| G6 durable-real re-review | second corrected iPhone tree | FAIL: P0=0, P1=1 | Reproduced and fixed normal `real → Mock → real` identity loss; real storage now derives stably from the deletion root |
+| G6 final review | final Mock-first iPhone tree | PASS; P0=0, P1=0 | Runtime 7/7, Phone tests 17/17, product UI and accessibility journeys, Debug/Release, strict checks, Release boundary, Computer Use, and all three exact counterexamples passed |
 
 The G1 reviewer recorded one non-blocking G2/G3 follow-up: the inference and
 daily-memory authority must bind memory eligibility to sensing/source-event
 authority so a disabled `Mori 随行` interval cannot create a memory or be
 backfilled after re-enable. G1's generic memory record alone does not prove this
 runtime privacy behavior.
+
+G6 keeps three explicit non-blocking follow-ups:
+
+- before Watch deletion transport is enabled, peer merge must reject a newer
+  selection revision that carries an older deletion root;
+- replace the current tested 112-point phone-page bottom reserve with a
+  tab-bar/safe-area-derived value when the deployment API can express it
+  consistently across supported systems;
+- narrow the remaining iOS 26 native-Form contrast exemption as XCTest's
+  standard-control reporting becomes stable.
 
 ## Recovery Rule
 

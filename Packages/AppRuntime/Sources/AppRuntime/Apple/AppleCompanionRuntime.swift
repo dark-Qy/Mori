@@ -367,6 +367,32 @@
       await client.cancel(id: "pet.state-of-mind.check-in")
     }
 
+    /// Clears every app-owned local store currently composed by this runtime.
+    ///
+    /// A higher-level deletion coordinator must persist the global deletion
+    /// fence before calling this method. HealthKit records and Apple permission
+    /// choices are system-owned and intentionally remain untouched.
+    public func deleteAllLocalData() async throws {
+      await acquireProductionMutation()
+      defer { releaseProductionMutation() }
+
+      selectionGeneration &+= 1
+      selectionTransitionTarget = nil
+      peerSyncTask?.cancel()
+      peerSyncTask = nil
+      careScheduleInFlight.removeAll()
+
+      await notificationClient().cancelAll()
+      _ = try await events.replace(with: [])
+      try await preferences.save(AppPreferences())
+      await dataSourceSelection.clearForDeletion()
+      try await managementOutbox.clearForDeletion()
+
+      health = nil
+      notifications = nil
+      connectivity = nil
+    }
+
     public func latestPeerState() async -> CompanionSyncState? {
       await acquireProductionMutation()
       defer { releaseProductionMutation() }

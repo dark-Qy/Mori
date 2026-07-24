@@ -1,295 +1,225 @@
-import AppRuntime
 import SwiftUI
 
-struct WardrobeView: View {
+struct PhoneCollectionView: View {
   @ObservedObject var store: PhoneAppStore
+  @State private var category = PhoneCollectionCategory.clothing
 
-  private let items = WardrobeItem.samples
-  private let characters = CompanionCharacterOption.all
-  private let backgrounds = CompanionBackgroundOption.all
-  private var model: PhonePresentationModel { store.model }
-  private var equippedItemID: String { store.preferences.selectedOutfitID }
-  private var previewItemID: String { store.previewOutfitID }
-  private var previewedItem: WardrobeItem? { items.first { $0.id == previewItemID } }
-  private var previewIsUnlocked: Bool { store.unlockedOutfitIDs.contains(previewItemID) }
-  private var selectedCharacterID: String {
-    store.preferences.selectedCharacterIDs.first ?? CompanionVisualCatalog.defaultCharacterID
+  private var visibleItems: [PhoneCollectionItem] {
+    PhoneCollectionItem.catalog.filter { $0.category == category }
   }
 
+  private let columns = [
+    GridItem(.adaptive(minimum: 145), spacing: CompanionSpacing.medium)
+  ]
+
   var body: some View {
-    List {
-      Section {
-        PhoneDataBadge(model: model)
-          .listRowBackground(Color.clear)
-      }
+    PhonePage {
+      VStack(alignment: .leading, spacing: CompanionSpacing.large) {
+        balanceHeader
+          .padding(.top, CompanionSpacing.small)
 
-      Section("场景预览") {
-        CompanionScenePreview(
-          characterID: selectedCharacterID,
-          backgroundID: store.preferences.selectedBackgroundID
-        )
-        .listRowInsets(EdgeInsets())
-        .accessibilityIdentifier("phone.companion-preview")
-      }
+        collectionPreview
 
-      Section {
-        ForEach(characters) { character in
-          Button {
-            store.selectCharacter(character.id)
-          } label: {
-            HStack(spacing: CompanionSpacing.medium) {
-              Image("character_\(character.id)_idle_neutral_00")
-                .resizable()
-                .interpolation(.none)
-                .scaledToFit()
-                .frame(width: 54, height: 58)
-              VStack(alignment: .leading, spacing: 2) {
-                Text(character.name)
-                  .foregroundStyle(CompanionPalette.ink)
-                Text(character.detail)
-                  .font(.caption)
-                  .foregroundStyle(CompanionPalette.secondaryText)
-              }
-              Spacer()
-              if selectedCharacterID == character.id {
-                Image(systemName: "checkmark")
-                  .fontWeight(.semibold)
-                  .foregroundStyle(CompanionPalette.mint)
-              }
+        Picker("收藏分类", selection: $category) {
+          ForEach(PhoneCollectionCategory.allCases) { value in
+            Text(value.title).tag(value)
+          }
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("phone.collection.category")
+
+        if store.companionExperienceAvailable {
+          LazyVGrid(columns: columns, spacing: CompanionSpacing.medium) {
+            ForEach(visibleItems) { item in
+              collectionItem(item)
             }
           }
-          .buttonStyle(.plain)
-          .accessibilityIdentifier("phone.character.\(character.id)")
-        }
-      } header: {
-        Text("初始角色")
-      } footer: {
-        Text("当前主页显示一个角色；数据结构已为未来双角色位保留顺序。")
-      }
-
-      Section("共享背景") {
-        ScrollView(.horizontal) {
-          LazyHStack(spacing: CompanionSpacing.medium) {
-            ForEach(backgrounds) { background in
-              Button {
-                store.selectBackground(background.id)
-              } label: {
-                ZStack(alignment: .topTrailing) {
-                  Image("scene_\(background.id)_small")
-                    .resizable()
-                    .interpolation(.none)
-                    .scaledToFill()
-                    .frame(width: 104, height: 128)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                  if store.preferences.selectedBackgroundID == background.id {
-                    Image(systemName: "checkmark.circle.fill")
-                      .symbolRenderingMode(.palette)
-                      .foregroundStyle(.white, CompanionPalette.mint)
-                      .padding(7)
-                  }
-                }
-              }
-              .buttonStyle(.plain)
-              .accessibilityLabel(
-                "\(background.name)\(store.preferences.selectedBackgroundID == background.id ? "，正在使用" : "")"
-              )
-              .accessibilityIdentifier("phone.background.\(background.id)")
-            }
-          }
-          .padding(.vertical, 4)
-        }
-        .scrollIndicators(.hidden)
-      }
-
-      Section {
-        ForEach(items) { item in
-          VStack(alignment: .leading, spacing: CompanionSpacing.small) {
-            Button {
-              store.previewOutfit(item.id)
-            } label: {
-              HStack(spacing: CompanionSpacing.medium) {
-                Image(systemName: item.overlaySymbol ?? "pawprint.fill")
-                  .font(.title3)
-                  .foregroundStyle(item.color)
-                  .frame(width: 32)
-                Text(item.name)
-                  .foregroundStyle(CompanionPalette.ink)
-                Spacer()
-                if equippedItemID == item.id {
-                  Image(systemName: "checkmark")
-                    .fontWeight(.semibold)
-                    .foregroundStyle(CompanionPalette.mint)
-                } else if previewItemID == item.id {
-                  Image(systemName: "eye.fill")
-                    .foregroundStyle(CompanionPalette.blue)
-                } else if !store.unlockedOutfitIDs.contains(item.id) {
-                  Image(systemName: "lock.fill")
-                    .foregroundStyle(CompanionPalette.secondaryText)
-                }
-              }
-              .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(
-              "\(item.name)\(equippedItemID == item.id ? "，已装备" : "")\(store.unlockedOutfitIDs.contains(item.id) ? "" : "，未解锁")"
+        } else {
+          ContentUnavailableView(
+            store.model.allowsInteraction ? "收藏账本待接入" : "Mock 场景无效",
+            systemImage: "heart.slash",
+            description: Text(
+              store.model.allowsInteraction
+                ? "真实数据模式不会回退到演示金币和收藏。"
+                : "请到设置中选择有效的 Mock 数据。"
             )
-            .accessibilityIdentifier("phone.wardrobe.preview.\(item.id)")
-
-            if previewItemID == item.id {
-              Text(
-                previewItemID == equippedItemID
-                  ? "当前已装备：\(previewedItem?.name ?? "基础外观")"
-                  : "正在预览：\(previewedItem?.name ?? "基础外观")"
-              )
-              .font(.footnote)
-              .foregroundStyle(CompanionPalette.secondaryText)
-              .accessibilityIdentifier("phone.wardrobe-selection-state")
-
-              if previewIsUnlocked {
-                if previewItemID == equippedItemID {
-                  Label("已装备", systemImage: "checkmark.circle.fill")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(CompanionPalette.mint)
-                    .accessibilityIdentifier("phone.wardrobe.equipped-status")
-                } else {
-                  Button {
-                    store.equipPreviewedOutfit()
-                  } label: {
-                    Label("装备这件装扮", systemImage: "tshirt.fill")
-                      .frame(maxWidth: .infinity)
-                  }
-                  .buttonStyle(.borderedProminent)
-                  .tint(CompanionPalette.mint)
-                  .disabled(store.isSavingPreferences)
-                  .accessibilityIdentifier("phone.wardrobe.equip")
-                }
-              } else {
-                Label("还未解锁；可以预览，但不能装备", systemImage: "lock.fill")
-                  .font(.footnote.weight(.semibold))
-                  .foregroundStyle(CompanionPalette.secondaryText)
-                  .accessibilityIdentifier("phone.wardrobe.locked-reason")
-              }
-            }
-          }
+          )
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, 34)
+          .accessibilityIdentifier("phone.collection.unavailable")
         }
 
-        if equippedItemID != "default" {
-          Button("恢复默认外观") {
-            store.resetOutfit()
-          }
-          .disabled(store.isSavingPreferences)
-          .accessibilityIdentifier("phone.wardrobe.reset")
-        }
-      } header: {
-        Text("装扮")
-      } footer: {
         if let status = store.statusMessage {
           Text(status)
-            .accessibilityIdentifier("phone.wardrobe-sync-status")
+            .font(.footnote)
+            .foregroundStyle(CompanionPalette.secondaryText)
+            .accessibilityIdentifier("phone.collection.status")
         }
       }
     }
-    .listStyle(.insetGrouped)
-    .navigationTitle("伙伴与场景")
-    .accessibilityIdentifier("phone.wardrobe")
+    .navigationTitle("收藏")
+    .accessibilityIdentifier("phone.collection")
   }
-}
 
-private struct CompanionScenePreview: View {
-  let characterID: String
-  let backgroundID: String
+  private var balanceHeader: some View {
+    HStack(alignment: .firstTextBaseline) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text("伙伴与场景")
+          .font(.title2.bold())
+        Text("这里只保留已经拥有和可以获得的外观。")
+          .font(.subheadline)
+          .foregroundStyle(CompanionPalette.secondaryText)
+      }
+      Spacer()
+      if store.companionExperienceAvailable {
+        Label(
+          "\(store.activeCoinBalance)",
+          systemImage: "circle.fill"
+        )
+        .font(.headline)
+        .foregroundStyle(CompanionPalette.gold)
+        .accessibilityLabel("金币 \(store.activeCoinBalance) 枚")
+        .accessibilityIdentifier("phone.collection.coins")
+      }
+    }
+  }
 
-  var body: some View {
+  private var collectionPreview: some View {
     ZStack(alignment: .bottom) {
-      Image("scene_\(backgroundID)_large")
+      Image("scene_\(store.selectedSceneID)_large")
         .resizable()
         .interpolation(.none)
         .scaledToFill()
-        .frame(maxWidth: .infinity)
-        .aspectRatio(416 / 496, contentMode: .fit)
-        .clipped()
-      Image("character_\(characterID)_idle_neutral_00")
+
+      LinearGradient(
+        colors: [.clear, .black.opacity(0.16)],
+        startPoint: .center,
+        endPoint: .bottom
+      )
+
+      Image("character_penguin_idle_lively_00")
         .resizable()
         .interpolation(.none)
         .scaledToFit()
         .frame(width: 180, height: 196)
-        .padding(.bottom, 30)
+        .padding(.bottom, 12)
+
+      equippedItemSymbols
+
+      Text("黑色 Mori")
+        .font(.caption.bold())
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.black.opacity(0.72), in: Capsule())
+        .padding(.bottom, 12)
+        .padding(.leading, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
-    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    .aspectRatio(1.55, contentMode: .fit)
+    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("角色与背景预览")
-    .accessibilityValue("\(characterName)，\(backgroundName)")
+    .accessibilityLabel("收藏预览，黑色 Mori")
+    .accessibilityIdentifier("phone.collection.preview")
   }
 
-  private var characterName: String {
-    characterID == "polar_bear" ? "白熊伙伴" : "企鹅伙伴"
-  }
-
-  private var backgroundName: String {
-    switch backgroundID {
-    case "spring_meadow_stream": "春日花溪"
-    case "rainy_cabin_dusk": "雨夜木屋"
-    case "moonlit_forest_camp": "月光森林营地"
-    case "snow_birch_sunrise": "雪林日出"
-    case "summer_lake": "夏日湖畔"
-    case "rainy_reading_room": "雨日阅读室"
-    case "aurora_observatory": "极光观星台"
-    case "sunset_coast": "黄昏海岸"
-    case "lantern_festival_square": "灯火节日广场"
-    default: "冰海白昼"
+  @ViewBuilder
+  private var equippedItemSymbols: some View {
+    let clothing = PhoneCollectionItem.catalog.first(where: {
+      $0.id == store.mockExperience.equippedItemID
+        && $0.id != "default"
+    })
+    let accessory = store.mockExperience.equippedAccessoryID.flatMap {
+      accessoryID in
+      PhoneCollectionItem.catalog.first(where: { $0.id == accessoryID })
+    }
+    if clothing != nil || accessory != nil {
+      HStack(spacing: 8) {
+        if let clothing {
+          Image(systemName: clothing.symbol)
+        }
+        if let accessory {
+          Image(systemName: accessory.symbol)
+        }
+      }
+      .font(.title3.bold())
+      .foregroundStyle(CompanionPalette.mint)
+      .padding(8)
+      .background(.black.opacity(0.46), in: Capsule())
+      .padding(12)
+      .frame(
+        maxWidth: .infinity,
+        maxHeight: .infinity,
+        alignment: .topTrailing
+      )
+      .accessibilityHidden(true)
     }
   }
-}
 
-private struct CompanionCharacterOption: Identifiable {
-  let id: String
-  let name: String
-  let detail: String
+  private func collectionItem(_ item: PhoneCollectionItem) -> some View {
+    let isOwned = store.mockExperience.ownedItemIDs.contains(item.id)
+    let isEquipped = store.mockExperience.isEquipped(item)
 
-  static let all = [
-    CompanionCharacterOption(id: "penguin", name: "企鹅伙伴", detail: "黑发、蓝灰眼睛与企鹅装"),
-    CompanionCharacterOption(id: "polar_bear", name: "白熊伙伴", detail: "灰发、琥珀眼睛与白熊装"),
-  ]
-}
+    return VStack(alignment: .leading, spacing: CompanionSpacing.small) {
+      itemArtwork(item)
 
-private struct CompanionBackgroundOption: Identifiable {
-  let id: String
-  let name: String
+      Text(item.title)
+        .font(.subheadline.bold())
+        .lineLimit(1)
 
-  static let all = [
-    CompanionBackgroundOption(id: "ice_ocean_day", name: "冰海白昼"),
-    CompanionBackgroundOption(id: "spring_meadow_stream", name: "春日花溪"),
-    CompanionBackgroundOption(id: "rainy_cabin_dusk", name: "雨夜木屋"),
-    CompanionBackgroundOption(id: "moonlit_forest_camp", name: "月光森林营地"),
-    CompanionBackgroundOption(id: "snow_birch_sunrise", name: "雪林日出"),
-    CompanionBackgroundOption(id: "summer_lake", name: "夏日湖畔"),
-    CompanionBackgroundOption(id: "rainy_reading_room", name: "雨日阅读室"),
-    CompanionBackgroundOption(id: "aurora_observatory", name: "极光观星台"),
-    CompanionBackgroundOption(id: "sunset_coast", name: "黄昏海岸"),
-    CompanionBackgroundOption(id: "lantern_festival_square", name: "灯火节日广场"),
-  ]
-}
+      if isEquipped {
+        Label("使用中", systemImage: "checkmark.circle.fill")
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(CompanionPalette.mint)
+      } else if isOwned {
+        Button("使用") {
+          Task { await store.equip(item) }
+        }
+        .buttonStyle(.bordered)
+        .disabled(store.isSavingMockExperience)
+        .accessibilityIdentifier("phone.collection.use.\(item.id)")
+      } else {
+        Button {
+          Task { await store.purchase(item) }
+        } label: {
+          Label("\(item.price)", systemImage: "circle.fill")
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(CompanionPalette.mint)
+        .disabled(store.isSavingMockExperience)
+        .accessibilityLabel("用 \(item.price) 枚金币收藏 \(item.title)")
+        .accessibilityIdentifier("phone.collection.buy.\(item.id)")
+      }
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(
+      CompanionPalette.surface,
+      in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+    )
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("phone.collection.item.\(item.id)")
+  }
 
-private struct WardrobeItem: Identifiable {
-  let id: String
-  let name: String
-  let overlaySymbol: String?
-  let color: Color
-
-  static let samples = [
-    WardrobeItem(
-      id: "default", name: "基础外观", overlaySymbol: nil, color: CompanionPalette.mint),
-    WardrobeItem(
-      id: "soccer_scarf", name: "球场围巾", overlaySymbol: "wind",
-      color: CompanionPalette.rose),
-    WardrobeItem(
-      id: "scarf", name: "冒险围巾", overlaySymbol: "wind", color: CompanionPalette.rose),
-    WardrobeItem(
-      id: "leaf", name: "发光叶子", overlaySymbol: "leaf.fill", color: CompanionPalette.mint),
-    WardrobeItem(
-      id: "star", name: "守夜星星", overlaySymbol: "star.fill", color: CompanionPalette.gold),
-    WardrobeItem(
-      id: "drop", name: "雨滴徽章", overlaySymbol: "drop.fill", color: CompanionPalette.blue),
-  ]
+  @ViewBuilder
+  private func itemArtwork(_ item: PhoneCollectionItem) -> some View {
+    if let sceneID = item.sceneID {
+      Image("scene_\(sceneID)_small")
+        .resizable()
+        .interpolation(.none)
+        .scaledToFill()
+        .aspectRatio(1.3, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityHidden(true)
+    } else {
+      Image(systemName: item.symbol)
+        .font(.system(size: 34, weight: .medium))
+        .foregroundStyle(CompanionPalette.mint)
+        .frame(maxWidth: .infinity)
+        .frame(height: 94)
+        .background(CompanionPalette.mintSoft)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityHidden(true)
+    }
+  }
 }

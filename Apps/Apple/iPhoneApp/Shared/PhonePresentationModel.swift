@@ -12,22 +12,16 @@ enum PhoneDataMode: Equatable {
   case invalidMock(String)
 }
 
+/// Product-facing iPhone state for the Mori rebuild.
+///
+/// Legacy levels, vitality, stories, health trends, and dashboard verdicts
+/// intentionally stop at the compatibility runtime and never enter this model.
 struct PhonePresentationModel {
   let dataMode: PhoneDataMode
   let initialScreen: PhoneInitialScreen
   let wardrobe: PhoneWardrobePresentation
-  let level: Int
-  let vitality: Int
-  let mood: String
-  let syncStatus: String
   let metrics: [PhoneMetric]
-  let questTitle: String
-  let questDetail: String
-  let questProgress: Double
-  let history: [PhoneHistoryDay]
-  let trendSummary: String
-  let activityLog: [PhoneActivityLog]
-  let dataExplanation: String
+  let sealedMemories: [PhoneMemoryPresentation]
 
   var mockScenario: PhoneMockScenario? {
     guard case .mock(let scenario) = dataMode else { return nil }
@@ -36,12 +30,30 @@ struct PhonePresentationModel {
 
   var isLive: Bool { dataMode == .live }
 
-  static func initial(arguments: [String] = ProcessInfo.processInfo.arguments) -> Self {
+  var allowsInteraction: Bool {
+    if case .invalidMock = dataMode { return false }
+    return true
+  }
+
+  var sleepMinutes: Int? {
+    metrics.first(where: { $0.id == "sleep" })?.numericValue
+  }
+
+  var stepCount: Int? {
+    metrics.first(where: { $0.id == "steps" })?.numericValue
+  }
+
+  static func initial(
+    arguments: [String] = ProcessInfo.processInfo.arguments
+  ) -> Self {
     #if DEBUG
       switch debugScenarioSelection(arguments: arguments) {
-      case .none: return liveNoData()
-      case .scenario(let seed): return mock(seed: seed)
-      case .invalid(let requestedID): return invalidMock(requestedID)
+      case .none:
+        return liveNoData()
+      case .scenario(let seed):
+        return mock(seed: seed)
+      case .invalid(let requestedID):
+        return invalidMock(requestedID)
       }
     #else
       return liveNoData()
@@ -50,76 +62,27 @@ struct PhonePresentationModel {
 
   static func live(
     companion: CompanionState,
-    health: HealthSnapshot?,
-    trend: PersonalHealthTrend?,
-    syncStatus: String,
-    now: Date = Date(),
-    timeZone: TimeZone = .current
+    health: HealthSnapshot?
   ) -> Self {
-    let sleep = health?.sleepMinutes
-    let steps = health?.steps
-    let rhythmKnown = health?.sleepWindowStart != nil && health?.sleepWindowEnd != nil
-    let rhythmValue = rhythmKnown ? observationText(trend, metric: .sleepTiming) : "--"
-    let points = makeHistory(from: trend)
-    return PhonePresentationModel(
+    PhonePresentationModel(
       dataMode: .live,
-      initialScreen: .overview,
-      wardrobe: .phaseOneDefault,
-      level: max(1, companion.growth.vitality / 100 + 1),
-      vitality: min(100, companion.growth.vitality % 100),
-      mood: moodText(
-        companion.pet.mood,
-        hasHealth: health?.hasAnyMetric == true,
-        relationship: companion.pet.relationshipPresence(at: now, timeZone: timeZone)
+      initialScreen: .mori,
+      wardrobe: PhoneWardrobePresentation(
+        selectedOutfitID: companion.pet.equippedOutfitID ?? "default",
+        unlockedOutfitIDs: [],
+        previewOutfitID: companion.pet.equippedOutfitID ?? "default",
+        peerSyncAvailable: nil
       ),
-      syncStatus: syncStatus,
       metrics: [
-        PhoneMetric(
-          id: "recovery",
-          title: "恢复",
-          value: sleep.map(sleepText) ?? "--",
-          accessibilityValue: sleep.map(sleepAccessibilityText) ?? "暂无睡眠数据",
-          detail: sleep == nil ? "尚无可用睡眠" : "最近一次睡眠",
-          symbol: "moon.stars.fill"
-        ),
-        PhoneMetric(
-          id: "activity",
-          title: "活动",
-          value: steps.map(stepText) ?? "--",
-          accessibilityValue: steps.map { "\($0) 步" } ?? "暂无步数数据",
-          detail: steps == nil ? "尚无今日步数" : "今日累计步数",
-          symbol: "figure.walk"
-        ),
-        PhoneMetric(
-          id: "rhythm",
-          title: "节律",
-          value: rhythmValue,
-          accessibilityValue: rhythmKnown ? rhythmValue : "暂无节律数据",
-          detail: rhythmKnown ? "与个人历史比较" : "需要更多睡眠记录",
-          symbol: "waveform.path.ecg"
-        ),
+        PhoneMetric(id: "sleep", numericValue: health?.sleepMinutes),
+        PhoneMetric(id: "steps", numericValue: health?.steps),
       ],
-      questTitle: mainStoryTitle(companion.story),
-      questDetail: companion.story.completedBeatIDs.count >= 7
-        ? "七日主线已完成；可以继续探索日常与随机支线。"
-        : "和 Mori 完成今天的故事片段；健康状态不会阻挡主线，每天推进一次。",
-      questProgress: min(1, Double(companion.story.completedBeatIDs.count) / 7),
-      history: points,
-      trendSummary: trendSummary(trend),
-      activityLog: liveActivityLog(health: health, companion: companion),
-      dataExplanation: health?.hasAnyMetric == true
-        ? "来自本机 HealthKit。规则只与个人历史比较；缺失数据不会扣除生命力。"
-        : "尚无可用 HealthKit 数据。可能尚未授权，或今天没有对应记录；缺失数据保持中性。"
+      sealedMemories: []
     )
   }
 
   static func liveNoData() -> Self {
-    live(
-      companion: CompanionState(),
-      health: nil,
-      trend: nil,
-      syncStatus: "等待本机数据"
-    )
+    live(companion: CompanionState(), health: nil)
   }
 
   #if DEBUG
@@ -129,64 +92,11 @@ struct PhonePresentationModel {
         arguments: ["--mock-scenario=\(fixtureID)"],
         enabled: true
       ) {
-      case .scenario(let seed): return mock(seed: seed)
-      case .none, .invalid: return invalidMock(fixtureID)
+      case .scenario(let seed):
+        return mock(seed: seed)
+      case .none, .invalid:
+        return invalidMock(fixtureID)
       }
-    }
-  #endif
-
-  #if DEBUG
-    func addingMockCareMessage() -> Self {
-      guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
-      var log = activityLog.filter { $0.id != "mock2-care" }
-      log.insert(
-        PhoneActivityLog(
-          id: "mock2-care",
-          title: "Mori 来关心你了",
-          detail: "不用解释，要不要和我安静待一会儿？",
-          time: "刚刚",
-          symbol: "heart.text.square.fill"
-        ),
-        at: 0
-      )
-      return PhonePresentationModel(
-        dataMode: dataMode,
-        initialScreen: initialScreen,
-        wardrobe: wardrobe,
-        level: level,
-        vitality: vitality,
-        mood: mood,
-        syncStatus: syncStatus,
-        metrics: metrics,
-        questTitle: questTitle,
-        questDetail: questDetail,
-        questProgress: questProgress,
-        history: history,
-        trendSummary: trendSummary,
-        activityLog: log,
-        dataExplanation: dataExplanation
-      )
-    }
-
-    func resolvingMockRelationship() -> Self {
-      guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
-      return PhonePresentationModel(
-        dataMode: dataMode,
-        initialScreen: initialScreen,
-        wardrobe: wardrobe,
-        level: level,
-        vitality: vitality,
-        mood: "Mori 安心了一点，想和你安静待一会儿",
-        syncStatus: syncStatus,
-        metrics: metrics,
-        questTitle: questTitle,
-        questDetail: questDetail,
-        questProgress: questProgress,
-        history: history,
-        trendSummary: trendSummary,
-        activityLog: activityLog,
-        dataExplanation: dataExplanation
-      )
     }
   #endif
 
@@ -194,20 +104,10 @@ struct PhonePresentationModel {
     let base = liveNoData()
     return PhonePresentationModel(
       dataMode: .invalidMock(value),
-      initialScreen: .overview,
+      initialScreen: .mori,
       wardrobe: .unavailable,
-      level: base.level,
-      vitality: base.vitality,
-      mood: "Mock 场景无效，已停止读取真实数据",
-      syncStatus: "无效 Mock：\(value)",
       metrics: base.metrics,
-      questTitle: base.questTitle,
-      questDetail: base.questDetail,
-      questProgress: base.questProgress,
-      history: [],
-      trendSummary: "无演示数据",
-      activityLog: [],
-      dataExplanation: "Mock 场景名称无效；为避免误读真实 HealthKit，当前保持中性且不访问 Apple 能力。"
+      sealedMemories: []
     )
   }
 
@@ -226,207 +126,66 @@ struct PhonePresentationModel {
             withExtension: "json",
             subdirectory: "MockScenarios"
           )
-        else { return nil }
+        else {
+          return nil
+        }
         return try? Data(contentsOf: url)
       }
     }
 
     private static func mock(seed: DebugScenarioSeed) -> Self {
-      let base = live(
-        companion: seed.companionState,
-        health: seed.healthSnapshot,
-        trend: nil,
-        syncStatus: seed.syncAvailable ? "Mock：模拟手表可达" : "Mock：手表暂不可达",
-        now: seed.now,
-        timeZone: TimeZone(identifier: seed.timeZoneIdentifier) ?? .current
-      )
-      let scenario = PhoneMockScenario(id: seed.id, displayName: seed.displayName)
-      let fallbackExplanation =
-        seed.narrationState == .localFallback
-        ? " AI 服务不可用或响应无效，当前使用经过审核的本地表达；规则结果不变。" : ""
-      let mockHealthExplanation =
-        "模拟健康数据只会在可用且新鲜时进入规则；仅使用场景中已知的指标，缺失或过期数据保持中性。"
       let initialScreen: PhoneInitialScreen =
         switch seed.primaryState {
-        case .onboarding: .onboarding
-        case .wardrobe: .wardrobe
-        case .petIntroduction, .petHome: .overview
+        case .onboarding:
+          .onboarding
+        case .wardrobe:
+          .collection
+        case .petIntroduction, .petHome:
+          .mori
         }
       return PhonePresentationModel(
-        dataMode: .mock(scenario),
+        dataMode: .mock(
+          PhoneMockScenario(
+            id: seed.id,
+            displayName: seed.displayName,
+            evaluatedAt: seed.now
+          )
+        ),
         initialScreen: initialScreen,
         wardrobe: PhoneWardrobePresentation(
           selectedOutfitID: seed.selectedOutfitID ?? "default",
           unlockedOutfitIDs: seed.unlockedOutfitIDs,
-          previewOutfitID: seed.previewOutfitID ?? seed.selectedOutfitID ?? "default",
+          previewOutfitID: seed.previewOutfitID
+            ?? seed.selectedOutfitID
+            ?? "default",
           peerSyncAvailable: seed.syncAvailable
         ),
-        level: max(1, seed.petLevel),
-        vitality: base.vitality,
-        mood: base.mood,
-        syncStatus: base.syncStatus,
-        metrics: base.metrics,
-        questTitle: base.questTitle,
-        questDetail: base.questDetail,
-        questProgress: base.questProgress,
-        history: base.history,
-        trendSummary: base.trendSummary,
-        activityLog: base.activityLog,
-        dataExplanation: "模拟数据经真实规则运行时计算。\(mockHealthExplanation)\(fallbackExplanation)"
+        metrics: [
+          PhoneMetric(
+            id: "sleep",
+            numericValue: seed.healthSnapshot.sleepMinutes
+          ),
+          PhoneMetric(
+            id: "steps",
+            numericValue: seed.healthSnapshot.steps
+          ),
+        ],
+        sealedMemories: []
       )
     }
   #endif
-
-  private static func makeHistory(from trend: PersonalHealthTrend?) -> [PhoneHistoryDay] {
-    guard let points = trend?.recentDays, !points.isEmpty else { return [] }
-    let maxSleep = max(1, points.compactMap(\.sleepMinutes).max() ?? 1)
-    let maxSteps = max(1, points.compactMap(\.steps).max() ?? 1)
-    return points.enumerated().map { index, point in
-      PhoneHistoryDay(
-        id: index,
-        weekday: String(point.day.rawValue.suffix(2)),
-        recovery: point.sleepMinutes.map { Double($0) / Double(maxSleep) },
-        activity: point.steps.map { Double($0) / Double(maxSteps) }
-      )
-    }
-  }
-
-  private static func observationText(
-    _ trend: PersonalHealthTrend?,
-    metric: TrendMetric
-  ) -> String {
-    guard let observation = trend?.observations.first(where: { $0.metric == metric }) else {
-      return "积累中"
-    }
-    guard observation.status != .insufficientData else { return "积累中" }
-    switch metric {
-    case .sleepDuration:
-      switch observation.status {
-      case .belowPersonalRange: return "少于近期"
-      case .withinPersonalRange: return "接近近期"
-      case .abovePersonalRange: return "多于近期"
-      case .insufficientData: return "积累中"
-      }
-    case .steps, .activeMinutes:
-      switch observation.status {
-      case .belowPersonalRange: return "低于近期"
-      case .withinPersonalRange: return "接近近期"
-      case .abovePersonalRange: return "高于近期"
-      case .insufficientData: return "积累中"
-      }
-    case .sleepTiming:
-      switch observation.status {
-      case .belowPersonalRange: return "波动增加"
-      case .withinPersonalRange: return "接近近期"
-      case .abovePersonalRange: return "更稳定"
-      case .insufficientData: return "积累中"
-      }
-    }
-  }
-
-  private static func trendSummary(_ trend: PersonalHealthTrend?) -> String {
-    guard let trend else { return "需要更多已知天数" }
-    let known = trend.usableBaselineDayCount
-    guard known >= 2 else { return "已记录 \(known) 天，继续积累个人基线" }
-    let sleep = observationText(trend, metric: .sleepDuration)
-    let activity = observationText(trend, metric: .steps)
-    return "恢复 \(sleep) · 活动 \(activity)"
-  }
-
-  private static func moodText(
-    _ mood: PetMood,
-    hasHealth: Bool,
-    relationship: RelationshipPresence = .present
-  ) -> String {
-    if relationship == .quietlyMissingYou {
-      return "Mori 这几天有点安静，好像很想你"
-    }
-    guard hasHealth else { return "还没有足够的数据，我会安静陪着你" }
-    switch mood {
-    case .neutral: return "今天先按自己的节奏来"
-    case .resting: return "我会陪你放慢一点，不需要硬撑"
-    case .curious: return "我想听听你今天的故事"
-    case .lively: return "今天的冒险能量正在发光"
-    }
-  }
-
-  private static func mainStoryTitle(_ story: StoryState) -> String {
-    let titles = [
-      "点亮营地的第一盏灯",
-      "迈出荒野的第一步",
-      "听懂今天的天气",
-      "为彼此搭一处庇护",
-      "点亮信号塔",
-      "画下同行地图",
-      "从营地一起启程",
-    ]
-    let index = min(story.completedBeatIDs.count, titles.count)
-    return index == titles.count ? "七日启程已经完成" : titles[index]
-  }
-
-  nonisolated private static func sleepText(_ minutes: Int) -> String {
-    "\(minutes / 60)h\(minutes % 60)m"
-  }
-
-  nonisolated private static func sleepAccessibilityText(_ minutes: Int) -> String {
-    "\(minutes / 60) 小时 \(minutes % 60) 分钟"
-  }
-
-  nonisolated private static func stepText(_ steps: Int) -> String {
-    steps >= 1_000 ? String(format: "%.1fk", Double(steps) / 1_000) : String(steps)
-  }
-
-  private static func liveActivityLog(
-    health: HealthSnapshot?,
-    companion: CompanionState
-  ) -> [PhoneActivityLog] {
-    var result: [PhoneActivityLog] = []
-    if let workout = health?.workouts.last {
-      result.append(
-        PhoneActivityLog(
-          id: "workout-\(workout.id.uuidString)",
-          title: workout.activity == .soccer ? "足球记录" : "运动记录",
-          detail: "持续 \(workout.durationMinutes) 分钟",
-          time: "来自 HealthKit",
-          symbol: workout.activity == .soccer ? "figure.soccer" : "figure.run"
-        )
-      )
-    }
-    if companion.story.unlockedSideStoryIDs.contains("lost_ball") {
-      result.append(
-        PhoneActivityLog(
-          id: "side-story-lost-ball",
-          title: "随机支线已出现",
-          detail: "失踪的足球：由明确记录的足球训练触发资格",
-          time: "规则与固定种子选择",
-          symbol: "figure.soccer"
-        )
-      )
-    }
-    if let trace = companion.lastDecisionTrace {
-      result.append(
-        PhoneActivityLog(
-          id: "rule-\(trace.evaluatedAt.timeIntervalSince1970)",
-          title: "今日状态已更新",
-          detail: "使用规则版本 \(trace.ruleSetVersion)；健康状态不会阻挡主线",
-          time: "本机计算",
-          symbol: "checkmark.shield.fill"
-        )
-      )
-    }
-    return result
-  }
 }
 
 struct PhoneMockScenario: Equatable {
   let id: String
   let displayName: String
+  let evaluatedAt: Date
 }
 
 enum PhoneInitialScreen: Equatable {
   case onboarding
-  case overview
-  case wardrobe
+  case mori
+  case collection
 }
 
 struct PhoneWardrobePresentation: Equatable {
@@ -437,7 +196,9 @@ struct PhoneWardrobePresentation: Equatable {
 
   static let phaseOneDefault = PhoneWardrobePresentation(
     selectedOutfitID: "default",
-    unlockedOutfitIDs: ["default", "scarf", "leaf", "star", "drop", "soccer_scarf"],
+    unlockedOutfitIDs: [
+      "default", "scarf", "leaf", "star", "drop", "soccer_scarf",
+    ],
     previewOutfitID: "default",
     peerSyncAvailable: nil
   )
@@ -452,67 +213,5 @@ struct PhoneWardrobePresentation: Equatable {
 
 struct PhoneMetric: Identifiable {
   let id: String
-  let title: String
-  let value: String
-  let accessibilityValue: String
-  let detail: String
-  let symbol: String
-}
-
-struct PhoneHistoryDay: Identifiable {
-  let id: Int
-  let weekday: String
-  let recovery: Double?
-  let activity: Double?
-
-  static let steadyWeek = make(
-    recovery: [0.62, 0.68, 0.59, 0.74, 0.71, 0.78, 0.76],
-    activity: [0.48, 0.72, 0.66, 0.52, 0.78, 0.82, 0.64])
-  static let recoveryLow = make(
-    recovery: [0.73, 0.68, 0.61, 0.58, 0.54, 0.49, 0.46],
-    activity: [0.64, 0.75, 0.70, 0.61, 0.49, 0.46, 0.38])
-  static let activeWeek = make(
-    recovery: [0.66, 0.72, 0.70, 0.78, 0.75, 0.82, 0.80],
-    activity: [0.55, 0.68, 0.74, 0.80, 0.72, 0.88, 0.96])
-
-  private static func make(recovery: [Double], activity: [Double]) -> [PhoneHistoryDay] {
-    let weekdays = ["一", "二", "三", "四", "五", "六", "日"]
-    return weekdays.indices.map { index in
-      PhoneHistoryDay(
-        id: index, weekday: weekdays[index], recovery: recovery[index], activity: activity[index])
-    }
-  }
-}
-
-struct PhoneActivityLog: Identifiable {
-  let id: String
-  let title: String
-  let detail: String
-  let time: String
-  let symbol: String
-
-  static let steady = [
-    PhoneActivityLog(
-      id: "quest", title: "主线推进", detail: "完成午后轻活动", time: "今天 15:20", symbol: "map.fill"),
-    PhoneActivityLog(
-      id: "rhythm", title: "节律发现", detail: "连续 3 天在相近时间入睡", time: "今天 08:10", symbol: "sparkles"),
-    PhoneActivityLog(
-      id: "growth", title: "Mori 成长", detail: "生命力 +12", time: "昨天", symbol: "leaf.fill"),
-  ]
-
-  static let recovery = [
-    PhoneActivityLog(
-      id: "adjust", title: "主线已调轻", detail: "恢复低于近期个人状态", time: "今天 08:12",
-      symbol: "slider.horizontal.3"),
-    PhoneActivityLog(
-      id: "pause", title: "完成休息支线", detail: "10 分钟无屏时间", time: "昨天",
-      symbol: "cup.and.heat.waves.fill"),
-  ]
-
-  static let active = [
-    PhoneActivityLog(
-      id: "workout", title: "运动记录", detail: "户外跑步 32 分钟", time: "今天 17:40", symbol: "figure.run"),
-    PhoneActivityLog(
-      id: "reward", title: "随机支线触发", detail: "获得发光叶子", time: "今天 17:42", symbol: "sparkles"),
-  ]
+  let numericValue: Int?
 }

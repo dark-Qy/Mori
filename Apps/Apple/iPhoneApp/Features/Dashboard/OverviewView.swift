@@ -1,240 +1,209 @@
-import AppRuntime
 import SwiftUI
 
-struct OverviewView: View {
+struct MoriHomeView: View {
   @ObservedObject var store: PhoneAppStore
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  @State private var showsDataSourcePicker = false
-
-  private var model: PhonePresentationModel { store.model }
+  @State private var draft = ""
+  @FocusState private var isComposerFocused: Bool
 
   var body: some View {
-    PhonePage {
-      VStack(spacing: CompanionSpacing.medium) {
-        HStack {
-          PhoneDataBadge(model: model)
-          Spacer()
+    ScrollViewReader { proxy in
+      ScrollView {
+        LazyVStack(spacing: 0) {
+          MoriSceneHero(
+            sceneID: store.selectedSceneID,
+            model: store.model
+          )
+
+          conversation
+            .padding(.horizontal, CompanionSpacing.page)
+            .padding(.top, CompanionSpacing.large)
+            .padding(.bottom, CompanionSpacing.medium)
         }
-        .padding(.top, CompanionSpacing.small)
-
-        PetOverviewCard(
-          model: model,
-          onCompanionInteraction: { Task { await store.companionInteraction() } }
-        )
-
-        metricTiles
-
-        CompanionCard {
-          Label("今日主线", systemImage: "map.fill")
-            .font(.caption.weight(.bold))
-            .foregroundStyle(CompanionPalette.gold)
-          Text(model.questTitle)
-            .font(.headline)
-            .padding(.top, 5)
-            .accessibilityIdentifier("phone.quest-title")
-          Text(model.questDetail)
-            .font(.subheadline)
-            .foregroundStyle(CompanionPalette.secondaryText)
-            .padding(.top, 2)
-            .accessibilityIdentifier("phone.quest-detail")
-          ProgressView(value: model.questProgress)
-            .tint(CompanionPalette.gold)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-            .padding(.top, CompanionSpacing.small)
-            .accessibilityLabel("今日主线进度")
-            .accessibilityValue("\(Int(model.questProgress * 100))%")
+      }
+      .background(CompanionPalette.background.ignoresSafeArea())
+      .safeAreaInset(edge: .bottom) {
+        composer
+      }
+      .onChange(of: store.mockExperience.conversation.count) {
+        guard let lastID = store.mockExperience.conversation.last?.id else {
+          return
         }
-        .accessibilityIdentifier("phone.today-quest")
-
-        CompanionCard {
-          Label("数据说明", systemImage: "info.circle.fill")
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(CompanionPalette.blue)
-            .accessibilityIdentifier("phone.data-explanation.title")
-          Text(model.dataExplanation)
-            .font(.footnote)
-            .foregroundStyle(CompanionPalette.secondaryText)
-            .padding(.top, 5)
-            .accessibilityIdentifier("phone.data-explanation.detail")
-        }
-
-        if store.dataSourceSelectionAvailable {
-          Button {
-            showsDataSourcePicker = true
-          } label: {
-            Label(
-              store.isRefreshingHealth
-                ? "正在读取…"
-                : "数据来源 · \(store.selectedDataSource.displayName)",
-              systemImage: "heart.text.clipboard"
-            )
-            .frame(maxWidth: .infinity)
-          }
-          .buttonStyle(.borderedProminent)
-          .tint(CompanionPalette.mint)
-          .disabled(store.isRefreshingHealth)
-          .accessibilityIdentifier("phone.connect-health")
-        }
-
-        if let status = store.statusMessage {
-          Text(status)
-            .font(.footnote)
-            .foregroundStyle(CompanionPalette.secondaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityIdentifier("phone.status-message")
+        withAnimation(.easeOut(duration: 0.25)) {
+          proxy.scrollTo(lastID, anchor: .bottom)
         }
       }
     }
     .navigationTitle("Mori")
-    .accessibilityIdentifier("phone.overview")
-    .sheet(isPresented: $showsDataSourcePicker) {
-      PhoneDataSourcePicker(store: store, isPresented: $showsDataSourcePicker)
-    }
+    .navigationBarTitleDisplayMode(.inline)
   }
 
-  @ViewBuilder private var metricTiles: some View {
-    if dynamicTypeSize.isAccessibilitySize {
-      VStack(spacing: CompanionSpacing.small) {
-        ForEach(model.metrics) { metric in
-          MetricTile(metric: metric)
-        }
-      }
-    } else {
-      HStack(spacing: CompanionSpacing.small) {
-        ForEach(model.metrics) { metric in
-          MetricTile(metric: metric)
-        }
-      }
-    }
-  }
-}
-
-private struct PetOverviewCard: View {
-  let model: PhonePresentationModel
-  let onCompanionInteraction: () -> Void
-
-  var body: some View {
+  @ViewBuilder
+  private var conversation: some View {
     VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
-      HStack(spacing: CompanionSpacing.medium) {
-        ZStack {
-          Circle()
-            .fill(Color.white.opacity(0.22))
-            .frame(width: 78, height: 78)
-          Image(systemName: "pawprint.fill")
-            .font(.system(size: 36, weight: .semibold))
-            .foregroundStyle(.white)
-        }
-        .accessibilityHidden(true)
-        VStack(alignment: .leading, spacing: 3) {
-          Text("Mori · Lv.\(model.level)")
-            .font(.title3.weight(.bold))
-            .accessibilityIdentifier("phone.pet-level")
-          Text(model.mood)
-            .font(.subheadline)
-            .foregroundStyle(.white)
-            .fixedSize(horizontal: false, vertical: true)
+      HStack(alignment: .firstTextBaseline) {
+        Text("和 Mori 说说话")
+          .font(.title3.bold())
+        Spacer()
+        if store.model.isLive {
+          Text("待接入")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(CompanionPalette.secondaryText)
+        } else {
+          Label("本机预览", systemImage: "iphone")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(CompanionPalette.mint)
         }
       }
 
-      VStack(spacing: 5) {
-        HStack {
-          Label("生命力", systemImage: "leaf.fill")
-            .accessibilityIdentifier("phone.pet-vitality-label")
-          Spacer()
-          Text("\(model.vitality)/100")
-            .monospacedDigit()
+      if store.model.isLive {
+        ContentUnavailableView(
+          "对话暂未开放",
+          systemImage: "bubble.left.and.bubble.right",
+          description: Text("正式对话运行时将在后续接入；这里不会用演示回复冒充真实服务。")
+        )
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 30)
+        .accessibilityIdentifier("phone.mori.chat-unavailable")
+      } else if store.model.allowsInteraction == false {
+        ContentUnavailableView(
+          "Mock 场景无效",
+          systemImage: "exclamationmark.triangle",
+          description: Text("请到设置中选择有效的 Mock 数据。")
+        )
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 30)
+        .accessibilityIdentifier("phone.mori.invalid-mock")
+      } else {
+        ForEach(store.mockExperience.conversation) { message in
+          MoriMessageRow(message: message)
+            .id(message.id)
         }
-        .font(.subheadline.weight(.semibold))
-        ProgressView(value: Double(model.vitality), total: 100)
-          .tint(.white)
-          .frame(minHeight: 44)
-          .contentShape(Rectangle())
-          .accessibilityLabel("生命力")
-          .accessibilityValue("\(model.vitality)/100")
+        Text("本机回复不会完成任务、发放金币或声称知道没有感知到的事实。")
+          .font(.caption)
+          .foregroundStyle(CompanionPalette.secondaryText)
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("phone.mori.local-disclosure")
       }
-
-      Label(model.syncStatus, systemImage: "applewatch.radiowaves.left.and.right")
-        .font(.caption)
-        .foregroundStyle(.white)
-
-      Button(action: onCompanionInteraction) {
-        Label("陪陪 Mori", systemImage: "hand.wave.fill")
-          .frame(maxWidth: .infinity)
-      }
-      .buttonStyle(.bordered)
-      .tint(.white)
-      .accessibilityIdentifier("phone.companion-interaction")
     }
-    .foregroundStyle(.white)
-    .padding(CompanionSpacing.large)
-    .background {
-      LinearGradient(
-        colors: [Color(red: 0.055, green: 0.34, blue: 0.27), CompanionPalette.heroMint],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
+  }
+
+  private var composer: some View {
+    HStack(alignment: .bottom, spacing: CompanionSpacing.small) {
+      TextField("给 Mori 留句话", text: $draft, axis: .vertical)
+        .lineLimit(1...4)
+        .textFieldStyle(.plain)
+        .focused($isComposerFocused)
+        .submitLabel(.send)
+        .onSubmit(send)
+        .accessibilityIdentifier("phone.mori.composer")
+
+      Button(action: send) {
+        Image(systemName: "arrow.up.circle.fill")
+          .font(.title2)
+      }
+      .disabled(
+        draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+          || store.companionExperienceAvailable == false
+          || store.isSavingMockExperience
       )
-      .clipShape(RoundedRectangle(cornerRadius: CompanionRadius.hero, style: .continuous))
+      .accessibilityLabel("发送")
+      .accessibilityIdentifier("phone.mori.send")
     }
-    .accessibilityElement(children: .contain)
-    .accessibilityIdentifier("phone.pet-overview")
+    .padding(.horizontal, CompanionSpacing.page)
+    .padding(.vertical, 11)
+    .background(.regularMaterial)
+  }
+
+  private func send() {
+    let value = draft
+    guard value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    else {
+      return
+    }
+    draft = ""
+    Task {
+      await store.sendConversationMessage(value)
+    }
   }
 }
 
-private struct PhoneDataSourcePicker: View {
-  @ObservedObject var store: PhoneAppStore
-  @Binding var isPresented: Bool
+struct MoriSceneHero: View {
+  let sceneID: String
+  let model: PhonePresentationModel
 
   var body: some View {
-    NavigationStack {
-      List(CompanionDataSource.allCases, id: \.self) { source in
-        Button {
-          isPresented = false
-          Task { await store.selectDataSource(source) }
-        } label: {
-          HStack {
-            Label(
-              source.displayName, systemImage: source == .healthKit ? "heart.fill" : "testtube.2")
-            Spacer()
-            if source == store.selectedDataSource {
-              Image(systemName: "checkmark")
-                .foregroundStyle(CompanionPalette.mint)
-                .accessibilityHidden(true)
-            }
-          }
-        }
-        .accessibilityIdentifier("phone.data-source.option.\(source.rawValue)")
+    ZStack(alignment: .bottom) {
+      Image("scene_\(sceneID)_large")
+        .resizable()
+        .interpolation(.none)
+        .scaledToFill()
+
+      LinearGradient(
+        colors: [.clear, .black.opacity(0.18)],
+        startPoint: .center,
+        endPoint: .bottom
+      )
+
+      Image("character_penguin_idle_neutral_00")
+        .resizable()
+        .interpolation(.none)
+        .scaledToFit()
+        .frame(width: 210, height: 228)
+        .padding(.bottom, 18)
+
+      HStack {
+        PhoneDataBadge(model: model)
+        Spacer()
+        Text("Mori 在这里")
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.white)
+          .padding(.horizontal, 10)
+          .padding(.vertical, 6)
+          .background(.black.opacity(0.72), in: Capsule())
       }
-      .navigationTitle("选择数据来源")
-      .accessibilityIdentifier("phone.data-source-picker")
+      .padding(CompanionSpacing.medium)
     }
-    .presentationDetents([.medium])
+    .frame(maxWidth: .infinity)
+    .aspectRatio(1.18, contentMode: .fit)
+    .clipped()
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Mori 的当前场景")
+    .accessibilityValue(model.mockScenario?.displayName ?? "真实模式")
+    .accessibilityIdentifier("phone.mori.scene")
   }
 }
 
-private struct MetricTile: View {
-  let metric: PhoneMetric
+private struct MoriMessageRow: View {
+  let message: PhoneConversationMessage
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 5) {
-      Image(systemName: metric.symbol)
-        .foregroundStyle(CompanionPalette.mint)
-      Text(metric.value)
-        .font(.title3.monospacedDigit().weight(.bold))
-      Text(metric.title)
-        .font(.caption.weight(.semibold))
-      Text(metric.detail)
-        .font(.caption)
-        .foregroundStyle(CompanionPalette.secondaryText)
-        .lineLimit(2)
+    HStack {
+      if message.role == .user {
+        Spacer(minLength: 54)
+      }
+      Text(message.text)
+        .font(.body)
+        .foregroundStyle(
+          message.role == .user ? Color.white : CompanionPalette.ink
+        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+          message.role == .user
+            ? CompanionPalette.mint
+            : CompanionPalette.surface,
+          in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .accessibilityLabel(
+          "\(message.role == .user ? "你" : "Mori")：\(message.text)"
+        )
+        .accessibilityIdentifier(
+          "phone.mori.message.\(message.id.uuidString)"
+        )
+      if message.role == .mori {
+        Spacer(minLength: 54)
+      }
     }
-    .frame(maxWidth: .infinity, minHeight: 116, alignment: .leading)
-    .padding(CompanionSpacing.small)
-    .background(
-      CompanionPalette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-    )
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel("\(metric.title)，\(metric.accessibilityValue)。\(metric.detail)")
-    .accessibilityIdentifier("phone.metric.\(metric.id)")
+    .frame(maxWidth: .infinity)
   }
 }

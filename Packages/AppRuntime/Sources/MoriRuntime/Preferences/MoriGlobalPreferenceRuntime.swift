@@ -6,6 +6,8 @@ public enum MoriGlobalPreferenceRuntimeError: Error, Equatable, Sendable {
   case invalidMockScenarioID
   case invalidQuietHours
   case rejectedPreference
+  case staleDeletionScope
+  case staleSensingScope
 }
 
 public enum MoriGlobalProfileSource: Equatable, Sendable {
@@ -13,23 +15,60 @@ public enum MoriGlobalProfileSource: Equatable, Sendable {
   case mock(scenarioID: String)
 }
 
+/// App-safe identity for one selected profile generation.
+///
+/// The scenario name alone is never a storage boundary. A fresh Mock
+/// selection receives a new profile epoch and therefore a new `storageKey`.
+/// App mutations capture this complete value and compare it again after every
+/// suspension point before publishing a result.
+public struct MoriGlobalProfileScope: Hashable, Sendable {
+  public let profileID: String
+  public let profileEpochCounter: UInt64
+  public let profileEpochOriginDeviceID: String
+  public let deletionRequestID: String
+  public let deletionEpochCounter: UInt64
+  public let deletionEpochOriginDeviceID: String
+  public let mockScenarioID: String?
+  public let storageKey: String
+
+  public var isMock: Bool { mockScenarioID != nil }
+
+  init(profile: RuntimeProfile) {
+    profileID = profile.id.rawValue
+    profileEpochCounter = profile.epoch.revision.counter
+    profileEpochOriginDeviceID = profile.epoch.revision.originDeviceID
+    deletionRequestID = profile.deletionEpoch.requestID.rawValue
+    deletionEpochCounter = profile.deletionEpoch.revision.counter
+    deletionEpochOriginDeviceID =
+      profile.deletionEpoch.revision.originDeviceID
+    if case .mock(let scenarioID, _) = profile.source {
+      mockScenarioID = scenarioID.rawValue
+    } else {
+      mockScenarioID = nil
+    }
+    storageKey = RuntimeStorageLayout.namespaceID(for: profile)
+  }
+}
+
+public struct MoriGlobalSensingScope: Hashable, Sendable {
+  public let enabled: Bool
+  public let epochCounter: UInt64
+  public let epochOriginDeviceID: String
+
+  init(preference: CompanionSensingPreference) {
+    enabled = preference.enabled
+    epochCounter = preference.epoch.revision.counter
+    epochOriginDeviceID = preference.epoch.revision.originDeviceID
+  }
+}
+
 public struct MoriGlobalPreferenceProjection: Equatable, Sendable {
   public let profileSource: MoriGlobalProfileSource
+  public let profileScope: MoriGlobalProfileScope
+  public let sensingScope: MoriGlobalSensingScope
   public let companionSensingEnabled: Bool
   public let reminderMode: CompanionReminderMode
   public let quietHours: CompanionQuietHours
-
-  public init(
-    profileSource: MoriGlobalProfileSource,
-    companionSensingEnabled: Bool,
-    reminderMode: CompanionReminderMode,
-    quietHours: CompanionQuietHours
-  ) {
-    self.profileSource = profileSource
-    self.companionSensingEnabled = companionSensingEnabled
-    self.reminderMode = reminderMode
-    self.quietHours = quietHours
-  }
 }
 
 /// Small app-facing façade over the durable GSP/GCS authority.
@@ -73,7 +112,8 @@ public actor MoriGlobalPreferenceRuntime {
     try await update { current, revision in
       let selection = try Self.profileSelection(
         for: source,
-        revision: revision
+        revision: revision,
+        currentProfile: current.profileSelection.profile
       )
       return GlobalSyncedPreferences(
         profileSelection: selection,
@@ -86,6 +126,108 @@ public actor MoriGlobalPreferenceRuntime {
 
   public func current() async throws -> MoriGlobalPreferenceProjection {
     projection(from: try await repository.current().preferences)
+  }
+
+  /// Executes one synchronous mutation while the captured profile and sensing
+  /// scopes are still authoritative. Because the mutation does not suspend,
+  /// a sensing revocation on this façade cannot interleave between validation
+  /// and the governed ledger write.
+  public func performAuthorizedSensingMutation<Result: Sendable>(
+    profileScope: MoriGlobalProfileScope,
+    sensingScope: MoriGlobalSensingScope,
+    _ mutation: @Sendable () throws -> Result
+  ) async throws -> Result {
+    let current = projection(from: try await repository.current().preferences)
+    guard
+      current.profileScope == profileScope,
+      current.sensingScope == sensingScope,
+      current.companionSensingEnabled
+    else {
+      throw MoriGlobalPreferenceRuntimeError.staleSensingScope
+    }
+    return try mutation()
+  }
+
+  /// Installs a content-free, sensing-disabled authority fence before
+  /// app-owned profile stores are cleared. The caller must revalidate the
+  /// complete profile generation captured by the confirmation UI.
+  @discardableResult
+  public func deleteAllData(
+    expectedProfileScope: MoriGlobalProfileScope,
+    requestID: String
+  ) async throws -> MoriGlobalPreferenceProjection {
+    let normalizedRequestID = requestID.trimmingCharacters(
+      in: .whitespacesAndNewlines
+    )
+    let deletionRequestID = DeletionRequestID(normalizedRequestID)
+    guard deletionRequestID.isValid else {
+      throw MoriGlobalPreferenceRuntimeError.rejectedPreference
+    }
+
+    let current = try await repository.current()
+    let currentProfile = current.preferences.profileSelection.profile
+    if currentProfile.deletionEpoch.requestID == deletionRequestID {
+      return projection(from: current.preferences)
+    }
+    guard
+      MoriGlobalProfileScope(profile: currentProfile) == expectedProfileScope
+    else {
+      throw MoriGlobalPreferenceRuntimeError.staleDeletionScope
+    }
+
+    let consentCounter =
+      MoriConsentKind.allCases
+      .map { current.consent[$0].revision.counter }
+      .max() ?? 0
+    let revision = LamportRevision(
+      counter: max(
+        current.preferences.maximumCounter,
+        consentCounter
+      ) &+ 1,
+      originDeviceID: originDeviceID
+    )
+    let postDeletionProfile = RuntimeProfile(
+      id: ProfileID("real"),
+      epoch: ProfileEpoch(revision),
+      deletionEpoch: DeletionEpoch(
+        requestID: deletionRequestID,
+        revision: revision
+      ),
+      source: .real
+    )
+    let preferences = GlobalSyncedPreferences(
+      profileSelection: try ProfileSelectionRecord.real(
+        profile: postDeletionProfile,
+        selectionRevision: revision
+      ),
+      companionSensing: RevisionedPreference(
+        value: CompanionSensingPreference(
+          enabled: false,
+          epoch: SensingEpoch(revision)
+        ),
+        revision: revision
+      ),
+      reminderMode: RevisionedPreference(
+        value: .wristRaise,
+        revision: revision
+      ),
+      quietHours: RevisionedPreference(
+        value: CompanionQuietHours(
+          startMinute: 22 * 60,
+          endMinute: 7 * 60
+        ),
+        revision: revision
+      )
+    )
+    let replacement = GlobalAuthoritySnapshot(
+      preferences: preferences,
+      consent: .disabled(
+        revision: revision,
+        authorDevice: .phone
+      )
+    )
+    try await repository.replaceForDeletion(with: replacement)
+    return projection(from: preferences)
   }
 
   @discardableResult
@@ -169,9 +311,14 @@ public actor MoriGlobalPreferenceRuntime {
   private func projection(
     from preferences: GlobalSyncedPreferences
   ) -> MoriGlobalPreferenceProjection {
-    MoriGlobalPreferenceProjection(
+    let profile = preferences.profileSelection.profile
+    return MoriGlobalPreferenceProjection(
       profileSource: profileSource(
-        from: preferences.profileSelection.profile.source
+        from: profile.source
+      ),
+      profileScope: MoriGlobalProfileScope(profile: profile),
+      sensingScope: MoriGlobalSensingScope(
+        preference: preferences.companionSensing.value
       ),
       companionSensingEnabled: preferences.companionSensing.value.enabled,
       reminderMode: preferences.reminderMode.value,
@@ -197,7 +344,8 @@ public actor MoriGlobalPreferenceRuntime {
     let preferences = GlobalSyncedPreferences(
       profileSelection: try profileSelection(
         for: profileSource,
-        revision: revision
+        revision: revision,
+        currentProfile: nil
       ),
       companionSensing: RevisionedPreference(
         value: CompanionSensingPreference(
@@ -229,17 +377,22 @@ public actor MoriGlobalPreferenceRuntime {
 
   private static func profileSelection(
     for source: MoriGlobalProfileSource,
-    revision: LamportRevision
+    revision: LamportRevision,
+    currentProfile: RuntimeProfile?
   ) throws -> ProfileSelectionRecord {
+    let deletionEpoch = rootDeletionEpoch(from: currentProfile)
     switch source {
     case .real:
+      if let currentProfile, currentProfile.source == .real {
+        return try ProfileSelectionRecord.real(
+          profile: currentProfile,
+          selectionRevision: revision
+        )
+      }
       let profile = RuntimeProfile(
         id: ProfileID("real"),
-        epoch: ProfileEpoch(bootstrapRevision),
-        deletionEpoch: DeletionEpoch(
-          requestID: DeletionRequestID("baseline"),
-          revision: bootstrapRevision
-        ),
+        epoch: ProfileEpoch(deletionEpoch.revision),
+        deletionEpoch: deletionEpoch,
         source: .real
       )
       return try ProfileSelectionRecord.real(
@@ -251,10 +404,42 @@ public actor MoriGlobalPreferenceRuntime {
       guard scenarioID.isValid else {
         throw MoriGlobalPreferenceRuntimeError.invalidMockScenarioID
       }
-      return try MockProfileDerivation.selection(
+      let selection = try MockProfileDerivation.selection(
         scenarioID: scenarioID,
         revision: revision
       )
+      guard currentProfile != nil else { return selection }
+      let derived = selection.profile
+      return ProfileSelectionRecord(
+        profile: RuntimeProfile(
+          id: derived.id,
+          epoch: derived.epoch,
+          deletionEpoch: deletionEpoch,
+          source: derived.source
+        ),
+        revision: revision
+      )
     }
+  }
+
+  private static func rootDeletionEpoch(
+    from currentProfile: RuntimeProfile?
+  ) -> DeletionEpoch {
+    let baseline = DeletionEpoch(
+      requestID: DeletionRequestID("baseline"),
+      revision: bootstrapRevision
+    )
+    guard let currentProfile else { return baseline }
+    let current = currentProfile.deletionEpoch
+    let requestID = current.requestID.rawValue
+    if requestID == "baseline" {
+      return baseline
+    }
+    if requestID.hasPrefix("mock-baseline-"),
+      current.revision == currentProfile.epoch.revision
+    {
+      return baseline
+    }
+    return current
   }
 }

@@ -1,141 +1,121 @@
 import SwiftUI
 
-struct HistoryView: View {
+struct PhoneMemoriesView: View {
   let model: PhonePresentationModel
 
   var body: some View {
     PhonePage {
+      VStack(alignment: .leading, spacing: 0) {
+        if model.sharedMemories.isEmpty {
+          VStack(spacing: CompanionSpacing.medium) {
+            Image(systemName: "book.closed")
+              .font(.system(size: 42, weight: .regular))
+              .foregroundStyle(CompanionPalette.secondaryText)
+              .accessibilityHidden(true)
+            Text("还没有共同回忆")
+              .font(.headline)
+              .foregroundStyle(CompanionPalette.ink)
+            Text("只有 iPhone 在 22:00 后成功封存的共同经历才会出现在这里；当天数字不会提前冒充回忆。")
+              .font(.subheadline)
+              .foregroundStyle(CompanionPalette.secondaryText)
+              .multilineTextAlignment(.center)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+          .frame(maxWidth: .infinity)
+          .padding(.top, 80)
+          .accessibilityIdentifier("phone.memories.empty")
+        } else {
+          ForEach(model.sharedMemories) { memory in
+            MemoryTimelineEntry(memory: memory)
+          }
+        }
+      }
+    }
+    .navigationTitle("共同回忆")
+    .accessibilityIdentifier("phone.memories")
+  }
+}
+
+private struct MemoryTimelineEntry: View {
+  let memory: PhoneMemoryPresentation
+
+  var body: some View {
+    HStack(alignment: .top, spacing: CompanionSpacing.medium) {
+      VStack(spacing: 0) {
+        Circle()
+          .fill(CompanionPalette.mint)
+          .frame(width: 10, height: 10)
+          .padding(.top, 7)
+        Rectangle()
+          .fill(Color.secondary.opacity(0.22))
+          .frame(width: 1)
+          .frame(maxHeight: .infinity)
+      }
+
       VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
-        PhoneDataBadge(model: model)
-          .padding(.top, CompanionSpacing.small)
-
-        CompanionCard {
-          Text("近 7 日状态")
-            .font(.headline)
-          Text("只和你自己的近期状态比较")
-            .font(.subheadline)
-            .foregroundStyle(CompanionPalette.secondaryText)
-
-          HStack {
-            Label("恢复", systemImage: "moon.fill")
-              .foregroundStyle(CompanionPalette.blue)
-            Label("活动", systemImage: "figure.walk")
-              .foregroundStyle(CompanionPalette.mint)
-          }
-          .font(.caption.weight(.semibold))
-          .padding(.top, CompanionSpacing.medium)
-
-          if model.history.isEmpty {
-            VStack(spacing: CompanionSpacing.small) {
-              Image(systemName: "chart.bar.xaxis")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(CompanionPalette.mint)
-              Text("趋势正在积累")
-                .font(.headline)
-              Text("至少保留两天已知数据后再开始比较；缺失日不会按零计算。")
-                .font(.subheadline)
-                .foregroundStyle(CompanionPalette.secondaryText)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, minHeight: 150)
-            .padding(.vertical, CompanionSpacing.small)
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("phone.history-empty")
-          } else {
-            HStack(alignment: .bottom, spacing: 10) {
-              ForEach(model.history) { day in
-                VStack(spacing: 6) {
-                  HStack(alignment: .bottom, spacing: 3) {
-                    historyBar(day.recovery, color: CompanionPalette.blue, style: .recovery)
-                    historyBar(day.activity, color: CompanionPalette.mint, style: .activity)
-                  }
-                  Text(day.weekday)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(CompanionPalette.secondaryText)
-                }
-                .frame(maxWidth: .infinity)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(accessibilityLabel(for: day))
-              }
-            }
-            .frame(height: 150, alignment: .bottom)
-            .accessibilityIdentifier("phone.history-chart")
-          }
-
-          Text(model.trendSummary)
-            .font(.footnote.weight(.semibold))
-            .foregroundStyle(CompanionPalette.gold)
-        }
-
-        Text("最近发生")
+        Text(memory.dayLabel)
           .font(.headline)
-          .padding(.top, CompanionSpacing.small)
 
-        if model.activityLog.isEmpty {
-          Text("还没有可显示的事件。完成一次健康同步或宠物互动后会出现在这里。")
-            .font(.subheadline)
-            .foregroundStyle(CompanionPalette.secondaryText)
-            .padding(.vertical, CompanionSpacing.medium)
+        ZStack(alignment: .bottom) {
+          Image("scene_\(memory.sceneID)_large")
+            .resizable()
+            .interpolation(.none)
+            .scaledToFill()
+
+          LinearGradient(
+            colors: [.clear, .black.opacity(0.24)],
+            startPoint: .center,
+            endPoint: .bottom
+          )
+
+          Image("character_penguin_idle_resting_00")
+            .resizable()
+            .interpolation(.none)
+            .scaledToFit()
+            .frame(width: 150, height: 164)
+            .padding(.bottom, 10)
         }
+        .aspectRatio(1.45, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .accessibilityHidden(true)
 
-        ForEach(model.activityLog) { log in
-          CompanionCard {
-            HStack(spacing: CompanionSpacing.medium) {
-              Image(systemName: log.symbol)
-                .foregroundStyle(CompanionPalette.mint)
-                .frame(width: 38, height: 38)
-                .background(CompanionPalette.mintSoft, in: Circle())
-              VStack(alignment: .leading, spacing: 2) {
-                Text(log.title)
-                  .font(.subheadline.weight(.semibold))
-                Text(log.detail)
-                  .font(.footnote)
-                  .foregroundStyle(CompanionPalette.secondaryText)
-                Text(log.time)
-                  .font(.caption)
-                  .foregroundStyle(CompanionPalette.secondaryText)
-              }
-            }
+        Text(memory.narrative)
+          .font(.body)
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("phone.memory.\(memory.id).narrative")
+
+        HStack(spacing: CompanionSpacing.large) {
+          if let steps = memory.steps {
+            Label(
+              "\(steps.formatted(.number.grouping(.automatic)))步",
+              systemImage: "figure.walk"
+            )
           }
-          .accessibilityElement(children: .combine)
-          .accessibilityIdentifier(accessibilityIdentifier(for: log))
+          if let sleepMinutes = memory.sleepMinutes {
+            Label(
+              Self.sleepText(sleepMinutes),
+              systemImage: "moon.fill"
+            )
+          }
         }
+        .font(.footnote)
+        .foregroundStyle(CompanionPalette.secondaryText)
+        .accessibilityIdentifier("phone.memory.\(memory.id).facts")
+
+        Text("这些数字只记录已知事实，不是对健康或情绪的判断。")
+          .font(.caption)
+          .foregroundStyle(CompanionPalette.secondaryText)
+          .padding(.bottom, CompanionSpacing.large)
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
     }
-    .navigationTitle("历史")
-    .accessibilityIdentifier("phone.history")
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("phone.memory.\(memory.id)")
   }
 
-  private enum BarStyle {
-    case recovery
-    case activity
-
-    var width: CGFloat { self == .recovery ? 7 : 11 }
-    var cornerRadius: CGFloat { self == .recovery ? 4 : 2 }
-  }
-
-  private func historyBar(_ value: Double?, color: Color, style: BarStyle) -> some View {
-    Group {
-      if let value {
-        RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
-          .fill(color)
-          .frame(width: style.width, height: max(12, value * 120))
-      } else {
-        RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
-          .stroke(color.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [2]))
-          .frame(width: style.width, height: 12)
-      }
-    }
-  }
-
-  private func accessibilityLabel(for day: PhoneHistoryDay) -> String {
-    let recovery = day.recovery.map { String(Int($0 * 100)) } ?? "缺失"
-    let activity = day.activity.map { String(Int($0 * 100)) } ?? "缺失"
-    return "\(day.weekday)日，恢复相对值 \(recovery)，活动相对值 \(activity)"
-  }
-
-  private func accessibilityIdentifier(for log: PhoneActivityLog) -> String {
-    log.id.hasPrefix("rule-") ? "phone.log.rule" : "phone.log.\(log.id)"
+  private static func sleepText(_ minutes: Int) -> String {
+    let hours = minutes / 60
+    let remainder = minutes % 60
+    return remainder == 0 ? "\(hours)小时" : "\(hours)小时\(remainder)分"
   }
 }

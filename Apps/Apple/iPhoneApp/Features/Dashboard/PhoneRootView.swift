@@ -1,10 +1,10 @@
 import SwiftUI
 
 enum PhoneTab: Hashable {
-  case overview
-  case history
-  case wardrobe
-  case privacy
+  case mori
+  case today
+  case memories
+  case collection
 }
 
 struct PhoneRootView: View {
@@ -21,7 +21,7 @@ struct PhoneRootView: View {
       case .onboarding:
         PhoneOnboardingView(store: store)
       case .ready:
-        managementTabs
+        productTabs
       }
     }
     .task {
@@ -29,46 +29,58 @@ struct PhoneRootView: View {
     }
   }
 
-  private var managementTabs: some View {
+  private var productTabs: some View {
     TabView(selection: $store.selectedTab) {
       NavigationStack {
-        OverviewView(store: store)
+        MoriHomeView(store: store)
+          .phoneSettingsToolbar(action: store.showSettings)
       }
       .tabItem {
-        Label("概览", systemImage: "house.fill")
+        Label("Mori", systemImage: "bird.fill")
       }
-      .accessibilityIdentifier("phone.tab.overview")
-      .tag(PhoneTab.overview)
+      .accessibilityIdentifier("phone.tab.mori")
+      .tag(PhoneTab.mori)
 
       NavigationStack {
-        HistoryView(model: store.model)
+        PhoneTodayView(store: store)
+          .phoneSettingsToolbar(action: store.showSettings)
       }
       .tabItem {
-        Label("历史", systemImage: "chart.bar.xaxis")
+        Label("今天", systemImage: "sun.max.fill")
       }
-      .accessibilityIdentifier("phone.tab.history")
-      .tag(PhoneTab.history)
+      .accessibilityIdentifier("phone.tab.today")
+      .tag(PhoneTab.today)
 
       NavigationStack {
-        WardrobeView(store: store)
+        PhoneMemoriesView(model: store.model)
+          .phoneSettingsToolbar(action: store.showSettings)
       }
       .tabItem {
-        Label("衣橱", systemImage: "tshirt.fill")
+        Label("回忆", systemImage: "book.pages.fill")
       }
-      .accessibilityIdentifier("phone.tab.wardrobe")
-      .tag(PhoneTab.wardrobe)
+      .accessibilityIdentifier("phone.tab.memories")
+      .tag(PhoneTab.memories)
 
       NavigationStack {
-        PrivacyView(store: store)
+        PhoneCollectionView(store: store)
+          .phoneSettingsToolbar(action: store.showSettings)
       }
       .tabItem {
-        Label("隐私", systemImage: "hand.raised.fill")
+        Label("收藏", systemImage: "heart.fill")
       }
-      .accessibilityIdentifier("phone.tab.privacy")
-      .tag(PhoneTab.privacy)
+      .accessibilityIdentifier("phone.tab.collection")
+      .tag(PhoneTab.collection)
     }
     .tint(CompanionPalette.mint)
     .accessibilityIdentifier("phone.root")
+    .sheet(
+      isPresented: $store.isShowingSettings,
+      onDismiss: store.dismissSettings
+    ) {
+      NavigationStack {
+        PhoneSettingsView(store: store)
+      }
+    }
     .sheet(item: $store.notificationDestination) { destination in
       PhoneNotificationMessageView(
         destination: destination,
@@ -78,10 +90,37 @@ struct PhoneRootView: View {
   }
 }
 
+private struct PhoneSettingsToolbarModifier: ViewModifier {
+  let action: () -> Void
+
+  func body(content: Content) -> some View {
+    content
+      .toolbar {
+        ToolbarItem(placement: .topBarTrailing) {
+          Button(action: action) {
+            Image(systemName: "gearshape")
+          }
+          .accessibilityLabel("设置")
+          .accessibilityIdentifier("phone.open-settings")
+        }
+      }
+  }
+}
+
+extension View {
+  fileprivate func phoneSettingsToolbar(
+    action: @escaping () -> Void
+  ) -> some View {
+    modifier(PhoneSettingsToolbarModifier(action: action))
+  }
+}
+
 #if DEBUG
   #Preview {
     PhoneRootView(
-      store: PhoneAppStore(arguments: ["-UITesting", "--mock-scenario=health_normal"])
+      store: PhoneAppStore(
+        arguments: ["-UITesting", "--mock-scenario=mock1"]
+      )
     )
   }
 #endif

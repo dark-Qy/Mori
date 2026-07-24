@@ -1,209 +1,412 @@
 import AppRuntime
+import MoriRuntime
 import SwiftUI
+import UIKit
 
-struct PrivacyView: View {
+struct PhoneSettingsView: View {
   @ObservedObject var store: PhoneAppStore
-
-  private var model: PhonePresentationModel { store.model }
+  @Environment(\.dismiss) private var dismiss
 
   var body: some View {
-    PhonePage {
-      VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
-        PhoneDataBadge(model: model)
-          .padding(.top, CompanionSpacing.small)
-
-        CompanionCard {
-          Label("你的健康数据属于你", systemImage: "lock.shield.fill")
-            .font(.headline)
-            .foregroundStyle(CompanionPalette.mint)
-          Text("原始 HealthKit 数据只在本机生成状态与趋势；不会自动向好友发送睡眠阶段、心率数值或原始记录。")
-            .font(.subheadline)
-            .foregroundStyle(CompanionPalette.secondaryText)
-            .padding(.top, 5)
+    Form {
+      dataSection
+      companionSection
+      notificationSection
+      conversationSection
+      sharingSection
+      dataManagementSection
+      developerSection
+      localStorageSection
+    }
+    .navigationTitle("设置")
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      ToolbarItem(placement: .confirmationAction) {
+        Button("完成") {
+          store.dismissSettings()
+          dismiss()
         }
-
-        Text("主动陪伴")
-          .font(.headline)
-        settingToggle(
-          title: "允许 Mori 主动来信",
-          detail: "遵守安静时段和四小时频率上限。通知权限：\(store.notificationStatus)。",
-          isOn: Binding(
-            get: { store.preferences.proactiveMessagesEnabled },
-            set: store.setProactiveMessages
-          ),
-          identifier: "phone.privacy.proactive"
-        )
-
-        Text("好友可见范围")
-          .font(.headline)
-          .padding(.top, CompanionSpacing.small)
-        settingToggle(
-          title: "启用好友分享",
-          detail: "默认关闭。开启后，也只有双方主动进入触碰交换并确认，才会发送公开宠物卡。",
-          isOn: Binding(
-            get: { store.preferences.socialSharingEnabled },
-            set: store.setSocialSharing
-          ),
-          identifier: "phone.privacy.social-sharing"
-        )
-
-        CompanionCard {
-          VStack(alignment: .leading, spacing: CompanionSpacing.small) {
-            Text("公开宠物社交状态")
-              .font(.subheadline.weight(.semibold))
-            if store.preferences.socialSharingEnabled {
-              Picker(
-                "公开状态",
-                selection: Binding(
-                  get: { store.preferences.publicPetSocialState },
-                  set: store.setPublicPetSocialState
-                )
-              ) {
-                ForEach(PublicPetSocialStateV1.allCases, id: \.rawValue) { state in
-                  Text(socialStateTitle(state)).tag(state)
-                }
-              }
-              .pickerStyle(.navigationLink)
-              .accessibilityIdentifier("phone.privacy.social-state-picker")
-            } else {
-              Label("好友分享已关闭，触碰交换不会发送宠物卡", systemImage: "lock.fill")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(CompanionPalette.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("phone.privacy.social-state-locked")
-            }
-
-            Text("当前：\(socialStateTitle(store.preferences.publicPetSocialState))")
-              .font(.footnote.weight(.semibold))
-              .accessibilityIdentifier("phone.privacy.social-state-summary")
-            Text("只描述宠物想怎样社交；不会包含睡眠、心率、生命力或其他健康推导。")
-              .font(.footnote)
-              .foregroundStyle(CompanionPalette.secondaryText)
-              .fixedSize(horizontal: false, vertical: true)
+        .accessibilityIdentifier("phone.settings.done")
+      }
+    }
+    .accessibilityIdentifier("phone.settings")
+    .sheet(
+      isPresented: Binding(
+        get: { store.isShowingDeleteAllConfirmation },
+        set: { isPresented in
+          if isPresented == false {
+            store.cancelDeleteAllMoriData()
           }
         }
+      )
+    ) {
+      PhoneDeleteAllMoriDataView(store: store)
+    }
+  }
 
-        CompanionCard {
-          VStack(alignment: .leading, spacing: CompanionSpacing.small) {
-            Text("分享范围")
-              .font(.subheadline.weight(.semibold))
-              .accessibilityIdentifier("phone.privacy.sharing-scope")
-            if store.preferences.socialSharingEnabled {
-              Picker(
-                "分享范围",
-                selection: Binding(
-                  get: { store.preferences.healthSharingScope },
-                  set: store.setHealthSharingScope
-                )
-              ) {
-                Text("游戏状态").tag(HealthSharingScope.gameStateOnly)
-                Text("关心摘要").tag(HealthSharingScope.careSummary)
-                Text("有限健康摘要").tag(HealthSharingScope.limitedHealthSummary)
-              }
-              .pickerStyle(.navigationLink)
-              .accessibilityIdentifier("phone.privacy.sharing-scope-picker")
-            } else {
-              HStack(spacing: CompanionSpacing.small) {
-                Label("好友分享已关闭", systemImage: "lock.fill")
-                  .font(.footnote.weight(.semibold))
-                Spacer(minLength: CompanionSpacing.small)
-                Text(scopeTitle)
-                  .font(.footnote.weight(.semibold))
-              }
-              .foregroundStyle(CompanionPalette.secondaryText)
-              .accessibilityElement(children: .combine)
-              .accessibilityLabel("分享范围")
-              .accessibilityValue("\(scopeTitle)，好友分享已关闭")
-              .accessibilityIdentifier("phone.privacy.sharing-scope-status")
+  private var dataSection: some View {
+    Section {
+      LabeledContent("当前模式") {
+        Text(dataModeTitle)
+          .foregroundStyle(CompanionPalette.secondaryText)
+          .accessibilityIdentifier("phone.settings.data-mode-value")
+      }
+
+      if store.dataSourceSelectionAvailable {
+        Picker(
+          "数据模式",
+          selection: Binding(
+            get: { store.selectedDataSource },
+            set: { source in
+              Task { await store.selectDataSource(source) }
             }
-
-            Text(scopeDescription)
-              .font(.footnote)
-              .foregroundStyle(CompanionPalette.secondaryText)
-              .fixedSize(horizontal: false, vertical: true)
-            Label(
-              "此健康分享范围不用于触碰交换；触碰交换只发送上方明确列出的公开宠物卡。",
-              systemImage: "lock.shield"
-            )
-            .font(.footnote.weight(.semibold))
-            .foregroundStyle(CompanionPalette.secondaryText)
-            .fixedSize(horizontal: false, vertical: true)
+          )
+        ) {
+          ForEach(CompanionDataSource.allCases, id: \.rawValue) { source in
+            Text(source.displayName).tag(source)
           }
         }
+        .accessibilityIdentifier("phone.settings.data-mode")
+      }
 
-        CompanionCard {
-          Label(
-            model.isLive ? "本机数据模式" : "演示数据", systemImage: model.isLive ? "iphone" : "testtube.2"
-          )
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(CompanionPalette.blue)
-          Text(
-            model.isLive
-              ? "当前只读取本机授权的 HealthKit 数据并保存派生事件；没有服务器上传。"
-              : "此运行使用显式 Mock 场景验证交互，不会把演示值标记为真实健康数据。"
-          )
+      if store.selectedDataSource == .healthKit {
+        LabeledContent("Apple 健康") {
+          Text(store.model.stepCount == nil ? "待连接" : "已读取本机记录")
+            .foregroundStyle(CompanionPalette.secondaryText)
+        }
+        Text("健康记录会在前台自动更新；权限关闭时请前往系统设置恢复。")
           .font(.footnote)
           .foregroundStyle(CompanionPalette.secondaryText)
-          .padding(.top, 5)
-        }
+      } else {
+        Text("Mock 与真实记录使用独立命名空间，不会互相覆盖。")
+          .font(.footnote)
+          .foregroundStyle(CompanionPalette.secondaryText)
       }
-    }
-    .navigationTitle("隐私")
-    .accessibilityIdentifier("phone.privacy")
-  }
-
-  private var scopeDescription: String {
-    switch store.preferences.healthSharingScope {
-    case .gameStateOnly:
-      "只分享宠物等级、共同剧情与游戏关系。"
-    case .careSummary:
-      "默认范围：只分享“今天适合放慢”等非医疗、非数值表达。"
-    case .limitedHealthSummary:
-      "可分享用户明确允许的有限摘要；仍不包含睡眠阶段、心率数值或原始记录。"
+    } header: {
+      Text("数据与权限")
     }
   }
 
-  private var scopeTitle: String {
-    switch store.preferences.healthSharingScope {
-    case .gameStateOnly:
-      "游戏状态"
-    case .careSummary:
-      "关心摘要"
-    case .limitedHealthSummary:
-      "有限健康摘要"
-    }
-  }
+  private var companionSection: some View {
+    Section {
+      if store.companionExperienceAvailable {
+        Toggle(
+          "随行感知",
+          isOn: Binding(
+            get: { store.companionSensingEnabled },
+            set: store.setCompanionSensingEnabled
+          )
+        )
+        .accessibilityIdentifier("phone.settings.companion-sensing")
 
-  private func socialStateTitle(_ state: PublicPetSocialStateV1) -> String {
-    switch state {
-    case .greeting:
-      "想打个招呼"
-    case .walk:
-      "想一起散步"
-    case .quietCompany:
-      "想安静陪伴"
-    }
-  }
+        Picker(
+          "提醒方式",
+          selection: Binding(
+            get: { store.reminderMode },
+            set: store.setReminderMode
+          )
+        ) {
+          Text("抬腕提醒").tag(CompanionReminderMode.wristRaise)
+          Text("轻震提醒").tag(CompanionReminderMode.gentleHaptic)
+        }
+        .accessibilityIdentifier("phone.settings.reminder-mode")
 
-  private func settingToggle(
-    title: String,
-    detail: String,
-    isOn: Binding<Bool>,
-    identifier: String
-  ) -> some View {
-    CompanionCard {
-      Toggle(isOn: isOn) {
-        VStack(alignment: .leading, spacing: 4) {
-          Text(title)
-            .font(.subheadline.weight(.semibold))
-          Text(detail)
-            .font(.footnote)
+        NavigationLink {
+          QuietHoursSettingsView(store: store)
+        } label: {
+          HStack {
+            Text("安静时段")
+              .font(.body)
+            Spacer()
+            Text(quietHoursText)
+              .font(.body)
+              .foregroundStyle(CompanionPalette.secondaryText)
+          }
+        }
+        .accessibilityIdentifier("phone.settings.quiet-hours")
+      } else {
+        LabeledContent("Mori 随行") {
+          Text("待连接")
             .foregroundStyle(CompanionPalette.secondaryText)
-            .fixedSize(horizontal: false, vertical: true)
         }
       }
-      .tint(CompanionPalette.mint)
-      .accessibilityIdentifier(identifier)
+    } header: {
+      Text("Mori 随行")
+    } footer: {
+      Text("手表首页仍保留随行入口；这里用于更完整地管理提醒和安静时段。")
     }
+  }
+
+  private var notificationSection: some View {
+    Section {
+      Toggle(
+        "允许 Mori 主动来信",
+        isOn: Binding(
+          get: { store.preferences.proactiveMessagesEnabled },
+          set: store.setProactiveMessages
+        )
+      )
+      .accessibilityIdentifier("phone.settings.proactive")
+      LabeledContent("通知权限") {
+        Text(store.notificationStatus)
+          .foregroundStyle(CompanionPalette.secondaryText)
+      }
+    } header: {
+      Text("通知")
+    } footer: {
+      Text("Mock 不会请求系统权限。真实模式仅在你开启时请求。")
+    }
+  }
+
+  private var conversationSection: some View {
+    Section {
+      Toggle(
+        "允许使用共同回忆",
+        isOn: Binding(
+          get: { store.mockExperience.usesMemoryContext },
+          set: store.setMemoryContext
+        )
+      )
+      .disabled(store.companionExperienceAvailable == false)
+      .accessibilityIdentifier("phone.settings.memory-context")
+
+      Button("清除对话记录", role: .destructive) {
+        Task { await store.clearConversation() }
+      }
+      .disabled(store.companionExperienceAvailable == false)
+      .accessibilityIdentifier("phone.settings.clear-conversation")
+    } header: {
+      Text("Mori 对话")
+    } footer: {
+      Text(
+        store.model.isLive
+          ? "正式对话运行时尚未接入。"
+          : "当前是本机 Mock 预览，不发送到服务器；清除对话不会删除共同回忆。"
+      )
+    }
+  }
+
+  private var sharingSection: some View {
+    Section {
+      Toggle(
+        "启用好友分享",
+        isOn: Binding(
+          get: { store.preferences.socialSharingEnabled },
+          set: store.setSocialSharing
+        )
+      )
+      .accessibilityIdentifier("phone.settings.social-sharing")
+
+      Picker(
+        "公开宠物状态",
+        selection: Binding(
+          get: { store.preferences.publicPetSocialState },
+          set: store.setPublicPetSocialState
+        )
+      ) {
+        ForEach(PublicPetSocialStateV1.allCases, id: \.rawValue) { value in
+          Text(socialTitle(value)).tag(value)
+        }
+      }
+      .disabled(store.preferences.socialSharingEnabled == false)
+      .accessibilityIdentifier("phone.settings.social-state")
+    } header: {
+      Text("好友与触碰交换")
+    } footer: {
+      Text("默认关闭。触碰交换只发送你选择的公开宠物状态，不包含步数、睡眠或健康数据。")
+    }
+  }
+
+  private var dataManagementSection: some View {
+    Section {
+      if let settingsURL = URL(
+        string: UIApplication.openSettingsURLString
+      ) {
+        Link(destination: settingsURL) {
+          Label("打开 Apple 设置", systemImage: "gear")
+        }
+        .accessibilityIdentifier("phone.settings.open-apple-settings")
+      }
+
+      Button("删除所有 Mori 数据", role: .destructive) {
+        store.requestDeleteAllMoriData()
+      }
+      .disabled(store.isDeletingAllMoriData)
+      .accessibilityIdentifier("phone.settings.delete-all")
+    } header: {
+      Text("数据管理")
+    } footer: {
+      Text("Apple 设置用于管理健康、定位和通知权限。删除 Mori 数据不会删除 Apple 健康记录，也不会声称系统权限已经撤销。")
+    }
+  }
+
+  @ViewBuilder
+  private var developerSection: some View {
+    #if DEBUG
+      Section {
+        if store.selectedDataSource.isMock {
+          LabeledContent("Mock 场景") {
+            Text(store.selectedDataSource.displayName)
+              .foregroundStyle(CompanionPalette.secondaryText)
+          }
+          Button("重置当前 Mock 状态", role: .destructive) {
+            Task { await store.resetCurrentMockState() }
+          }
+          .disabled(store.dataSourceSelectionAvailable == false)
+          .accessibilityIdentifier("phone.settings.reset-mock")
+        } else {
+          Text("当前是 Apple 健康模式；Mock 控件不会修改真实记录。")
+            .foregroundStyle(CompanionPalette.secondaryText)
+        }
+      } header: {
+        Text("开发者选项")
+      }
+    #endif
+  }
+
+  private var localStorageSection: some View {
+    Section {
+      LabeledContent("跨设备同步") {
+        Text("尚未接入")
+          .foregroundStyle(CompanionPalette.secondaryText)
+      }
+      .accessibilityIdentifier("phone.settings.sync-status")
+    } footer: {
+      Text("当前设置、Mock 任务、金币与收藏只保存在本机。Watch 自动同步将在正式接线后启用；这里没有手动同步或测试按钮。")
+    }
+  }
+
+  private var dataModeTitle: String {
+    if case .invalidMock = store.dataMode {
+      return "无效 Mock"
+    }
+    return store.model.isLive
+      ? "Apple 健康 · 本机"
+      : "Mock · \(store.model.mockScenario?.displayName ?? "未知")"
+  }
+
+  private var quietHoursText: String {
+    "\(timeText(store.quietHours.startMinute))–\(timeText(store.quietHours.endMinute))"
+  }
+
+  private func timeText(_ minutes: Int) -> String {
+    String(format: "%02d:%02d", minutes / 60, minutes % 60)
+  }
+
+  private func socialTitle(_ state: PublicPetSocialStateV1) -> String {
+    switch state {
+    case .greeting: "想打个招呼"
+    case .walk: "想一起散步"
+    case .quietCompany: "想安静陪伴"
+    }
+  }
+}
+
+private struct PhoneDeleteAllMoriDataView: View {
+  @ObservedObject var store: PhoneAppStore
+
+  var body: some View {
+    NavigationStack {
+      List {
+        Section {
+          Label("所有真实与 Mock profile", systemImage: "person.2.slash")
+          Label("对话、回忆、任务与金币", systemImage: "text.badge.xmark")
+          Label("收藏、设置与待处理通知", systemImage: "trash")
+          Label("本机缓存与同步待发内容", systemImage: "externaldrive.badge.xmark")
+        } header: {
+          Text("将从 Mori 删除")
+        }
+
+        Section {
+          Text("Apple 健康中的原始记录和 Apple 系统权限不属于 Mori，删除后仍需在 Apple 设置中单独管理。")
+          Text("当前 Watch 删除同步尚未接入；本机先保存删除围栏，避免旧 profile 在本机恢复。")
+        } header: {
+          Text("不会删除")
+        }
+
+        if let status = store.statusMessage {
+          Section {
+            Text(status)
+              .foregroundStyle(CompanionPalette.secondaryText)
+          }
+        }
+
+        Section {
+          Button("确认删除所有 Mori 数据", role: .destructive) {
+            Task { await store.confirmDeleteAllMoriData() }
+          }
+          .disabled(store.isDeletingAllMoriData)
+          .accessibilityIdentifier("phone.settings.confirm-delete-all")
+        }
+      }
+      .navigationTitle("删除 Mori 数据")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("取消") {
+            store.cancelDeleteAllMoriData()
+          }
+          .disabled(store.isDeletingAllMoriData)
+        }
+      }
+      .accessibilityIdentifier("phone.settings.delete-all-confirmation")
+    }
+  }
+}
+
+private struct QuietHoursSettingsView: View {
+  @ObservedObject var store: PhoneAppStore
+
+  var body: some View {
+    Form {
+      Section {
+        DatePicker(
+          "开始",
+          selection: minuteBinding(
+            get: { store.quietHours.startMinute },
+            set: { store.setQuietHours(startMinute: $0) }
+          ),
+          displayedComponents: .hourAndMinute
+        )
+        .accessibilityIdentifier("phone.settings.quiet-start")
+
+        DatePicker(
+          "结束",
+          selection: minuteBinding(
+            get: { store.quietHours.endMinute },
+            set: { store.setQuietHours(endMinute: $0) }
+          ),
+          displayedComponents: .hourAndMinute
+        )
+        .accessibilityIdentifier("phone.settings.quiet-end")
+      } footer: {
+        Text("安静时段内不会触发主动提醒。开始和结束时间不能相同。")
+      }
+    }
+    .navigationTitle("安静时段")
+    .navigationBarTitleDisplayMode(.inline)
+  }
+
+  private func minuteBinding(
+    get: @escaping () -> Int,
+    set: @escaping (Int) -> Void
+  ) -> Binding<Date> {
+    Binding(
+      get: {
+        Calendar.current.date(
+          bySettingHour: get() / 60,
+          minute: get() % 60,
+          second: 0,
+          of: Date()
+        ) ?? Date()
+      },
+      set: { date in
+        let components = Calendar.current.dateComponents(
+          [.hour, .minute],
+          from: date
+        )
+        set((components.hour ?? 0) * 60 + (components.minute ?? 0))
+      }
+    )
   }
 }

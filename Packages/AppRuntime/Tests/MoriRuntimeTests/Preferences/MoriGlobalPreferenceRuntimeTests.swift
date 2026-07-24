@@ -65,6 +65,60 @@ struct MoriGlobalPreferenceRuntimeTests {
     )
   }
 
+  @Test("Mock selection never replaces the one durable real profile")
+  func realProfileSurvivesMockRoundTrip() async throws {
+    let storageURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "MoriGlobalPreferenceRuntimeTests-\(UUID().uuidString).json"
+    )
+    defer { try? FileManager.default.removeItem(at: storageURL) }
+    let runtime = try MoriGlobalPreferenceRuntime(
+      storageURL: storageURL,
+      originDeviceID: "phone",
+      initialProfileSource: .real
+    )
+
+    let initialReal = try await runtime.current()
+    _ = try await runtime.selectProfile(
+      .mock(scenarioID: "normal-day")
+    )
+    let restoredReal = try await runtime.selectProfile(.real)
+
+    #expect(restoredReal.profileScope == initialReal.profileScope)
+    #expect(
+      restoredReal.profileScope.storageKey
+        == initialReal.profileScope.storageKey
+    )
+  }
+
+  @Test("Selecting the same Mock again creates a complete fresh scope")
+  func repeatedMockSelectionCreatesFreshScope() async throws {
+    let storageURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "MoriGlobalPreferenceRuntimeTests-\(UUID().uuidString).json"
+    )
+    defer { try? FileManager.default.removeItem(at: storageURL) }
+    let runtime = try MoriGlobalPreferenceRuntime(
+      storageURL: storageURL,
+      originDeviceID: "phone",
+      initialProfileSource: .mock(scenarioID: "normal-day")
+    )
+
+    let first = try await runtime.current()
+    let second = try await runtime.selectProfile(
+      .mock(scenarioID: "normal-day")
+    )
+
+    #expect(first.profileScope.isMock)
+    #expect(second.profileScope.isMock)
+    #expect(first.profileScope.mockScenarioID == "normal-day")
+    #expect(second.profileScope.mockScenarioID == "normal-day")
+    #expect(first.profileScope != second.profileScope)
+    #expect(first.profileScope.storageKey != second.profileScope.storageKey)
+    #expect(
+      first.profileScope.profileEpochCounter
+        < second.profileScope.profileEpochCounter
+    )
+  }
+
   @Test("Equal quiet-hour boundaries fail closed without mutating state")
   func equalQuietHourBoundariesAreRejected() async throws {
     let storageURL = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -87,5 +141,107 @@ struct MoriGlobalPreferenceRuntimeTests {
       try await runtime.current().quietHours
         == CompanionQuietHours(startMinute: 22 * 60, endMinute: 7 * 60)
     )
+  }
+
+  @Test("Sensing changes publish a fresh epoch and explicit state")
+  func sensingChangesPublishFreshEpoch() async throws {
+    let storageURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "MoriGlobalPreferenceRuntimeTests-\(UUID().uuidString).json"
+    )
+    defer { try? FileManager.default.removeItem(at: storageURL) }
+    let runtime = try MoriGlobalPreferenceRuntime(
+      storageURL: storageURL,
+      originDeviceID: "phone"
+    )
+
+    let first = try await runtime.current().sensingScope
+    let disabled = try await runtime.setCompanionSensing(
+      enabled: false
+    ).sensingScope
+    let enabledAgain = try await runtime.setCompanionSensing(
+      enabled: true
+    ).sensingScope
+
+    #expect(first.enabled)
+    #expect(!disabled.enabled)
+    #expect(enabledAgain.enabled)
+    #expect(first.epochCounter < disabled.epochCounter)
+    #expect(disabled.epochCounter < enabledAgain.epochCounter)
+  }
+
+  @Test("Global deletion installs a fresh content-free authority fence")
+  func deletionInstallsFreshFence() async throws {
+    let storageURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "MoriGlobalPreferenceRuntimeTests-\(UUID().uuidString).json"
+    )
+    defer { try? FileManager.default.removeItem(at: storageURL) }
+    let runtime = try MoriGlobalPreferenceRuntime(
+      storageURL: storageURL,
+      originDeviceID: "phone",
+      initialProfileSource: .mock(scenarioID: "normal-day")
+    )
+    _ = try await runtime.setReminderMode(.gentleHaptic)
+    _ = try await runtime.setQuietHours(
+      CompanionQuietHours(startMinute: 23 * 60, endMinute: 8 * 60)
+    )
+    let before = try await runtime.current()
+
+    let deleted = try await runtime.deleteAllData(
+      expectedProfileScope: before.profileScope,
+      requestID: "delete-test-request"
+    )
+    let replay = try await runtime.deleteAllData(
+      expectedProfileScope: before.profileScope,
+      requestID: "delete-test-request"
+    )
+
+    #expect(deleted.profileSource == .real)
+    #expect(!deleted.profileScope.isMock)
+    #expect(deleted.profileScope.deletionRequestID == "delete-test-request")
+    #expect(
+      deleted.profileScope.deletionEpochCounter
+        > before.profileScope.deletionEpochCounter
+    )
+    #expect(!deleted.companionSensingEnabled)
+    #expect(deleted.reminderMode == .wristRaise)
+    #expect(
+      deleted.quietHours
+        == CompanionQuietHours(startMinute: 22 * 60, endMinute: 7 * 60)
+    )
+    #expect(replay == deleted)
+
+    let selectedRealAgain = try await runtime.selectProfile(.real)
+    #expect(selectedRealAgain.profileScope == deleted.profileScope)
+
+    let postDeletionMock = try await runtime.selectProfile(
+      .mock(scenarioID: "normal-day")
+    )
+    #expect(
+      postDeletionMock.profileScope.deletionRequestID
+        == deleted.profileScope.deletionRequestID
+    )
+    #expect(
+      postDeletionMock.profileScope.deletionEpochCounter
+        == deleted.profileScope.deletionEpochCounter
+    )
+    #expect(
+      postDeletionMock.profileScope.deletionEpochOriginDeviceID
+        == deleted.profileScope.deletionEpochOriginDeviceID
+    )
+
+    let realAfterMock = try await runtime.selectProfile(.real)
+    #expect(
+      realAfterMock.profileScope.deletionRequestID
+        == deleted.profileScope.deletionRequestID
+    )
+    #expect(
+      realAfterMock.profileScope.deletionEpochCounter
+        == deleted.profileScope.deletionEpochCounter
+    )
+    #expect(
+      realAfterMock.profileScope.deletionEpochOriginDeviceID
+        == deleted.profileScope.deletionEpochOriginDeviceID
+    )
+    #expect(realAfterMock.profileScope.storageKey != before.profileScope.storageKey)
   }
 }

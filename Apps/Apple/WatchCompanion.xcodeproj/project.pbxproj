@@ -25,6 +25,7 @@
 		D01300000000000000000002 /* Persistence in Frameworks */ = {isa = PBXBuildFile; productRef = D01300000000000000000001 /* Persistence */; };
 		D01400000000000000000002 /* Sync in Frameworks */ = {isa = PBXBuildFile; productRef = D01400000000000000000001 /* Sync */; };
 		D10100000000000000000002 /* AppRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = D10100000000000000000001 /* AppRuntime */; };
+		D10200000000000000000002 /* MoriRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = D10200000000000000000001 /* MoriRuntime */; };
 		D11100000000000000000002 /* AppRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = D11100000000000000000001 /* AppRuntime */; };
 		D11200000000000000000002 /* MoriRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = D11200000000000000000001 /* MoriRuntime */; };
 		E10100000000000000000002 /* DebugScenarioSupport in Frameworks */ = {isa = PBXBuildFile; productRef = E10100000000000000000001 /* DebugScenarioSupport */; };
@@ -132,6 +133,7 @@
 			files = (
 				E10100000000000000000002 /* DebugScenarioSupport in Frameworks */,
 				D10100000000000000000002 /* AppRuntime in Frameworks */,
+				D10200000000000000000002 /* MoriRuntime in Frameworks */,
 				D00100000000000000000002 /* Domain in Frameworks */,
 				D00200000000000000000002 /* Growth in Frameworks */,
 				D00300000000000000000002 /* Persistence in Frameworks */,
@@ -233,6 +235,7 @@
 			name = WatchCompanion;
 			packageProductDependencies = (
 				D10100000000000000000001 /* AppRuntime */,
+				D10200000000000000000001 /* MoriRuntime */,
 				E10100000000000000000001 /* DebugScenarioSupport */,
 			);
 			productName = WatchCompanion;
@@ -1049,6 +1052,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D10000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AppRuntime" */;
 			productName = AppRuntime;
+		};
+		D10200000000000000000001 /* MoriRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D10000000000000000000001 /* XCLocalSwiftPackageReference "../../Packages/AppRuntime" */;
+			productName = MoriRuntime;
 		};
 		D11100000000000000000001 /* AppRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
