@@ -41,6 +41,8 @@ class GatewayConfig:
     max_request_bytes: int = 32_768
     max_upstream_response_bytes: int = 16_384
     max_narration_characters: int = 180
+    max_weekly_title_characters: int = 24
+    max_weekly_body_characters: int = 160
     rate_limit_requests: int = 30
     rate_limit_window_seconds: int = 60
 
@@ -112,6 +114,12 @@ class GatewayConfig:
                 env, "NARRATION_MAX_UPSTREAM_RESPONSE_BYTES", 16_384, 1_024, 65_536
             ),
             max_narration_characters=_bounded_int(env, "NARRATION_MAX_CHARACTERS", 180, 40, 300),
+            max_weekly_title_characters=_bounded_int(
+                env, "NARRATION_MAX_WEEKLY_TITLE_CHARACTERS", 24, 8, 32
+            ),
+            max_weekly_body_characters=_bounded_int(
+                env, "NARRATION_MAX_WEEKLY_BODY_CHARACTERS", 160, 60, 180
+            ),
             rate_limit_requests=_bounded_int(env, "NARRATION_RATE_LIMIT_REQUESTS", 30, 1, 600),
             rate_limit_window_seconds=_bounded_int(
                 env, "NARRATION_RATE_LIMIT_WINDOW_SECONDS", 60, 1, 3_600

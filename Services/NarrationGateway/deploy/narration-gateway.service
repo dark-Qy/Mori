@@ -1,0 +1,32 @@
+[Unit]
+Description=Watch Companion Narration Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=narration-gateway
+Group=narration-gateway
+WorkingDirectory=/opt/watch-companion-narration-gateway/runtime
+EnvironmentFile=/etc/watch-companion/narration-gateway.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/watch-companion-narration-gateway/venv/bin/python -m narration_gateway
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

@@ -21,6 +21,16 @@ StrictIdentifier = Annotated[
         strict=True,
     ),
 ]
+SourceHash = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=8,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+        strict=True,
+    ),
+]
 ShortText = Annotated[
     str,
     StringConstraints(
@@ -178,6 +188,77 @@ class NarrationRequest(StrictModel):
     schedule_context: Optional[ShortText] = None
 
 
+class WeeklyActivityKind(str, Enum):
+    WALKING = "walking"
+    RUNNING = "running"
+    CYCLING = "cycling"
+    FOOTBALL = "football"
+    BASKETBALL = "basketball"
+    TENNIS = "tennis"
+    BADMINTON = "badminton"
+    SWIMMING = "swimming"
+    HIKING = "hiking"
+    YOGA = "yoga"
+    STRENGTH = "strength"
+    OTHER = "other"
+
+
+class WeeklyActivityFact(StrictModel):
+    kind: WeeklyActivityKind
+    duration_minutes: int = Field(ge=1, le=10_080, strict=True)
+
+
+class PersonalityTheme(str, Enum):
+    OUTDOOR = "outdoor"
+    BALL_SPORTS = "ball_sports"
+    RACKET_SPORTS = "racket_sports"
+    WATER_SPORTS = "water_sports"
+    MINDFUL = "mindful"
+    STRENGTH = "strength"
+    EXPLORATION = "exploration"
+
+
+class CompactPersonalityProjection(StrictModel):
+    """Non-sensitive expression controls; never a diagnosis or user profile."""
+
+    voice: Literal["calm", "warm", "playful"] = "warm"
+    pace: Literal["gentle", "balanced", "brisk"] = "balanced"
+    themes: List[PersonalityTheme] = Field(default_factory=list, max_length=3)
+
+    @model_validator(mode="after")
+    def themes_are_unique(self) -> "CompactPersonalityProjection":
+        if len(self.themes) != len(set(self.themes)):
+            raise ValueError("personality themes must be unique")
+        return self
+
+
+class WeeklyMemoryPolishRequest(StrictModel):
+    """A typed weekly snapshot; no prompt or arbitrary free text is accepted."""
+
+    request_id: StrictIdentifier
+    source_hash: SourceHash
+    locale: Literal["zh-CN", "en-US"] = "zh-CN"
+    activities: List[WeeklyActivityFact] = Field(default_factory=list, max_length=12)
+    total_steps: Optional[int] = Field(default=None, ge=0, le=1_400_000, strict=True)
+    active_minutes: Optional[int] = Field(default=None, ge=0, le=10_080, strict=True)
+    average_sleep_minutes: Optional[int] = Field(default=None, ge=0, le=1_440, strict=True)
+    personality: CompactPersonalityProjection = Field(default_factory=CompactPersonalityProjection)
+
+    @model_validator(mode="after")
+    def facts_are_usable_and_activities_are_unique(self) -> "WeeklyMemoryPolishRequest":
+        activity_kinds = [activity.kind for activity in self.activities]
+        if len(activity_kinds) != len(set(activity_kinds)):
+            raise ValueError("weekly activity kinds must be unique")
+        if (
+            not self.activities
+            and self.total_steps is None
+            and self.active_minutes is None
+            and self.average_sleep_minutes is None
+        ):
+            raise ValueError("at least one weekly fact is required")
+        return self
+
+
 class FallbackReason(str, Enum):
     MISSING_CONFIGURATION = "missing_configuration"
     UNAUTHORIZED = "upstream_unauthorized"
@@ -217,6 +298,46 @@ class NarrationResponse(StrictModel):
         return self
 
 
+WeeklyTitle = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=32,
+        pattern=r"^[^\x00-\x1F\x7F]+$",
+        strict=True,
+    ),
+]
+WeeklyBody = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=180,
+        pattern=r"^[^\x00-\x1F\x7F]+$",
+        strict=True,
+    ),
+]
+
+
+class WeeklyMemoryPolishResponse(StrictModel):
+    request_id: StrictIdentifier
+    source_hash: SourceHash
+    title: WeeklyTitle
+    body: WeeklyBody
+    source: Literal["upstream", "fallback"]
+    fallback_reason: Optional[FallbackReason]
+    safe: Literal[True] = True
+
+    @model_validator(mode="after")
+    def source_matches_fallback_reason(self) -> "WeeklyMemoryPolishResponse":
+        if self.source == "upstream" and self.fallback_reason is not None:
+            raise ValueError("upstream weekly copy cannot include a fallback reason")
+        if self.source == "fallback" and self.fallback_reason is None:
+            raise ValueError("fallback weekly copy requires a fallback reason")
+        return self
+
+
 class ErrorDetail(StrictModel):
     code: Literal[
         "invalid_request",
@@ -242,6 +363,14 @@ class GeneratedNarration(StrictModel):
     """The model selects presentation style; it cannot supply health-facing copy."""
 
     tone: Literal["calm", "warm", "playful"]
+
+
+class GeneratedWeeklyMemoryStyle(StrictModel):
+    """The model chooses presentation slots; it never supplies visible copy."""
+
+    style: Literal["calm", "warm", "playful"]
+    focus: Literal["movement", "rhythm", "balanced"]
+    ending: Literal["trail", "together", "collection"]
 
 
 class UpstreamMessage(StrictModel):

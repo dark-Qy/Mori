@@ -1,7 +1,63 @@
+import Domain
 import Foundation
 
 enum WeeklyMemoryCopySource: String, Codable, Equatable {
   case mock
+  case ai
+}
+
+struct WeeklyMemoryFacts: Codable, Equatable {
+  let startDate: String
+  let endDate: String
+  let activityKind: String?
+  let activityDurationMinutes: Int?
+  let totalSteps: Int?
+  let activeMinutes: Int?
+  let averageSleepMinutes: Int?
+  let sleepRoutine: WeeklySleepRoutineAggregate?
+}
+
+struct WeeklySleepRoutineAggregate: Codable, Equatable {
+  let band: SleepRoutineBand
+  let regularity: SleepRoutineRegularity
+  let sampleCount: Int
+
+  static func make(snapshots: [HealthSnapshot]) -> WeeklySleepRoutineAggregate? {
+    let localOnsets = snapshots.compactMap { snapshot -> Int? in
+      guard
+        let start = snapshot.sleepWindowStart,
+        let timeZone = TimeZone(identifier: snapshot.timeZoneIdentifier)
+      else { return nil }
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone = timeZone
+      let components = calendar.dateComponents([.hour, .minute], from: start)
+      guard let hour = components.hour, let minute = components.minute else { return nil }
+      return hour * 60 + minute
+    }
+    guard
+      localOnsets.count >= PersonalizationSignal.minimumSleepRoutineSampleCount
+    else { return nil }
+
+    // Bedtimes around midnight belong to one continuous evening scale.
+    let eveningMinutes = localOnsets.map { minute in
+      minute < 12 * 60 ? minute + 24 * 60 : minute
+    }.sorted()
+    let median = eveningMinutes[eveningMinutes.count / 2]
+    let band: SleepRoutineBand
+    if median < 22 * 60 {
+      band = .before2200
+    } else if median < 24 * 60 {
+      band = .from2200To2359
+    } else {
+      band = .afterMidnight
+    }
+    let spread = (eveningMinutes.last ?? median) - (eveningMinutes.first ?? median)
+    return WeeklySleepRoutineAggregate(
+      band: band,
+      regularity: spread <= 90 ? .steady : .varied,
+      sampleCount: localOnsets.count
+    )
+  }
 }
 
 struct WeeklyMemoryMetric: Codable, Equatable, Identifiable {
@@ -30,6 +86,8 @@ struct ArchivedWeeklyMemory: Codable, Equatable, Identifiable {
   var body: String
   let metrics: [WeeklyMemoryMetric]
   let highlight: WeeklyMemoryHighlight
+  let facts: WeeklyMemoryFacts?
+  let polishContextHash: String?
   let bundledCoverAssetName: String
   var source: WeeklyMemoryCopySource
   var isFavorite: Bool

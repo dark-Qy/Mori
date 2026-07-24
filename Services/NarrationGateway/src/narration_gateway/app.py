@@ -12,8 +12,15 @@ from fastapi.responses import JSONResponse
 from .audit import AuditSink, StructuredAuditSink
 from .config import GatewayConfig
 from .middleware import RequestBoundaryMiddleware
-from .models import ErrorResponse, HealthResponse, NarrationRequest, NarrationResponse
-from .service import NarrationService
+from .models import (
+    ErrorResponse,
+    HealthResponse,
+    NarrationRequest,
+    NarrationResponse,
+    WeeklyMemoryPolishRequest,
+    WeeklyMemoryPolishResponse,
+)
+from .service import NarrationService, WeeklyMemoryPolishService
 from .transport import ChatCompletionTransport, HttpxChatCompletionTransport
 
 
@@ -33,10 +40,16 @@ def create_app(
         )
         owns_transport = True
 
+    runtime_audit_sink = audit_sink or StructuredAuditSink()
     service = NarrationService(
         config=runtime_config,
         transport=runtime_transport,
-        audit_sink=audit_sink or StructuredAuditSink(),
+        audit_sink=runtime_audit_sink,
+    )
+    weekly_memory_service = WeeklyMemoryPolishService(
+        config=runtime_config,
+        transport=runtime_transport,
+        audit_sink=runtime_audit_sink,
     )
 
     @asynccontextmanager
@@ -73,7 +86,7 @@ def create_app(
             content={
                 "error": {
                     "code": "invalid_request",
-                    "message": "Request does not match the narration schema.",
+                    "message": "Request does not match the accepted schema.",
                 }
             },
         )
@@ -99,5 +112,22 @@ def create_app(
     )
     async def narrate(request: NarrationRequest) -> NarrationResponse:
         return await service.generate(request)
+
+    @app.post(
+        "/v1/weekly-memories/polish",
+        response_model=WeeklyMemoryPolishResponse,
+        responses={
+            401: {"model": ErrorResponse},
+            413: {"model": ErrorResponse},
+            415: {"model": ErrorResponse},
+            422: {"model": ErrorResponse},
+            429: {"model": ErrorResponse},
+            503: {"model": ErrorResponse},
+        },
+    )
+    async def polish_weekly_memory(
+        request: WeeklyMemoryPolishRequest,
+    ) -> WeeklyMemoryPolishResponse:
+        return await weekly_memory_service.generate(request)
 
     return app

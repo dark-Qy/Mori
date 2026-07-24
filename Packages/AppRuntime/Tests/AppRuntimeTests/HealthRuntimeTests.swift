@@ -1,8 +1,9 @@
-import AppRuntime
 import AppleAdapters
 import Domain
 import Foundation
 import Testing
+
+@testable import AppRuntime
 
 @Suite("Health runtime bridge")
 struct HealthRuntimeTests {
@@ -121,6 +122,53 @@ struct HealthRuntimeTests {
     #expect(mapped.sleepMinutes == nil)
     #expect(mapped.steps == nil)
     #expect(!mapped.hasAnyMetric)
+  }
+
+  @Test("Runtime history keeps the newest snapshot for each local day")
+  func runtimeHistoryCanonicalizesDailySnapshots() {
+    let firstDay = Domain.HealthSnapshot(
+      capturedAt: now.addingTimeInterval(-86_400),
+      timeZoneIdentifier: "UTC",
+      localDay: LocalDay(rawValue: "2025-10-08")!,
+      freshness: .fresh,
+      requestState: .requestCompleted,
+      availability: .partial,
+      steps: 1_000
+    )
+    let olderDuplicate = Domain.HealthSnapshot(
+      capturedAt: now.addingTimeInterval(-600),
+      timeZoneIdentifier: "UTC",
+      localDay: LocalDay(rawValue: "2025-10-09")!,
+      freshness: .fresh,
+      requestState: .requestCompleted,
+      availability: .partial,
+      steps: 2_000
+    )
+    let newerDuplicate = Domain.HealthSnapshot(
+      capturedAt: now,
+      timeZoneIdentifier: "UTC",
+      localDay: LocalDay(rawValue: "2025-10-09")!,
+      freshness: .fresh,
+      requestState: .requestCompleted,
+      availability: .partial,
+      steps: 3_000
+    )
+    let events = [
+      healthEvent(id: 1, snapshot: newerDuplicate),
+      EventEnvelope(
+        eventID: UUID(uuidString: "00000000-0000-0000-0000-000000000099")!,
+        occurredAt: now,
+        source: .phone,
+        payload: .petInteracted(PetInteraction(kind: "test"))
+      ),
+      healthEvent(id: 2, snapshot: firstDay),
+      healthEvent(id: 3, snapshot: olderDuplicate),
+    ]
+
+    let history = RuntimeHealthSnapshotHistory().snapshots(from: events)
+
+    #expect(history.map(\.localDay.rawValue) == ["2025-10-08", "2025-10-09"])
+    #expect(history.map(\.steps) == [1_000, 3_000])
   }
 
   @Test("Old samples are stale even when fetched now")
@@ -432,6 +480,23 @@ struct HealthRuntimeTests {
       steps: HealthReading(availability: .noData, values: []),
       restingHeartRate: HealthReading(availability: .noData, values: []),
       workouts: HealthReading(availability: .noData, values: [])
+    )
+  }
+
+  private func healthEvent(
+    id: Int,
+    snapshot: Domain.HealthSnapshot
+  ) -> EventEnvelope {
+    EventEnvelope(
+      eventID: UUID(
+        uuidString: String(
+          format: "00000000-0000-0000-0000-%012d",
+          id
+        )
+      )!,
+      occurredAt: snapshot.capturedAt,
+      source: .phone,
+      payload: .healthSnapshotReceived(snapshot)
     )
   }
 }

@@ -1,8 +1,10 @@
 # Narration Gateway
 
 This service turns bounded health, pet, rule, and story context into one short
-virtual-pet narration. It is a server-side boundary: Apple clients must never
-receive the upstream API key or call the model provider directly.
+virtual-pet narration. It also turns a typed weekly snapshot into a short
+server-rendered title and body, with the model limited to presentation choices.
+It is a server-side boundary: Apple clients must never receive the upstream API
+key or call the model provider directly.
 
 The service is intentionally useful without a provider. A missing key and every
 expected upstream failure return deterministic local narration with
@@ -21,6 +23,13 @@ POST /v1/narrations
   -> strict tone decision schema
   -> server-owned, reviewed narration template
   -> upstream narration OR deterministic local fallback
+
+POST /v1/weekly-memories/polish
+  -> the same authentication, size, rate, and timeout boundaries
+  -> typed weekly facts and compact expression settings
+  -> provider-neutral JSON style/focus/ending enum selection
+  -> server-owned evidence phrases and final title/body templates
+  -> model-selected presentation OR deterministic presentation fallback
 ```
 
 The transport is injected into `NarrationService`, so tests and the free
@@ -44,6 +53,13 @@ Personal Team experience need no network or APNs. Production uses
   final narration from reviewed local templates and applies the configured
   character budget to both upstream-selected and fallback paths. The model can
   neither return a diagnosis/directive nor smuggle context text into the copy.
+- Weekly polish accepts no prompt or arbitrary fact text. Activities are enums,
+  numeric fields are strictly typed and bounded, and compact personality fields
+  control expression only. The model may return only strict `style`, `focus`,
+  and `ending` enums. It never returns visible copy or receives numeric values.
+  Final titles, evidence phrases, connective text, and endings come from
+  reviewed server templates, so invented results, diagnoses, psychological
+  conclusions, comparisons, and internal disclaimers cannot enter the response.
 - Audit events contain only request ID, outcome code, and upstream status. They
   cannot accept health text, prompts, narration, headers, credentials, or raw
   exceptions. Uvicorn access logging is disabled by the local entrypoint.
@@ -84,6 +100,9 @@ set +a
 python -m narration_gateway
 ```
 
+The local entrypoint binds to `127.0.0.1:8790` by default. A bounded
+`NARRATION_BIND_PORT` override is available when another local port is needed.
+
 Generate a distinct local `NARRATION_GATEWAY_ACCESS_TOKEN` with at least 24
 visible characters. Clients send it as `Authorization: Bearer <token>`. Never
 reuse the upstream provider key for this purpose.
@@ -120,6 +139,51 @@ chat-completion fields emitted by `prompting.py`. Its response is accepted only
 when it selects an allowed tone with the exact declared schema; direct narration,
 unexpected provider fields, and prompt-injection output fail closed to local copy.
 
+`POST /v1/weekly-memories/polish` uses the same bearer authentication and
+returns HTTP 200 for both provider and fallback paths. Example request:
+
+```json
+{
+  "request_id": "weekly-request-001",
+  "source_hash": "weekly.source:abc12345",
+  "locale": "zh-CN",
+  "activities": [
+    {"kind": "tennis", "duration_minutes": 45},
+    {"kind": "swimming", "duration_minutes": 60}
+  ],
+  "total_steps": 42350,
+  "active_minutes": 210,
+  "average_sleep_minutes": 435,
+  "personality": {
+    "voice": "warm",
+    "pace": "balanced",
+    "themes": ["racket_sports", "water_sports"]
+  }
+}
+```
+
+Example response:
+
+```json
+{
+  "request_id": "weekly-request-001",
+  "source_hash": "weekly.source:abc12345",
+  "title": "和网球一起向前",
+  "body": "这周我们一起留下了网球 45 分钟、游泳 60 分钟、42350 步、活跃 210 分钟、平均睡眠 435 分钟。下一段路，我们也一起走。",
+  "source": "upstream",
+  "fallback_reason": null,
+  "safe": true
+}
+```
+
+Allowed activity kinds are `walking`, `running`, `cycling`, `football`,
+`basketball`, `tennis`, `badminton`, `swimming`, `hiking`, `yoga`, `strength`,
+and `other`. Activity kinds must be unique. At least one activity, steps,
+active-minutes, or sleep fact is required. `source_hash` is echoed for client
+cache validation but is never sent to the model. `source: "upstream"` means the
+model successfully selected strict presentation slots; it does not mean the
+model authored the visible title or body.
+
 ## Tests
 
 ```bash
@@ -140,6 +204,7 @@ stream that attempts to exceed the wall-clock deadline.
 
 | Variable | Default | Constraint |
 | --- | --- | --- |
+| `NARRATION_BIND_PORT` | `8790` | 1024–65535, localhost bind only |
 | `NARRATION_UPSTREAM_BASE_URL` | `https://api-gateway.openagents.org` | HTTPS origin, no embedded credentials |
 | `NARRATION_UPSTREAM_MODEL` | `deepseek-4-flash` | 1–128 characters |
 | `NARRATION_UPSTREAM_API_KEY` | unset | Read only from process environment |
@@ -148,6 +213,8 @@ stream that attempts to exceed the wall-clock deadline.
 | `NARRATION_MAX_REQUEST_BYTES` | `32768` | 4096–65536 bytes |
 | `NARRATION_MAX_UPSTREAM_RESPONSE_BYTES` | `16384` | 1024–65536 bytes |
 | `NARRATION_MAX_CHARACTERS` | `180` | 40–300 characters |
+| `NARRATION_MAX_WEEKLY_TITLE_CHARACTERS` | `24` | 8–32 characters |
+| `NARRATION_MAX_WEEKLY_BODY_CHARACTERS` | `160` | 60–180 characters |
 | `NARRATION_RATE_LIMIT_REQUESTS` | `30` | 1–600 requests per process/window |
 | `NARRATION_RATE_LIMIT_WINDOW_SECONDS` | `60` | 1–3600 seconds |
 
@@ -161,3 +228,9 @@ stream that attempts to exceed the wall-clock deadline.
 - Retries are intentionally absent: they can amplify cost, latency, and duplicate
   narration. The caller can request a new narration under its own idempotency
   policy.
+
+## Deployment
+
+See [`deploy/README.md`](deploy/README.md) for the systemd service, localhost
+port `8790`, incremental Nginx `/ai/` route that preserves SocialGateway, and
+an upstream smoke test that fails when the service returns only fallback copy.

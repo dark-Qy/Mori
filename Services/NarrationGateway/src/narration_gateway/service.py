@@ -13,17 +13,21 @@ from .fallback import approved_narration, local_fallback
 from .models import (
     FallbackReason,
     GeneratedNarration,
+    GeneratedWeeklyMemoryStyle,
     NarrationRequest,
     NarrationResponse,
     UpstreamChatCompletionResponse,
+    WeeklyMemoryPolishRequest,
+    WeeklyMemoryPolishResponse,
 )
-from .prompting import build_chat_payload
+from .prompting import build_chat_payload, build_weekly_chat_payload
 from .transport import (
     ChatCompletionTransport,
     UpstreamNetworkError,
     UpstreamResponseTooLarge,
     UpstreamTimeout,
 )
+from .weekly_copy import deterministic_weekly_copy, render_weekly_copy
 
 
 class NarrationService:
@@ -148,4 +152,112 @@ class NarrationService:
             self._audit.record(event)
         except Exception:
             # Observability must never make the user-facing path unavailable.
+            pass
+
+
+class WeeklyMemoryPolishService:
+    """Lets the model select style slots, then renders server-owned copy."""
+
+    def __init__(
+        self,
+        config: GatewayConfig,
+        transport: Optional[ChatCompletionTransport],
+        audit_sink: AuditSink,
+    ) -> None:
+        self._config = config
+        self._transport = transport
+        self._audit = audit_sink
+
+    async def generate(self, request: WeeklyMemoryPolishRequest) -> WeeklyMemoryPolishResponse:
+        if not self._config.upstream_ready or self._transport is None:
+            return self._fallback(request, FallbackReason.MISSING_CONFIGURATION)
+
+        payload = build_weekly_chat_payload(
+            request,
+            self._config.upstream_model,
+        )
+        try:
+            response = await self._transport.complete(
+                payload,
+                timeout_seconds=self._config.upstream_timeout_seconds,
+                max_response_bytes=self._config.max_upstream_response_bytes,
+            )
+        except UpstreamTimeout:
+            return self._fallback(request, FallbackReason.TIMEOUT)
+        except UpstreamResponseTooLarge:
+            return self._fallback(request, FallbackReason.RESPONSE_TOO_LARGE)
+        except UpstreamNetworkError:
+            return self._fallback(request, FallbackReason.NETWORK_ERROR)
+        except Exception:
+            return self._fallback(request, FallbackReason.INTERNAL_ERROR)
+
+        status_reason = NarrationService._status_fallback(response.status_code)
+        if status_reason is not None:
+            return self._fallback(request, status_reason, response.status_code)
+        if len(response.body) > self._config.max_upstream_response_bytes:
+            return self._fallback(request, FallbackReason.RESPONSE_TOO_LARGE, response.status_code)
+
+        style = self._decode_style(response.body)
+        if style is None:
+            return self._fallback(request, FallbackReason.MALFORMED, response.status_code)
+        title, body = render_weekly_copy(
+            request,
+            style=style.style,
+            focus=style.focus,
+            ending=style.ending,
+            max_title_characters=self._config.max_weekly_title_characters,
+            max_body_characters=self._config.max_weekly_body_characters,
+        )
+
+        result = WeeklyMemoryPolishResponse(
+            request_id=request.request_id,
+            source_hash=request.source_hash,
+            title=title,
+            body=body,
+            source="upstream",
+            fallback_reason=None,
+            safe=True,
+        )
+        self._record(SafeAuditEvent(request.request_id, "weekly_upstream", response.status_code))
+        return result
+
+    @staticmethod
+    def _decode_style(body: bytes) -> Optional[GeneratedWeeklyMemoryStyle]:
+        try:
+            upstream = UpstreamChatCompletionResponse.model_validate_json(body)
+            if upstream.choices[0].message.refusal:
+                return None
+            return GeneratedWeeklyMemoryStyle.model_validate_json(
+                upstream.choices[0].message.content
+            )
+        except (ValidationError, ValueError, json.JSONDecodeError, UnicodeDecodeError):
+            return None
+
+    def _fallback(
+        self,
+        request: WeeklyMemoryPolishRequest,
+        reason: FallbackReason,
+        upstream_status: Optional[int] = None,
+    ) -> WeeklyMemoryPolishResponse:
+        title, body = deterministic_weekly_copy(
+            request,
+            max_title_characters=self._config.max_weekly_title_characters,
+            max_body_characters=self._config.max_weekly_body_characters,
+        )
+        result = WeeklyMemoryPolishResponse(
+            request_id=request.request_id,
+            source_hash=request.source_hash,
+            title=title,
+            body=body,
+            source="fallback",
+            fallback_reason=reason,
+            safe=True,
+        )
+        self._record(SafeAuditEvent(request.request_id, f"weekly_{reason.value}", upstream_status))
+        return result
+
+    def _record(self, event: SafeAuditEvent) -> None:
+        try:
+            self._audit.record(event)
+        except Exception:
             pass

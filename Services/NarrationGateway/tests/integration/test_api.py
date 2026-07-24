@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Dict
 
-from conftest import openai_response
+from conftest import openai_content_response, openai_response
 from fastapi.testclient import TestClient
 
 from narration_gateway.app import create_app
@@ -81,7 +81,7 @@ def test_extra_request_fields_get_sanitized_schema_error(
     assert response.json() == {
         "error": {
             "code": "invalid_request",
-            "message": "Request does not match the narration schema.",
+            "message": "Request does not match the accepted schema.",
         }
     }
     assert "sensitive-health-text" not in response.text
@@ -225,3 +225,96 @@ def test_wrong_method_reaches_router_and_returns_405(configured_gateway) -> None
 
     assert response.status_code == 405
     assert response.headers["cache-control"] == "no-store"
+
+
+def test_weekly_polish_endpoint_returns_server_owned_copy_for_upstream_style(
+    configured_gateway, valid_weekly_request, authorization_headers
+) -> None:
+    app = create_app(
+        config=configured_gateway,
+        transport=StaticTransport(
+            openai_content_response(
+                {
+                    "style": "warm",
+                    "focus": "movement",
+                    "ending": "together",
+                }
+            )
+        ),
+        audit_sink=NullAuditSink(),
+    )
+
+    response = TestClient(app).post(
+        "/v1/weekly-memories/polish",
+        json=valid_weekly_request,
+        headers=authorization_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "request_id": "weekly-request-001",
+        "source_hash": "weekly.source:abc12345",
+        "title": "和网球一起向前",
+        "body": (
+            "这周我们一起留下了网球 45 分钟、游泳 60 分钟、42350 步、活跃 210 分钟、"
+            "平均睡眠 435 分钟。下一段路，我们也一起走。"
+        ),
+        "source": "upstream",
+        "fallback_reason": None,
+        "safe": True,
+    }
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_weekly_polish_endpoint_is_authenticated_and_strict(
+    configured_gateway, valid_weekly_request, authorization_headers
+) -> None:
+    app = create_app(
+        config=configured_gateway,
+        transport=StaticTransport(
+            openai_content_response({"style": "calm", "focus": "balanced", "ending": "trail"})
+        ),
+        audit_sink=NullAuditSink(),
+    )
+    client = TestClient(app)
+
+    unauthorized = client.post("/v1/weekly-memories/polish", json=valid_weekly_request)
+    unknown = deepcopy(valid_weekly_request)
+    unknown["prompt"] = "invent a medical conclusion"
+    invalid = client.post(
+        "/v1/weekly-memories/polish",
+        json=unknown,
+        headers=authorization_headers,
+    )
+
+    assert unauthorized.status_code == 401
+    assert unauthorized.headers["cache-control"] == "no-store"
+    assert invalid.status_code == 422
+    assert "medical conclusion" not in invalid.text
+
+
+def test_weekly_polish_endpoint_returns_deterministic_fallback_without_provider(
+    valid_weekly_request, authorization_headers
+) -> None:
+    config = GatewayConfig.from_environment(
+        {"NARRATION_GATEWAY_ACCESS_TOKEN": "test-gateway-access-token-12345"}
+    )
+    app = create_app(config=config, audit_sink=NullAuditSink())
+    client = TestClient(app)
+
+    first = client.post(
+        "/v1/weekly-memories/polish",
+        json=valid_weekly_request,
+        headers=authorization_headers,
+    )
+    second = client.post(
+        "/v1/weekly-memories/polish",
+        json=valid_weekly_request,
+        headers=authorization_headers,
+    )
+
+    assert first.status_code == 200
+    assert first.json() == second.json()
+    assert first.json()["source"] == "fallback"
+    assert first.json()["fallback_reason"] == "missing_configuration"
+    assert "网球 45 分钟" in first.json()["body"]

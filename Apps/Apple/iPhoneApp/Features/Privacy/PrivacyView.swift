@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PrivacyView: View {
   @ObservedObject var store: PhoneAppStore
+  @State private var isConfirmingPersonalizationClear = false
 
   private var model: PhonePresentationModel { store.model }
 
@@ -33,6 +34,42 @@ struct PrivacyView: View {
           ),
           identifier: "phone.privacy.proactive"
         )
+
+        Text("个性化陪伴")
+          .font(.headline)
+          .padding(.top, CompanionSpacing.small)
+        settingToggle(
+          title: "允许 Mori 逐渐了解我",
+          detail: "Mori 会保留温暖、好奇、不评判的原有性格，只从明确选择、完成的活动与多日作息节奏中，慢慢贴近你的陪伴方式。",
+          isOn: Binding(
+            get: { store.isPersonalizationEnabled },
+            set: store.setPersonalizationEnabled
+          ),
+          identifier: "phone.privacy.personalization"
+        )
+
+        CompanionCard {
+          VStack(alignment: .leading, spacing: CompanionSpacing.small) {
+            Text("作息只会形成多日时间带与规律性，不保留单晚睡眠明细；Mori 不会据此或心率判断你的性格。")
+              .font(.footnote)
+              .foregroundStyle(CompanionPalette.secondaryText)
+              .fixedSize(horizontal: false, vertical: true)
+
+            Button("清除 Mori 对我的了解", role: .destructive) {
+              isConfirmingPersonalizationClear = true
+            }
+            .disabled(store.isClearingPersonalization)
+            .accessibilityIdentifier("phone.privacy.personalization-clear")
+
+            if let status = store.personalizationStatus {
+              Text(status)
+                .font(.footnote)
+                .foregroundStyle(CompanionPalette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("phone.privacy.personalization-status")
+            }
+          }
+        }
 
         Text("好友可见范围")
           .font(.headline)
@@ -122,6 +159,14 @@ struct PrivacyView: View {
     }
     .navigationTitle("隐私")
     .accessibilityIdentifier("phone.privacy")
+    .alert("清除 Mori 对你的了解？", isPresented: $isConfirmingPersonalizationClear) {
+      Button("清除", role: .destructive) {
+        Task { await store.clearPersonalization() }
+      }
+      Button("取消", role: .cancel) {}
+    } message: {
+      Text("这会清除 Mori 学到的偏好和适应性性格；不会删除周报或健康记录。")
+    }
   }
 
   private func socialStateTitle(_ state: PublicPetSocialStateV1) -> String {

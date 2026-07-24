@@ -1,5 +1,6 @@
 import AppRuntime
 import Domain
+import Persistence
 import UIKit
 import XCTest
 
@@ -269,6 +270,385 @@ final class AppSmokeTests: XCTestCase {
     XCTAssertEqual(loaded.first?.record.isFavorite, true)
   }
 
+  @MainActor
+  func testMockWeeklyWorkoutsReinforceHiddenPersonalizationOnlyOnce() async throws {
+    let repository = PersonalizationRepository(
+      storage: InMemoryPersonalizationStorage()
+    )
+    let polisher = CapturingWeeklyMemoryPolisher()
+    let store = PhoneAppStore(
+      arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=mock7_active"],
+      weeklyMemoryPolisher: polisher,
+      personalizationRepository: repository
+    )
+
+    await store.prepareWeeklyMemory()
+    let firstState = try await repository.state()
+    XCTAssertEqual(firstState.memories.count, 6)
+    XCTAssertEqual(
+      Set(firstState.memories.flatMap(\.evidence).map(\.id)).count,
+      10
+    )
+    XCTAssertTrue(polisher.lastPersonality?.themes.contains("racket_sports") == true)
+    XCTAssertEqual(firstState.compactProjection.sleepRoutine?.regularity, .steady)
+
+    await store.prepareWeeklyMemory(force: true)
+    let secondState = try await repository.state()
+    XCTAssertEqual(
+      secondState.memories.map(\.reinforcementCount).sorted(),
+      [1, 1, 1, 1, 1, 5]
+    )
+  }
+
+  func testWeeklySleepRoutineUsesOnlyFiveSampleAggregate() throws {
+    let stableModel = PhonePresentationModel.initial(
+      arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=mock7_stable"]
+    )
+    let stableRecords = WeeklyMemoryPresentationFactory().makeTimeline(model: stableModel)
+
+    XCTAssertEqual(stableRecords.count, 5)
+    for record in stableRecords {
+      let routine = try XCTUnwrap(record.facts?.sleepRoutine)
+      XCTAssertEqual(routine.sampleCount, 7)
+      XCTAssertEqual(routine.band, .from2200To2359)
+      XCTAssertEqual(routine.regularity, .steady)
+    }
+
+    let rhythmModel = PhonePresentationModel.initial(
+      arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=mock7_rhythm"]
+    )
+    let rhythmRecords = WeeklyMemoryPresentationFactory().makeTimeline(model: rhythmModel)
+    XCTAssertEqual(
+      rhythmRecords.compactMap(\.facts?.sleepRoutine?.regularity),
+      [.varied, .varied, .varied, .varied, .steady]
+    )
+
+    let sparseModel = PhonePresentationModel.initial(
+      arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=mock7_sparse"]
+    )
+    let sparseRecords = WeeklyMemoryPresentationFactory().makeTimeline(model: sparseModel)
+    XCTAssertEqual(
+      sparseRecords.map(\.facts?.sleepRoutine?.sampleCount),
+      [nil, 5, nil, 5, 5]
+    )
+  }
+
+  @MainActor
+  func testClearingPersonalizationKeepsToggleAndRestoresMoriCore() async throws {
+    let repository = PersonalizationRepository(
+      storage: InMemoryPersonalizationStorage()
+    )
+    try await repository.record(
+      .verifiedWorkout(
+        activity: .swimming,
+        durationMinutes: 40,
+        evidenceID: "fixture-swim"
+      )
+    )
+    try await repository.setEnabled(false)
+    let store = PhoneAppStore(
+      arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=health_normal"],
+      personalizationRepository: repository
+    )
+
+    await store.start()
+    XCTAssertFalse(store.isPersonalizationEnabled)
+    await store.clearPersonalization()
+
+    let state = try await repository.state()
+    XCTAssertFalse(state.isEnabled)
+    XCTAssertTrue(state.memories.isEmpty)
+    XCTAssertEqual(state.mori, .original)
+    XCTAssertTrue(
+      store.personalizationStatus?.contains("回到原来的性格") == true
+    )
+  }
+
+  func testPersonalityProjectionUsesOnlyGatewayAllowlistedValues() {
+    let value = WeeklyMemoryAIPersonalityProjection(
+      projection: MoriPersonalityProjection(
+        expressionStyle: .playful,
+        companionshipRhythm: .lively,
+        energy: 0.8,
+        playfulness: 0.9,
+        brevity: 0.4,
+        preferredActivities: [.tennis, .swimming],
+        interests: [.quietMoments, .waterSports],
+        isPersonalized: true
+      )
+    )
+
+    XCTAssertEqual(value.voice, "playful")
+    XCTAssertEqual(value.pace, "brisk")
+    XCTAssertEqual(
+      value.themes,
+      ["racket_sports", "water_sports", "mindful"]
+    )
+
+    let bounded = WeeklyMemoryAIPersonalityProjection(
+      projection: MoriPersonalityProjection(
+        expressionStyle: .gentle,
+        companionshipRhythm: .balanced,
+        energy: 0.5,
+        playfulness: 0.5,
+        brevity: 0.5,
+        preferredActivities: [.walking, .soccer, .tennis],
+        interests: [.waterSports, .quietMoments],
+        isPersonalized: true
+      )
+    )
+    XCTAssertEqual(
+      bounded.themes,
+      ["outdoor", "exploration", "ball_sports"]
+    )
+    XCTAssertEqual(bounded.themes.count, 3)
+  }
+
+  func testCoarseSleepRoutineOnlySoftensCompanionshipPace() {
+    let lateRoutine = WeeklyMemoryAIPersonalityProjection(
+      projection: MoriPersonalityProjection(
+        expressionStyle: .playful,
+        companionshipRhythm: .lively,
+        energy: 0.8,
+        playfulness: 0.8,
+        brevity: 0.4,
+        preferredActivities: [],
+        interests: [],
+        sleepRoutine: SleepRoutineProjection(
+          band: .afterMidnight,
+          regularity: .steady,
+          confidence: 0.8
+        ),
+        isPersonalized: true
+      )
+    )
+    let noRoutine = WeeklyMemoryAIPersonalityProjection(
+      projection: MoriPersonalityProjection(
+        expressionStyle: .playful,
+        companionshipRhythm: .lively,
+        energy: 0.8,
+        playfulness: 0.8,
+        brevity: 0.4,
+        preferredActivities: [],
+        interests: [],
+        isPersonalized: true
+      )
+    )
+
+    XCTAssertEqual(lateRoutine.voice, "playful")
+    XCTAssertEqual(lateRoutine.pace, "gentle")
+    XCTAssertEqual(noRoutine.pace, "brisk")
+  }
+
+  func testLiveHealthEvidenceUsesWorkoutIDsAndOnlyAggregatedSleepRoutine() throws {
+    let workoutID = UUID(uuidString: "00000000-0000-0000-0000-000000000777")!
+    let days = [
+      "2025-10-03", "2025-10-04", "2025-10-05", "2025-10-06",
+      "2025-10-07", "2025-10-08", "2025-10-09",
+    ]
+    var history = try days.map {
+      try liveSnapshot(day: $0, sleepStartTime: "00:30")
+    }
+    let latest = try liveSnapshot(
+      day: "2025-10-09",
+      sleepStartTime: "00:30",
+      workouts: [
+        WorkoutSummary(
+          id: workoutID,
+          activity: .tennis,
+          startedAt: Date(timeIntervalSince1970: 1_760_000_000),
+          durationMinutes: 35
+        )
+      ]
+    )
+    history[history.count - 1] = latest
+
+    let values = LivePersonalizationEvidenceFactory().make(
+      latestSnapshot: latest,
+      history: history,
+      excluding: []
+    )
+
+    XCTAssertEqual(values.count, 2)
+    let workout = try XCTUnwrap(
+      values.first {
+        $0.evidenceID == "healthkit-workout-\(workoutID.uuidString.lowercased())"
+      }
+    )
+    guard
+      case .verifiedWorkout(let activity, let duration, _) = workout.signal
+    else {
+      return XCTFail("Expected verified workout")
+    }
+    XCTAssertEqual(activity, .tennis)
+    XCTAssertEqual(duration, 35)
+
+    let routine = try XCTUnwrap(
+      values.first { $0.evidenceID.hasPrefix("healthkit-sleep-routine-") }
+    )
+    guard
+      case .sleepRoutine(let band, let regularity, let sampleCount, _) = routine.signal
+    else {
+      return XCTFail("Expected aggregate sleep routine")
+    }
+    XCTAssertEqual(band, .afterMidnight)
+    XCTAssertEqual(regularity, .steady)
+    XCTAssertEqual(sampleCount, 7)
+
+    XCTAssertTrue(
+      LivePersonalizationEvidenceFactory().make(
+        latestSnapshot: latest,
+        history: history,
+        excluding: Set(values.map(\.evidenceID))
+      ).isEmpty
+    )
+  }
+
+  @MainActor
+  func testWeeklyMemoryAIClientUsesTypedContractAndSourceHashCache() async throws {
+    WeeklyMemoryURLProtocolStub.reset(source: "upstream")
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [WeeklyMemoryURLProtocolStub.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString,
+      isDirectory: true
+    )
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let client = WeeklyMemoryAIClient(
+      configuration: WeeklyMemoryAIRuntimeConfiguration(
+        baseURL: try XCTUnwrap(URL(string: "https://social.example"))
+      ),
+      credentialProvider: StaticWeeklyMemoryCredentialProvider(token: "runtime-token"),
+      session: session,
+      cache: WeeklyMemoryAICache(storageDirectory: directory)
+    )
+    let local = weeklyArchiveRecord(sourceHash: String(repeating: "a", count: 64))
+
+    let first = await client.polish([local], personality: .moriCore)
+    XCTAssertEqual(first.first?.source, .ai)
+    XCTAssertEqual(first.first?.title, "这一周，Mori 想起了海边")
+    XCTAssertEqual(WeeklyMemoryURLProtocolStub.recordedRequests().count, 1)
+
+    let captured = try XCTUnwrap(WeeklyMemoryURLProtocolStub.recordedRequests().first)
+    XCTAssertEqual(
+      captured.url?.path,
+      "/ai/v1/weekly-memories/polish"
+    )
+    XCTAssertEqual(
+      captured.value(forHTTPHeaderField: "Authorization"),
+      "Bearer runtime-token"
+    )
+    let body = try XCTUnwrap(
+      try JSONSerialization.jsonObject(with: captured.httpBody ?? Data())
+        as? [String: Any]
+    )
+    XCTAssertEqual(
+      Set(body.keys),
+      [
+        "request_id",
+        "source_hash",
+        "locale",
+        "activities",
+        "total_steps",
+        "active_minutes",
+        "average_sleep_minutes",
+        "personality",
+      ]
+    )
+    XCTAssertEqual(body["source_hash"] as? String, local.sourceHash)
+    XCTAssertEqual(body["total_steps"] as? Int, 42_000)
+    XCTAssertTrue(body["active_minutes"] is NSNull)
+    XCTAssertTrue(body["average_sleep_minutes"] is NSNull)
+    let personality = try XCTUnwrap(body["personality"] as? [String: Any])
+    XCTAssertEqual(Set(personality.keys), ["voice", "pace", "themes"])
+    XCTAssertEqual(personality["voice"] as? String, "warm")
+    XCTAssertEqual(personality["pace"] as? String, "gentle")
+    XCTAssertEqual(personality["themes"] as? [String], ["exploration"])
+
+    let second = await client.polish([local], personality: .moriCore)
+    XCTAssertEqual(second.first?.source, .ai)
+    XCTAssertEqual(WeeklyMemoryURLProtocolStub.recordedRequests().count, 1)
+
+    let changedPersonality = WeeklyMemoryAIPersonalityProjection(
+      voice: "playful",
+      pace: "brisk",
+      themes: ["racket_sports"],
+      isPersonalized: true
+    )
+    let third = await client.polish([local], personality: changedPersonality)
+    XCTAssertEqual(third.first?.source, .ai)
+    XCTAssertEqual(WeeklyMemoryURLProtocolStub.recordedRequests().count, 2)
+    XCTAssertNotEqual(
+      third.first?.polishContextHash,
+      first.first?.polishContextHash
+    )
+
+    let personalizedCoreValues = WeeklyMemoryAIPersonalityProjection(
+      voice: "warm",
+      pace: "gentle",
+      themes: ["exploration"],
+      isPersonalized: true
+    )
+    let fourth = await client.polish(
+      [local],
+      personality: personalizedCoreValues
+    )
+    XCTAssertEqual(fourth.first?.source, .ai)
+    XCTAssertEqual(WeeklyMemoryURLProtocolStub.recordedRequests().count, 3)
+    XCTAssertNotEqual(
+      fourth.first?.polishContextHash,
+      first.first?.polishContextHash
+    )
+  }
+
+  @MainActor
+  func testWeeklyMemoryAIClientFailsClosedWithoutRuntimeCredential() async throws {
+    WeeklyMemoryURLProtocolStub.reset(source: "upstream")
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [WeeklyMemoryURLProtocolStub.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let client = WeeklyMemoryAIClient(
+      configuration: WeeklyMemoryAIRuntimeConfiguration(
+        baseURL: try XCTUnwrap(URL(string: "https://social.example"))
+      ),
+      credentialProvider: StaticWeeklyMemoryCredentialProvider(token: nil),
+      session: session,
+      cache: WeeklyMemoryAICache(storageDirectory: nil)
+    )
+    let local = weeklyArchiveRecord(sourceHash: String(repeating: "b", count: 64))
+
+    let result = await client.polish([local], personality: .moriCore)
+
+    XCTAssertEqual(result, [local])
+    XCTAssertTrue(WeeklyMemoryURLProtocolStub.recordedRequests().isEmpty)
+  }
+
+  @MainActor
+  func testServerFallbackCannotReplaceLocalDeterministicCopy() async throws {
+    WeeklyMemoryURLProtocolStub.reset(source: "fallback")
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [WeeklyMemoryURLProtocolStub.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let client = WeeklyMemoryAIClient(
+      configuration: WeeklyMemoryAIRuntimeConfiguration(
+        baseURL: try XCTUnwrap(URL(string: "https://social.example"))
+      ),
+      credentialProvider: StaticWeeklyMemoryCredentialProvider(token: "runtime-token"),
+      session: session,
+      cache: WeeklyMemoryAICache(storageDirectory: nil)
+    )
+    let local = weeklyArchiveRecord(sourceHash: String(repeating: "c", count: 64))
+
+    let result = await client.polish([local], personality: .moriCore)
+
+    XCTAssertEqual(result, [local])
+    XCTAssertEqual(WeeklyMemoryURLProtocolStub.recordedRequests().count, 1)
+  }
+
   private func observation(
     _ metric: TrendMetric,
     _ status: PersonalTrendStatus
@@ -310,6 +690,17 @@ final class AppSmokeTests: XCTestCase {
         symbol: "figure.walk",
         durationMinutes: nil
       ),
+      facts: WeeklyMemoryFacts(
+        startDate: "2026-07-20",
+        endDate: "2026-07-26",
+        activityKind: "walking",
+        activityDurationMinutes: nil,
+        totalSteps: 42_000,
+        activeMinutes: nil,
+        averageSleepMinutes: nil,
+        sleepRoutine: nil
+      ),
+      polishContextHash: nil,
       bundledCoverAssetName: "weekly_memory_gentle_walk",
       source: .mock,
       isFavorite: false,
@@ -317,5 +708,134 @@ final class AppSmokeTests: XCTestCase {
       createdAt: Date(timeIntervalSince1970: 1_760_000_000),
       accessibilityDescription: "测试回忆。"
     )
+  }
+
+  private func liveSnapshot(
+    day: String,
+    sleepStartTime: String,
+    workouts: [WorkoutSummary] = []
+  ) throws -> HealthSnapshot {
+    let formatter = ISO8601DateFormatter()
+    let capturedAt = try XCTUnwrap(
+      formatter.date(from: "\(day)T12:00:00Z")
+    )
+    let sleepWindowStart = try XCTUnwrap(
+      formatter.date(from: "\(day)T\(sleepStartTime):00Z")
+    )
+    return HealthSnapshot(
+      capturedAt: capturedAt,
+      timeZoneIdentifier: "UTC",
+      localDay: try XCTUnwrap(LocalDay(rawValue: day)),
+      freshness: .fresh,
+      requestState: .requestCompleted,
+      availability: .partial,
+      sleepWindowStart: sleepWindowStart,
+      workouts: workouts
+    )
+  }
+}
+
+@MainActor
+private final class CapturingWeeklyMemoryPolisher: WeeklyMemoryPolishing {
+  var lastPersonality: WeeklyMemoryAIPersonalityProjection?
+
+  func polish(
+    _ records: [ArchivedWeeklyMemory],
+    personality: WeeklyMemoryAIPersonalityProjection
+  ) async -> [ArchivedWeeklyMemory] {
+    lastPersonality = personality
+    return records
+  }
+}
+
+private struct StaticWeeklyMemoryCredentialProvider: WeeklyMemoryAICredentialProviding {
+  let token: String?
+
+  func bearerToken() -> String? {
+    token
+  }
+}
+
+private final class WeeklyMemoryURLProtocolStub: URLProtocol, @unchecked Sendable {
+  nonisolated(unsafe) private static var requests: [URLRequest] = []
+  nonisolated(unsafe) private static var responseSource = "upstream"
+  private static let lock = NSLock()
+
+  static func reset(source: String) {
+    lock.withLock {
+      requests = []
+      responseSource = source
+    }
+  }
+
+  static func recordedRequests() -> [URLRequest] {
+    lock.withLock { requests }
+  }
+
+  override class func canInit(with request: URLRequest) -> Bool {
+    true
+  }
+
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+    request
+  }
+
+  override func startLoading() {
+    do {
+      let captured = try Self.capturedRequest(request)
+      let source = Self.lock.withLock {
+        Self.requests.append(captured)
+        return Self.responseSource
+      }
+      let body = try XCTUnwrap(
+        try JSONSerialization.jsonObject(with: captured.httpBody ?? Data())
+          as? [String: Any]
+      )
+      let responseBody: [String: Any] = [
+        "request_id": try XCTUnwrap(body["request_id"] as? String),
+        "source_hash": try XCTUnwrap(body["source_hash"] as? String),
+        "title": "这一周，Mori 想起了海边",
+        "body": "走过的脚印和海风，都被 Mori 轻轻收好了。",
+        "source": source,
+        "fallback_reason": source == "fallback" ? "missing_configuration" : NSNull(),
+        "safe": true,
+      ]
+      let data = try JSONSerialization.data(withJSONObject: responseBody)
+      let response = HTTPURLResponse(
+        url: try XCTUnwrap(captured.url),
+        statusCode: 200,
+        httpVersion: "HTTP/1.1",
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      client?.urlProtocol(self, didLoad: data)
+      client?.urlProtocolDidFinishLoading(self)
+    } catch {
+      client?.urlProtocol(self, didFailWithError: error)
+    }
+  }
+
+  override func stopLoading() {}
+
+  private static func capturedRequest(_ request: URLRequest) throws -> URLRequest {
+    guard request.httpBody == nil, let stream = request.httpBodyStream else {
+      return request
+    }
+    stream.open()
+    defer { stream.close() }
+    var data = Data()
+    var buffer = [UInt8](repeating: 0, count: 1_024)
+    while true {
+      let count = stream.read(&buffer, maxLength: buffer.count)
+      if count < 0 {
+        throw stream.streamError ?? URLError(.cannotDecodeContentData)
+      }
+      if count == 0 { break }
+      data.append(buffer, count: count)
+    }
+    var captured = request
+    captured.httpBodyStream = nil
+    captured.httpBody = data
+    return captured
   }
 }

@@ -84,6 +84,16 @@ struct WeeklyMemoryPresentationFactory {
       featuredWorkout: featuredWorkout
     )
     let metrics = metrics(for: days)
+    let totalSteps = completeTotal(days.compactMap(\.steps), expectedCount: days.count)
+    let totalActiveMinutes = completeTotal(
+      days.compactMap(\.activeMinutes),
+      expectedCount: days.count
+    )
+    let averageSleepMinutes = completeAverage(
+      days.compactMap(\.sleepMinutes),
+      expectedCount: days.count
+    )
+    let sleepRoutine = WeeklySleepRoutineAggregate.make(snapshots: days)
     let startKey = dateKey(start, timeZone: timeZone)
     let endKey = dateKey(end, timeZone: timeZone)
     let weekID = "\(scenarioID)-\(startKey)-\(endKey)"
@@ -93,6 +103,9 @@ struct WeeklyMemoryPresentationFactory {
       moment.coverAssetName,
       moment.highlight.title,
       metrics.map { "\($0.id):\($0.value)" }.joined(separator: "|"),
+      sleepRoutine.map {
+        "\($0.band.rawValue):\($0.regularity.rawValue):\($0.sampleCount)"
+      } ?? "sleep-routine:nil",
     ].joined(separator: "::")
     let metricsDescription =
       metrics
@@ -109,6 +122,17 @@ struct WeeklyMemoryPresentationFactory {
       body: moment.body,
       metrics: metrics,
       highlight: moment.highlight,
+      facts: WeeklyMemoryFacts(
+        startDate: startKey,
+        endDate: endKey,
+        activityKind: featuredWorkout.map { activityKind($0.activity) },
+        activityDurationMinutes: featuredWorkout?.durationMinutes,
+        totalSteps: totalSteps,
+        activeMinutes: totalActiveMinutes,
+        averageSleepMinutes: averageSleepMinutes,
+        sleepRoutine: sleepRoutine
+      ),
+      polishContextHash: nil,
       bundledCoverAssetName: moment.coverAssetName,
       source: .mock,
       isFavorite: false,
@@ -169,6 +193,33 @@ struct WeeklyMemoryPresentationFactory {
     }
 
     return result
+  }
+
+  private func completeTotal(_ values: [Int], expectedCount: Int) -> Int? {
+    guard expectedCount == Self.daysPerWeek, values.count == expectedCount else { return nil }
+    return values.reduce(0, +)
+  }
+
+  private func completeAverage(_ values: [Int], expectedCount: Int) -> Int? {
+    guard
+      expectedCount == Self.daysPerWeek,
+      values.count == expectedCount,
+      let value = average(values)
+    else { return nil }
+    return Int(value.rounded())
+  }
+
+  private func activityKind(_ activity: WorkoutSummary.Activity) -> String {
+    switch activity {
+    case .walking: "walking"
+    case .swimming: "swimming"
+    case .badminton: "badminton"
+    case .tennis: "tennis"
+    case .soccer: "football"
+    case .running: "running"
+    case .cycling: "cycling"
+    case .other: "other"
+    }
   }
 
   private func moment(

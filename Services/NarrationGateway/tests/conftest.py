@@ -79,6 +79,27 @@ def valid_request() -> Dict[str, Any]:
 
 
 @pytest.fixture
+def valid_weekly_request() -> Dict[str, Any]:
+    return {
+        "request_id": "weekly-request-001",
+        "source_hash": "weekly.source:abc12345",
+        "locale": "zh-CN",
+        "activities": [
+            {"kind": "tennis", "duration_minutes": 45},
+            {"kind": "swimming", "duration_minutes": 60},
+        ],
+        "total_steps": 42350,
+        "active_minutes": 210,
+        "average_sleep_minutes": 435,
+        "personality": {
+            "voice": "warm",
+            "pace": "balanced",
+            "themes": ["racket_sports", "water_sports"],
+        },
+    }
+
+
+@pytest.fixture
 def configured_gateway() -> GatewayConfig:
     return GatewayConfig(
         upstream_base_url="https://upstream.example",
@@ -103,7 +124,11 @@ def anyio_backend() -> str:
 
 
 def openai_response(tone: str) -> UpstreamHTTPResponse:
-    content = json.dumps({"tone": tone}, ensure_ascii=False)
+    return openai_content_response({"tone": tone})
+
+
+def openai_content_response(content_value: Dict[str, Any]) -> UpstreamHTTPResponse:
+    content = json.dumps(content_value, ensure_ascii=False)
     body = json.dumps(
         {
             "id": "completion-1",

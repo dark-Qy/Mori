@@ -2,6 +2,7 @@ import AppRuntime
 import Combine
 import Domain
 import Foundation
+import Persistence
 import SwiftUI
 
 enum PhoneAppPhase: Equatable {
@@ -25,6 +26,9 @@ final class PhoneAppStore: ObservableObject {
   @Published private(set) var weeklyMemories: [PhoneWeeklyMemory] = []
   @Published private(set) var isPreparingWeeklyMemory = false
   @Published private(set) var weeklyMemoryStatus: String?
+  @Published private(set) var isPersonalizationEnabled = true
+  @Published private(set) var isClearingPersonalization = false
+  @Published private(set) var personalizationStatus: String?
   @Published var selectedTab: PhoneTab = .overview
   @Published var notificationDestination: RuntimeNotificationDestination? = nil
 
@@ -37,7 +41,11 @@ final class PhoneAppStore: ObservableObject {
   private let usesE2EOfflineRuntime: Bool
   private let hasLaunchScenarioOverride: Bool
   private let weeklyMemoryArchive: WeeklyMemoryArchiveStore
+  private let weeklyMemoryPolisher: WeeklyMemoryPolishing
+  private let personalizationRepository: any PersonalizationRepositoryProtocol
   private var hasStarted = false
+  private var hasLoadedPersonalization = false
+  private var personalityProjection = WeeklyMemoryAIPersonalityProjection.moriCore
   private var latestHealth: HealthSnapshot?
   private var preferenceSaveTask: Task<Void, Never>?
   private var preferenceRevision: UInt64 = 0
@@ -45,10 +53,15 @@ final class PhoneAppStore: ObservableObject {
   private var peerSyncRetryTask: Task<Void, Never>?
   private var peerUpdateTask: Task<Void, Never>?
   private var mockCareTask: Task<Void, Never>?
+  private var personalizationMutationTask: Task<Void, Never>?
   private var deletedWeeklyMemoryIDs: Set<String> = []
   private var companionInteractionRevision: UInt64 = 0
 
-  init(arguments: [String] = ProcessInfo.processInfo.arguments) {
+  init(
+    arguments: [String] = ProcessInfo.processInfo.arguments,
+    weeklyMemoryPolisher: WeeklyMemoryPolishing? = nil,
+    personalizationRepository: (any PersonalizationRepositoryProtocol)? = nil
+  ) {
     let initialModel = PhonePresentationModel.initial(arguments: arguments)
     model = initialModel
     selectedDataSource =
@@ -84,6 +97,33 @@ final class PhoneAppStore: ObservableObject {
     // Weekly memories are a Mock-only presentation in this phase. Keep their
     // management state isolated from live runtime storage.
     weeklyMemoryArchive = WeeklyMemoryArchiveStore(storageDirectory: nil)
+    if arguments.contains("-UITesting")
+      && !arguments.contains("--enable-weekly-ai")
+    {
+      self.weeklyMemoryPolisher = weeklyMemoryPolisher ?? LocalOnlyWeeklyMemoryPolisher()
+    } else {
+      self.weeklyMemoryPolisher =
+        weeklyMemoryPolisher
+        ?? WeeklyMemoryAIClient.live(
+          storageDirectory: runtimeConfiguration.storageDirectory
+            .appendingPathComponent("Personalization", isDirectory: true)
+        )
+    }
+    if let personalizationRepository {
+      self.personalizationRepository = personalizationRepository
+    } else if hasLaunchScenarioOverride {
+      self.personalizationRepository = PersonalizationRepository(
+        storage: InMemoryPersonalizationStorage()
+      )
+    } else {
+      self.personalizationRepository = PersonalizationRepository(
+        storage: FilePersonalizationStorage(
+          fileURL: runtimeConfiguration.storageDirectory
+            .appendingPathComponent("Personalization", isDirectory: true)
+            .appendingPathComponent("mori-personalization-v1.json")
+        )
+      )
+    }
     runtime = AppleCompanionRuntime(
       source: .phone,
       storageDirectory: runtimeConfiguration.storageDirectory,
@@ -139,13 +179,33 @@ final class PhoneAppStore: ObservableObject {
           deletedWeeklyMemoryIDs.remove(record.weekID)
         }
       }
+      let personality = await personalityForWeeklyMemories(records)
+      let expectedPolishContextHash = personality.cacheContextHash
 
       for record in records where !deletedWeeklyMemoryIDs.contains(record.weekID) {
         let isCurrent = weeklyMemories.contains {
           $0.record.weekID == record.weekID
             && $0.record.sourceHash == record.sourceHash
+            && ($0.record.source != .ai
+              || $0.record.polishContextHash == expectedPolishContextHash)
         }
         guard force || !isCurrent else { continue }
+        _ = try await weeklyMemoryArchive.upsert(record)
+      }
+      weeklyMemories = Self.weeklyMemories(
+        try await weeklyMemoryArchive.load(),
+        forScenarioID: scenario.id
+      )
+
+      let polishedRecords = await weeklyMemoryPolisher.polish(
+        records,
+        personality: personality
+      )
+      for record in polishedRecords
+      where
+        record.source == .ai
+        && !deletedWeeklyMemoryIDs.contains(record.weekID)
+      {
         _ = try await weeklyMemoryArchive.upsert(record)
       }
       weeklyMemories = Self.weeklyMemories(
@@ -210,6 +270,7 @@ final class PhoneAppStore: ObservableObject {
   func start() async {
     guard !hasStarted else { return }
     hasStarted = true
+    await loadPersonalization()
     guard !hasLaunchScenarioOverride else { return }
     observeNotificationRoutes()
     if let launchNotificationRoute {
@@ -312,6 +373,10 @@ final class PhoneAppStore: ObservableObject {
       latestHealth = refresh.health
       let trend = try await runtime.personalHealthTrend()
       guard selectedDataSource == .healthKit else { return }
+      await reinforceLivePersonalization(
+        latestSnapshot: refresh.health,
+        runtime: runtime
+      )
       model = .live(
         companion: refresh.companion,
         health: refresh.health,
@@ -379,6 +444,55 @@ final class PhoneAppStore: ObservableObject {
         await runtime.cancelProactiveNotifications()
       }
     }
+  }
+
+  func setPersonalizationEnabled(_ enabled: Bool) {
+    guard isPersonalizationEnabled != enabled else { return }
+    isPersonalizationEnabled = enabled
+    personalizationStatus =
+      enabled
+      ? "Mori 会继续从明确选择、完成的活动与多日作息节奏中慢慢了解你"
+      : "个性化陪伴已关闭"
+    let precedingMutation = personalizationMutationTask
+    let mutation = Task { [weak self] in
+      await precedingMutation?.value
+      guard let self else { return }
+      do {
+        try await self.personalizationRepository.setEnabled(enabled)
+        let projection = try await self.personalizationRepository.projection()
+        self.personalityProjection = WeeklyMemoryAIPersonalityProjection(
+          projection: projection
+        )
+      } catch {
+        await self.loadPersonalization(force: true)
+        self.personalizationStatus = "暂时没能保存个性化设置"
+      }
+    }
+    personalizationMutationTask = mutation
+  }
+
+  func clearPersonalization() async {
+    guard !isClearingPersonalization else { return }
+    isClearingPersonalization = true
+    let precedingMutation = personalizationMutationTask
+    let mutation = Task { [weak self] in
+      await precedingMutation?.value
+      guard let self else { return }
+      do {
+        try await self.personalizationRepository.clearLearnedData()
+        let state = try await self.personalizationRepository.state()
+        self.isPersonalizationEnabled = state.isEnabled
+        self.personalityProjection = WeeklyMemoryAIPersonalityProjection(
+          projection: state.compactProjection
+        )
+        self.personalizationStatus = "Mori 已忘记之前学到的偏好，并回到原来的性格"
+      } catch {
+        self.personalizationStatus = "暂时没能清除，请再试一次"
+      }
+    }
+    personalizationMutationTask = mutation
+    await mutation.value
+    isClearingPersonalization = false
   }
 
   func setSocialSharing(_ enabled: Bool) {
@@ -634,6 +748,126 @@ final class PhoneAppStore: ObservableObject {
     peerSyncRetryTask = Task { [weak self] in
       _ = try? await runtime.retryPeerSync()
       self?.peerSyncRetryTask = nil
+    }
+  }
+
+  private func loadPersonalization(force: Bool = false) async {
+    guard force || !hasLoadedPersonalization else { return }
+    do {
+      let state = try await personalizationRepository.state()
+      isPersonalizationEnabled = state.isEnabled
+      personalityProjection = WeeklyMemoryAIPersonalityProjection(
+        projection: state.compactProjection
+      )
+      hasLoadedPersonalization = true
+    } catch {
+      isPersonalizationEnabled = true
+      personalityProjection = .moriCore
+      personalizationStatus = "个性化记录暂时不可用；Mori 会保持原来的性格"
+    }
+  }
+
+  private func reinforceLivePersonalization(
+    latestSnapshot: HealthSnapshot,
+    runtime: AppleCompanionRuntime
+  ) async {
+    await loadPersonalization()
+    guard isPersonalizationEnabled else { return }
+    do {
+      let state = try await personalizationRepository.state()
+      let existingEvidenceIDs = Set(
+        state.memories.flatMap(\.evidence).map(\.id)
+      )
+      let history = try await runtime.healthSnapshotHistory()
+      let signals = LivePersonalizationEvidenceFactory().make(
+        latestSnapshot: latestSnapshot,
+        history: history,
+        excluding: existingEvidenceIDs
+      )
+      for value in signals {
+        try await personalizationRepository.record(
+          value.signal,
+          at: value.observedAt
+        )
+      }
+      let projection = try await personalizationRepository.projection()
+      personalityProjection = WeeklyMemoryAIPersonalityProjection(
+        projection: projection
+      )
+    } catch {
+      // Health refresh remains usable when optional personalization persistence fails.
+    }
+  }
+
+  private func personalityForWeeklyMemories(
+    _ records: [ArchivedWeeklyMemory]
+  ) async -> WeeklyMemoryAIPersonalityProjection {
+    await loadPersonalization()
+    guard isPersonalizationEnabled else { return .moriCore }
+    // Selectable debug Mock sources must not reinforce the owner's durable live profile.
+    guard hasLaunchScenarioOverride || !selectedDataSource.isMock else {
+      return personalityProjection
+    }
+    do {
+      let state = try await personalizationRepository.state()
+      let existingEvidenceIDs = Set(
+        state.memories.flatMap(\.evidence).map(\.id)
+      )
+      for record in records {
+        guard let facts = record.facts else { continue }
+        if let activityKind = facts.activityKind,
+          let duration = facts.activityDurationMinutes,
+          let activity = Self.personalizationActivity(activityKind)
+        {
+          let evidenceID = "weekly-workout-\(record.sourceHash)"
+          if !existingEvidenceIDs.contains(evidenceID) {
+            try await personalizationRepository.record(
+              .verifiedWorkout(
+                activity: activity,
+                durationMinutes: duration,
+                evidenceID: evidenceID
+              ),
+              at: record.createdAt
+            )
+          }
+        }
+        if let sleepRoutine = facts.sleepRoutine {
+          let evidenceID = "weekly-sleep-routine-\(record.sourceHash)"
+          if !existingEvidenceIDs.contains(evidenceID) {
+            try await personalizationRepository.record(
+              .sleepRoutine(
+                band: sleepRoutine.band,
+                regularity: sleepRoutine.regularity,
+                sampleCount: sleepRoutine.sampleCount,
+                evidenceID: evidenceID
+              ),
+              at: record.createdAt
+            )
+          }
+        }
+      }
+      let projection = try await personalizationRepository.projection()
+      let value = WeeklyMemoryAIPersonalityProjection(projection: projection)
+      personalityProjection = value
+      return value
+    } catch {
+      return personalityProjection
+    }
+  }
+
+  private static func personalizationActivity(
+    _ value: String
+  ) -> WorkoutSummary.Activity? {
+    switch value {
+    case "walking": .walking
+    case "running": .running
+    case "cycling": .cycling
+    case "football": .soccer
+    case "tennis": .tennis
+    case "badminton": .badminton
+    case "swimming": .swimming
+    case "other": .other
+    default: nil
     }
   }
 

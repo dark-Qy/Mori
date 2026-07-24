@@ -90,12 +90,14 @@
     }
 
     public func personalHealthTrend(at date: Date = Date()) async throws -> PersonalHealthTrend {
-      let snapshots: [Domain.HealthSnapshot] = try await events.currentEvents().compactMap {
-        event -> Domain.HealthSnapshot? in
-        guard case .healthSnapshotReceived(let snapshot) = event.payload else { return nil }
-        return snapshot
-      }
+      let snapshots = try await healthSnapshotHistory()
       return PersonalTrendAnalyzer().analyze(snapshots, at: date)
+    }
+
+    /// Read-only canonical daily history for phone-owned personalization. Exact samples remain in
+    /// the existing local event ledger and are not copied into personalization storage.
+    public func healthSnapshotHistory() async throws -> [Domain.HealthSnapshot] {
+      RuntimeHealthSnapshotHistory().snapshots(from: try await events.currentEvents())
     }
 
     public func refreshHealth(
