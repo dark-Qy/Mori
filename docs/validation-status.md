@@ -54,17 +54,19 @@ This check ran against the current uncommitted worktree after removing user-ente
 | Surface | Evidence | Result |
 | --- | --- | --- |
 | Social Gateway | 54 API, concurrency, privacy, generation-isolation, candidate-rotation, orphan-session supersede, TTL, and confirmation tests | PASS |
-| AppRuntime | 83 tests, including one-way phone-owned consent sync, replacement candidates, real 409 reconciliation, lost-create recovery, confirm/cancel arbitration, and bounded create retry | PASS |
+| AppRuntime | 89 tests, including default-on migration, versioned Phone authority, retained opt-out persistence, one-way phone-owned consent sync, replacement candidates, real 409 reconciliation, lost-create recovery, confirm/cancel arbitration, and bounded create retry | PASS |
 | AppleAdapters | 33 tests, including Nearby Interaction lifecycle, replacement, invalid-token, and reset events | PASS |
 | Watch app compilation | Debug build plus Release build with an injected HTTPS gateway URL | PASS |
-| Release gateway guard | Missing gateway URL fails the Release build; all five touch-demo selectors are absent from the Release binary | PASS |
-| Watch touch-exchange UI | Seven focused privacy-gate, flow, race, cancellation, and accessibility tests on Apple Watch SE 3 (40 mm), watchOS 26.5 | PASS |
+| Release gateway guard | Missing gateway URL fails the Release build; all seven checked touch-exchange test selectors are absent from the Release binary | PASS |
+| Watch touch-exchange UI | Eleven focused default-on, Phone-authority waiting, privacy-gate, flow, race, cancellation, and accessibility tests on Apple Watch SE 3 (40 mm), watchOS 26.5 | PASS |
 | iPhone privacy controls | Friend-sharing gate and public pet social-state selection on iPhone 17 Pro, iOS 26.5 | PASS |
 | Static policy and formatting | `Scripts/check` | PASS |
 | Visible 40 mm Simulator inspection | Initial pet surface and touch-exchange assets rendered without launch failure | PASS |
 | Two physical Watches, live gateway, and real UWB | Requires the device runbook | UNVERIFIED |
 
-The focused UI tests verify friend sharing is a hard gate before any upload, there is no
+The focused UI tests verify friend sharing starts enabled without visiting iPhone settings, an
+untrusted or missing Phone authority keeps networking disabled while automatic sync is pending,
+an explicit opt-out remains a hard gate before any upload, there is no
 pairing-code field, the selected game-only public social state is preserved, the peer card is absent
 before the synthetic proximity gate, peer-first still requires local confirmation, delayed
 callbacks cannot overwrite cancellation, an unconfirmed remote cancellation is retried before a

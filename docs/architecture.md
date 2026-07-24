@@ -140,8 +140,9 @@ Apple clients never receive the upstream provider key.
 
 The Watch owns moment-to-moment pet actions. The iPhone owns lightweight management changes such
 as wardrobe and notification preferences. Phase 1 keeps authoritative growth events local and
-exchanges only a bounded latest-value management projection; raw health values, social settings,
-and health-sharing scope are not included in that projection.
+exchanges only a bounded latest-value management projection. Raw health values and
+health-sharing scope are not included. The iPhone-owned public pet-card opt-out and game-only
+social state are included one way so Watch cannot make those settings more permissive.
 
 - Growth and story merge by event identity.
 - Wardrobe selection uses a monotonically increasing revision and deterministic conflict resolution.
@@ -162,10 +163,17 @@ also remains unverified until the paired-device runbook passes.
 The Watch touch-exchange flow is intentionally zero-input: both people open the flow and tap
 `开始触碰`. Each Watch creates a temporary Nearby Interaction discovery token and joins a bounded
 HTTPS discovery pool. The service may nominate a candidate, but nomination is not proof of
-proximity and does not release either public pet card. The iPhone-owned friend-sharing preference
-and public game-only social state are synchronized one way to Watch. Watch does not project those
-fields back to iPhone, so stale Watch state cannot re-enable sharing. The preference gates the flow
-before the network client is constructed.
+proximity and does not release either public pet card. Public pet-card sharing is enabled by
+default, so opening iPhone settings is not a prerequisite. The iPhone-owned opt-out and public
+game-only social state are synchronized one way to Watch. Watch does not project those fields back
+to iPhone. The projection includes a versioned Phone-authority marker. Until Watch has received and
+persisted a valid marker plus setting, the touch-exchange network gate stays closed and the UI says
+the automatic sync is still preparing; the user does not need to visit iPhone privacy settings.
+A Phone preference-read failure publishes no social authority instead of synthesizing a default.
+A previously synchronized opt-out therefore overrides a fresh Watch default across relaunch. A
+change made while the devices cannot communicate takes effect when WatchConnectivity delivers it;
+receipt during an active flow closes the gate and cancels that flow. The trusted preference gates
+the flow before the network client is constructed.
 
 ```text
 explicit start on both Watches

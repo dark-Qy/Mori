@@ -31,13 +31,22 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(element("phone.privacy", in: app).waitForExistence(timeout: 5))
     let socialSharing = app.switches["phone.privacy.social-sharing"]
     XCTAssertTrue(socialSharing.exists)
-    XCTAssertTrue(element("phone.privacy.social-state-locked", in: app).exists)
-    XCTAssertFalse(app.buttons["phone.privacy.social-state-picker"].exists)
+    XCTAssertEqual(socialSharing.value as? String, "1")
+    XCTAssertFalse(element("phone.privacy.social-state-locked", in: app).exists)
     XCTAssertTrue(element("phone.privacy.sharing-scope", in: app).exists)
-    XCTAssertTrue(element("phone.privacy.sharing-scope-status", in: app).exists)
-    XCTAssertFalse(app.buttons["phone.privacy.sharing-scope-picker"].exists)
+    XCTAssertTrue(element("phone.privacy.health-sharing-unavailable", in: app).exists)
+    XCTAssertFalse(element("phone.privacy.sharing-scope-picker", in: app).exists)
+
     socialSharing.tap()
-    let socialStatePicker = app.buttons["phone.privacy.social-state-picker"]
+    XCTAssertEqual(socialSharing.value as? String, "0")
+    XCTAssertTrue(
+      element("phone.privacy.social-state-locked", in: app)
+        .waitForExistence(timeout: 5)
+    )
+    socialSharing.tap()
+    XCTAssertEqual(socialSharing.value as? String, "1")
+
+    let socialStatePicker = element("phone.privacy.social-state-picker", in: app)
     scrollToElement(socialStatePicker, in: app)
     XCTAssertTrue(socialStatePicker.waitForExistence(timeout: 5))
     XCTAssertFalse(element("phone.privacy.social-state-locked", in: app).exists)
@@ -55,10 +64,9 @@ final class PhoneAppUITests: XCTestCase {
         && socialStateSummary.label.contains("想一起散步")
     )
 
-    let sharingScope = app.buttons["phone.privacy.sharing-scope-picker"]
-    scrollToElement(sharingScope, in: app)
-    XCTAssertTrue(sharingScope.waitForExistence(timeout: 5))
-    XCTAssertFalse(element("phone.privacy.sharing-scope-status", in: app).exists)
+    let healthSharingUnavailable = element("phone.privacy.health-sharing-unavailable", in: app)
+    scrollToElement(healthSharingUnavailable, in: app)
+    XCTAssertTrue(healthSharingUnavailable.waitForExistence(timeout: 5))
   }
 
   func testCharacterAndSharedBackgroundSelectionUpdateThePreview() {

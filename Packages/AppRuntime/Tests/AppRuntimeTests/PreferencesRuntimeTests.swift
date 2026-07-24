@@ -4,18 +4,39 @@ import Testing
 
 @Suite("Application preferences")
 struct PreferencesRuntimeTests {
-  @Test("Consent-gated features start disabled while care summary is the future scope")
+  @Test("Pet-card sharing starts enabled while sensitive capabilities remain gated")
   func privacyDefaults() {
     let value = AppPreferences()
 
     #expect(!value.hasCompletedOnboarding)
-    #expect(!value.socialSharingEnabled)
+    #expect(value.socialSharingEnabled)
+    #expect(value.phoneSocialSettingsAuthorityVersion == nil)
     #expect(value.publicPetSocialState == .greeting)
     #expect(value.healthSharingScope == .careSummary)
     #expect(!value.proactiveMessagesEnabled)
     #expect(value.proactiveNotificationConsentVersion == 0)
     #expect(value.selectedCharacterIDs == ["penguin"])
     #expect(value.selectedBackgroundID == "ice_ocean_day")
+  }
+
+  @Test("Legacy preferences without a social setting adopt the new default")
+  func legacyMissingSocialSettingUsesDefault() throws {
+    let legacy = Data(
+      """
+      {
+        "schemaVersion": 1,
+        "proactiveMessagesEnabled": false,
+        "healthSharingScope": "careSummary",
+        "selectedOutfitID": "default",
+        "quietHoursStartMinute": 1320,
+        "quietHoursEndMinute": 420
+      }
+      """.utf8
+    )
+
+    let decoded = try JSONDecoder().decode(AppPreferences.self, from: legacy)
+    #expect(decoded.socialSharingEnabled)
+    #expect(decoded.phoneSocialSettingsAuthorityVersion == nil)
   }
 
   @Test("Legacy implicit notification opt-in migrates to disabled")
@@ -38,6 +59,8 @@ struct PreferencesRuntimeTests {
     #expect(decoded.hasCompletedOnboarding)
     #expect(!decoded.proactiveMessagesEnabled)
     #expect(decoded.proactiveNotificationConsentVersion == 0)
+    #expect(!decoded.socialSharingEnabled)
+    #expect(decoded.phoneSocialSettingsAuthorityVersion == nil)
     #expect(decoded.publicPetSocialState == .greeting)
     #expect(decoded.selectedCharacterIDs == ["penguin"])
     #expect(decoded.selectedBackgroundID == "ice_ocean_day")

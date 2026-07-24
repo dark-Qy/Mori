@@ -145,13 +145,13 @@ final class TouchExchangeViewModel: ObservableObject {
       }
     #endif
     if !self.socialSharingEnabled {
-      statusText = "请先在 iPhone 的隐私设置中开启好友分享"
+      statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
     }
   }
 
   func start() {
     guard socialSharingEnabled else {
-      statusText = "请先在 iPhone 的隐私设置中开启好友分享"
+      statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
       return
     }
     guard phase == .idle || phase == .failed || phase == .cancelled else { return }
@@ -180,7 +180,7 @@ final class TouchExchangeViewModel: ObservableObject {
       if [.joining, .approaching, .preview, .awaitingPeer].contains(phase) {
         cancel()
       } else if phase == .idle {
-        statusText = "请先在 iPhone 的隐私设置中开启好友分享"
+        statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
       }
     } else if phase == .idle {
       statusText = "双方都需要主动进入触碰交换"
@@ -366,7 +366,7 @@ final class TouchExchangeViewModel: ObservableObject {
       resetForStart()
     } else {
       phase = .idle
-      statusText = "请先在 iPhone 的隐私设置中开启好友分享"
+      statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
       return
     }
 
@@ -381,7 +381,7 @@ final class TouchExchangeViewModel: ObservableObject {
           rotateJoinRequestID()
           guard socialSharingEnabled else {
             phase = .idle
-            statusText = "请先在 iPhone 的隐私设置中开启好友分享"
+            statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
             return
           }
           resetForStart()
@@ -417,7 +417,7 @@ final class TouchExchangeViewModel: ObservableObject {
           rotateJoinRequestID()
           guard socialSharingEnabled else {
             phase = .idle
-            statusText = "请先在 iPhone 的隐私设置中开启好友分享"
+            statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
             return
           }
           resetForStart()
@@ -436,7 +436,7 @@ final class TouchExchangeViewModel: ObservableObject {
       guard isCurrent(generation) else { return }
       guard socialSharingEnabled else {
         phase = .idle
-        statusText = "请先在 iPhone 的隐私设置中开启好友分享"
+        statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
         return
       }
       #if DEBUG

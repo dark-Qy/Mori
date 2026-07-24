@@ -35,10 +35,12 @@ struct PeerStateProjection: Sendable {
       "quietHoursStartMinute": String(preferences?.quietHoursStartMinute ?? 1_320),
       "quietHoursEndMinute": String(preferences?.quietHoursEndMinute ?? 420),
     ]
-    if includePhoneOwnedSocialSettings {
-      values["socialSharingEnabled"] = String(preferences?.socialSharingEnabled ?? false)
-      values["publicPetSocialState"] =
-        (preferences?.publicPetSocialState ?? PublicPetSocialStateV1.greeting).rawValue
+    if includePhoneOwnedSocialSettings, let preferences {
+      values["phoneSocialSettingsAuthorityVersion"] = String(
+        AppPreferences.currentPhoneSocialSettingsAuthorityVersion
+      )
+      values["socialSharingEnabled"] = String(preferences.socialSharingEnabled)
+      values["publicPetSocialState"] = preferences.publicPetSocialState.rawValue
     }
     if let dataSourceSelectionToken {
       values["dataSourceSelectionToken"] = dataSourceSelectionToken

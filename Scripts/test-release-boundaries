@@ -80,6 +80,8 @@ for marker in \
   "--touch-exchange-cancel-confirm-race" \
   "--touch-exchange-cancel-failure" \
   "--touch-exchange-social-state=" \
+  "--touch-exchange-sharing-disabled" \
+  "--touch-exchange-phone-authority-missing" \
   "--e2e-storage-id=" \
   "--e2e-offline-runtime" \
   "--reset-e2e-storage"; do

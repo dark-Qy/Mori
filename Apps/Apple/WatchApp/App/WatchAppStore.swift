@@ -32,6 +32,7 @@ final class WatchAppStore: ObservableObject {
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private let usesE2EOfflineRuntime: Bool
   private let hasLaunchScenarioOverride: Bool
+  private let requiresPhoneSocialSettingsAuthorityForTesting: Bool
   private var hasStarted = false
   private var latestHealth: HealthSnapshot?
   private var latestPeerValues: [String: String]?
@@ -51,12 +52,21 @@ final class WatchAppStore: ObservableObject {
     )
   }
 
+  var isTouchExchangeSharingReady: Bool {
+    if hasLaunchScenarioOverride && !requiresPhoneSocialSettingsAuthorityForTesting {
+      return true
+    }
+    return (preferences.phoneSocialSettingsAuthorityVersion ?? 0)
+      >= AppPreferences.currentPhoneSocialSettingsAuthorityVersion
+  }
+
+  var isTouchExchangeSharingEnabled: Bool {
+    isTouchExchangeSharingReady && preferences.socialSharingEnabled
+  }
+
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
     let initialModel = WatchPresentationModel.initial(arguments: arguments)
     #if DEBUG
-      let touchExchangeDemoEnabled =
-        arguments.contains("-UITesting")
-        && arguments.contains("--touch-exchange-demo")
       let touchExchangeDemoSocialState =
         arguments.first(where: { $0.hasPrefix("--touch-exchange-social-state=") })
         .flatMap {
@@ -67,22 +77,29 @@ final class WatchAppStore: ObservableObject {
             )
           )
         } ?? .greeting
+      let touchExchangeSharingEnabled =
+        !arguments.contains("--touch-exchange-sharing-disabled")
+      let requiresPhoneSocialSettingsAuthorityForTesting =
+        arguments.contains("--touch-exchange-phone-authority-missing")
     #else
-      let touchExchangeDemoEnabled = false
       let touchExchangeDemoSocialState = PublicPetSocialStateV1.greeting
+      let touchExchangeSharingEnabled = true
+      let requiresPhoneSocialSettingsAuthorityForTesting = false
     #endif
     model = initialModel
     selectedDataSource =
       initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) } ?? .mock1
     preferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
-      socialSharingEnabled: touchExchangeDemoEnabled,
+      socialSharingEnabled: touchExchangeSharingEnabled,
       publicPetSocialState: touchExchangeDemoSocialState,
       selectedOutfitID: initialModel.outfitID ?? WardrobeCatalog.defaultOutfitID,
       selectedCharacterIDs: initialModel.scene.slots.map(\.characterID),
       selectedBackgroundID: initialModel.scene.backgroundID
     )
     hasLaunchScenarioOverride = initialModel.dataMode != .live
+    self.requiresPhoneSocialSettingsAuthorityForTesting =
+      requiresPhoneSocialSettingsAuthorityForTesting
     if hasLaunchScenarioOverride {
       phase =
         switch initialModel.initialScreen {
@@ -129,6 +146,14 @@ final class WatchAppStore: ObservableObject {
       preferences = try await runtime.loadPreferences()
       selectedDataSource = await runtime.loadDataSourceSelection()
       latestPeerValues = Self.peerValues(from: preferences)
+      if !usesE2EOfflineRuntime {
+        do {
+          try await applyLatestPhonePreferencesIfAvailable(runtime: runtime)
+        } catch {
+          preferences.socialSharingEnabled = false
+          statusMessage = "好友分享设置暂时无法同步，触碰交换保持关闭"
+        }
+      }
       guard preferences.hasCompletedOnboarding else {
         #if DEBUG
           if selectedDataSource.isMock {
@@ -145,6 +170,8 @@ final class WatchAppStore: ObservableObject {
       beginPeerUpdates(runtime: runtime)
       retryPeerSyncInBackground(runtime: runtime)
     } catch {
+      preferences.socialSharingEnabled = false
+      preferences.phoneSocialSettingsAuthorityVersion = nil
       phase = .ready
       statusMessage = "载入失败，请稍后重试"
     }
@@ -207,6 +234,14 @@ final class WatchAppStore: ObservableObject {
     preferences.hasCompletedOnboarding = true
     do {
       _ = try await runtime.savePreferences(preferences)
+      if !usesE2EOfflineRuntime {
+        do {
+          try await applyLatestPhonePreferencesIfAvailable(runtime: runtime)
+        } catch {
+          preferences.socialSharingEnabled = false
+          statusMessage = "好友分享设置暂时无法同步，触碰交换保持关闭"
+        }
+      }
       phase = .ready
       await applySelectedDataSource(requestAccessIfNeeded: false)
       isSavingPreferences = false
@@ -439,6 +474,24 @@ final class WatchAppStore: ObservableObject {
       await applyPeerValues(values, shouldReloadDataSource: shouldReloadDataSource)
     } catch {
       statusMessage = "配对设置暂时无法同步"
+    }
+  }
+
+  /// Applies the retained iPhone application context before the Watch becomes interactive.
+  /// This preserves the no-setup default while ensuring a previously synchronized opt-out wins
+  /// over a fresh Watch installation's local default.
+  private func applyLatestPhonePreferencesIfAvailable(
+    runtime: AppleCompanionRuntime
+  ) async throws {
+    guard let values = await runtime.latestPeerValues() else { return }
+    let shouldReloadDataSource = try await runtime.applyPeerPreferences(values)
+    preferences = try await runtime.loadPreferences()
+    latestPeerValues = Self.peerValues(from: preferences)
+    if shouldReloadDataSource,
+      let rawValue = values["dataSource"],
+      let incoming = CompanionDataSource(rawValue: rawValue)
+    {
+      selectedDataSource = incoming
     }
   }
 

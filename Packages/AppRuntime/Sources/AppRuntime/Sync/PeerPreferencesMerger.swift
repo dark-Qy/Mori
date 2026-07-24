@@ -35,13 +35,17 @@ struct PeerPreferencesMerger: Sendable {
       updated.proactiveNotificationConsentVersion = consentVersion
     }
     if acceptPhoneOwnedSocialSettings {
-      if let socialSharingEnabled = values["socialSharingEnabled"].flatMap(Bool.init) {
-        updated.socialSharingEnabled = socialSharingEnabled
-      }
-      if let rawSocialState = values["publicPetSocialState"],
-        let socialState = PublicPetSocialStateV1(rawValue: rawSocialState)
+      if let authorityVersion = values["phoneSocialSettingsAuthorityVersion"].flatMap(Int.init),
+        authorityVersion >= AppPreferences.currentPhoneSocialSettingsAuthorityVersion,
+        let socialSharingEnabled = values["socialSharingEnabled"].flatMap(Bool.init)
       {
-        updated.publicPetSocialState = socialState
+        updated.phoneSocialSettingsAuthorityVersion = authorityVersion
+        updated.socialSharingEnabled = socialSharingEnabled
+        if let rawSocialState = values["publicPetSocialState"],
+          let socialState = PublicPetSocialStateV1(rawValue: rawSocialState)
+        {
+          updated.publicPetSocialState = socialState
+        }
       }
     }
     if let quietStart = values["quietHoursStartMinute"].flatMap(Int.init) {

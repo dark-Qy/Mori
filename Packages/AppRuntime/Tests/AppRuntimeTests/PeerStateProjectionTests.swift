@@ -41,6 +41,7 @@ struct PeerStateProjectionTests {
     #expect(state.values["proactiveMessagesEnabled"] == "true")
     #expect(state.values["proactiveNotificationConsentVersion"] == "1")
     #expect(state.values["socialSharingEnabled"] == "true")
+    #expect(state.values["phoneSocialSettingsAuthorityVersion"] == "1")
     #expect(state.values["publicPetSocialState"] == "walk")
     #expect(state.values["quietHoursStartMinute"] == "1260")
     #expect(state.values["quietHoursEndMinute"] == "480")
@@ -60,10 +61,11 @@ struct PeerStateProjectionTests {
     )
 
     #expect(values["socialSharingEnabled"] == nil)
+    #expect(values["phoneSocialSettingsAuthorityVersion"] == nil)
     #expect(values["publicPetSocialState"] == nil)
   }
 
-  @Test("Default outfit is deterministic when neither side selected one")
+  @Test("Missing preferences keep visuals deterministic without publishing social authority")
   func fallsBackToDefaultOutfit() {
     let state = PeerStateProjection().makeState(
       companion: CompanionState(),
@@ -75,7 +77,8 @@ struct PeerStateProjectionTests {
     #expect(state.values["outfit"] == "default")
     #expect(state.values["characters"] == "penguin")
     #expect(state.values["background"] == "ice_ocean_day")
-    #expect(state.values["socialSharingEnabled"] == "false")
-    #expect(state.values["publicPetSocialState"] == "greeting")
+    #expect(state.values["socialSharingEnabled"] == nil)
+    #expect(state.values["phoneSocialSettingsAuthorityVersion"] == nil)
+    #expect(state.values["publicPetSocialState"] == nil)
   }
 }

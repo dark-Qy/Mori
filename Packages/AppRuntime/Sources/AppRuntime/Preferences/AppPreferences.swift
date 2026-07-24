@@ -9,12 +9,14 @@ public enum HealthSharingScope: String, Codable, CaseIterable, Sendable {
 public struct AppPreferences: Codable, Equatable, Sendable {
   public static let currentSchemaVersion = 1
   public static let currentNotificationConsentVersion = 1
+  public static let currentPhoneSocialSettingsAuthorityVersion = 1
 
   public var schemaVersion: Int
   public var hasCompletedOnboarding: Bool
   public var proactiveMessagesEnabled: Bool
   public var proactiveNotificationConsentVersion: Int
   public var socialSharingEnabled: Bool
+  public var phoneSocialSettingsAuthorityVersion: Int?
   public var publicPetSocialState: PublicPetSocialStateV1
   public var healthSharingScope: HealthSharingScope
   public var selectedOutfitID: String
@@ -28,7 +30,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     hasCompletedOnboarding: Bool = false,
     proactiveMessagesEnabled: Bool = false,
     proactiveNotificationConsentVersion: Int? = nil,
-    socialSharingEnabled: Bool = false,
+    socialSharingEnabled: Bool = true,
+    phoneSocialSettingsAuthorityVersion: Int? = nil,
     publicPetSocialState: PublicPetSocialStateV1 = .greeting,
     healthSharingScope: HealthSharingScope = .careSummary,
     selectedOutfitID: String = "default",
@@ -44,6 +47,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
       proactiveNotificationConsentVersion
       ?? (proactiveMessagesEnabled ? Self.currentNotificationConsentVersion : 0)
     self.socialSharingEnabled = socialSharingEnabled
+    self.phoneSocialSettingsAuthorityVersion = phoneSocialSettingsAuthorityVersion
     self.publicPetSocialState = publicPetSocialState
     self.healthSharingScope = healthSharingScope
     self.selectedOutfitID = selectedOutfitID
@@ -61,6 +65,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     case proactiveMessagesEnabled
     case proactiveNotificationConsentVersion
     case socialSharingEnabled
+    case phoneSocialSettingsAuthorityVersion
     case publicPetSocialState
     case healthSharingScope
     case selectedOutfitID
@@ -96,7 +101,12 @@ public struct AppPreferences: Codable, Equatable, Sendable {
       try container.decodeIfPresent(
         Bool.self,
         forKey: .socialSharingEnabled
-      ) ?? false
+      ) ?? true
+    phoneSocialSettingsAuthorityVersion =
+      try container.decodeIfPresent(
+        Int.self,
+        forKey: .phoneSocialSettingsAuthorityVersion
+      )
     publicPetSocialState =
       try container.decodeIfPresent(
         PublicPetSocialStateV1.self,

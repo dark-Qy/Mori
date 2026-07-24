@@ -47,18 +47,56 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(element("watch.message.live-activity", in: app).exists)
   }
 
-  func testTouchExchangeRequiresFriendSharingBeforeStarting() {
+  func testTouchExchangeStartsWithSharingEnabledByDefault() {
     let app = launchApp(scenario: "activity_high")
 
     openTouchExchange(in: app)
     let sharingGate = element("watch.touch-exchange.sharing-gate", in: app)
     scrollToElement(sharingGate, in: app)
-    XCTAssertTrue(sharingGate.label.contains("iPhone"))
+    XCTAssertTrue(sharingGate.label.contains("默认开启"))
+    XCTAssertTrue(sharingGate.label.contains("自动发现并提醒"))
+
+    let startButton = app.buttons["watch.touch-exchange.start"]
+    scrollToElement(startButton, in: app)
+    XCTAssertEqual(startButton.label, "开始触碰")
+    XCTAssertTrue(startButton.isEnabled)
+    XCTAssertFalse(element("watch.touch-exchange.progress", in: app).exists)
+  }
+
+  func testTouchExchangeRespectsExplicitSharingOptOut() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: ["--touch-exchange-sharing-disabled"]
+    )
+
+    openTouchExchange(in: app)
+    let sharingGate = element("watch.touch-exchange.sharing-gate", in: app)
+    scrollToElement(sharingGate, in: app)
+    XCTAssertTrue(sharingGate.label.contains("好友分享已关闭"))
     XCTAssertTrue(sharingGate.label.contains("不会上传公开宠物卡"))
 
     let startButton = app.buttons["watch.touch-exchange.start"]
     scrollToElement(startButton, in: app)
-    XCTAssertEqual(startButton.label, "需先开启好友分享")
+    XCTAssertEqual(startButton.label, "好友分享已关闭")
+    XCTAssertFalse(startButton.isEnabled)
+    XCTAssertFalse(element("watch.touch-exchange.progress", in: app).exists)
+  }
+
+  func testTouchExchangeWaitsForTrustedPhoneSettingsBeforeNetworking() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: ["--touch-exchange-phone-authority-missing"]
+    )
+
+    openTouchExchange(in: app)
+    let sharingGate = element("watch.touch-exchange.sharing-gate", in: app)
+    scrollToElement(sharingGate, in: app)
+    XCTAssertTrue(sharingGate.label.contains("自动同步"))
+    XCTAssertTrue(sharingGate.label.contains("无需进入 iPhone 设置"))
+
+    let startButton = app.buttons["watch.touch-exchange.start"]
+    scrollToElement(startButton, in: app)
+    XCTAssertEqual(startButton.label, "好友分享准备中")
     XCTAssertFalse(startButton.isEnabled)
     XCTAssertFalse(element("watch.touch-exchange.progress", in: app).exists)
   }

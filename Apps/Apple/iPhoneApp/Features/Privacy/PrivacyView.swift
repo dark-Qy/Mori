@@ -39,7 +39,7 @@ struct PrivacyView: View {
           .padding(.top, CompanionSpacing.small)
         settingToggle(
           title: "启用好友分享",
-          detail: "默认关闭。开启后，也只有双方主动进入触碰交换并确认，才会发送公开宠物卡。",
+          detail: "默认开启，无需先打开 iPhone 设置。开始触碰后会临时上传公开宠物卡，验证两块 Watch 靠近后才向对方展示；双方确认后才建立相遇。你可以随时关闭。",
           isOn: Binding(
             get: { store.preferences.socialSharingEnabled },
             set: store.setSocialSharing
@@ -85,49 +85,21 @@ struct PrivacyView: View {
 
         CompanionCard {
           VStack(alignment: .leading, spacing: CompanionSpacing.small) {
-            Text("分享范围")
+            Text("健康摘要分享")
               .font(.subheadline.weight(.semibold))
               .accessibilityIdentifier("phone.privacy.sharing-scope")
-            if store.preferences.socialSharingEnabled {
-              Picker(
-                "分享范围",
-                selection: Binding(
-                  get: { store.preferences.healthSharingScope },
-                  set: store.setHealthSharingScope
-                )
-              ) {
-                Text("游戏状态").tag(HealthSharingScope.gameStateOnly)
-                Text("关心摘要").tag(HealthSharingScope.careSummary)
-                Text("有限健康摘要").tag(HealthSharingScope.limitedHealthSummary)
-              }
-              .pickerStyle(.navigationLink)
-              .accessibilityIdentifier("phone.privacy.sharing-scope-picker")
-            } else {
-              HStack(spacing: CompanionSpacing.small) {
-                Label("好友分享已关闭", systemImage: "lock.fill")
-                  .font(.footnote.weight(.semibold))
-                Spacer(minLength: CompanionSpacing.small)
-                Text(scopeTitle)
-                  .font(.footnote.weight(.semibold))
-              }
-              .foregroundStyle(CompanionPalette.secondaryText)
-              .accessibilityElement(children: .combine)
-              .accessibilityLabel("分享范围")
-              .accessibilityValue("\(scopeTitle)，好友分享已关闭")
-              .accessibilityIdentifier("phone.privacy.sharing-scope-status")
-            }
-
-            Text(scopeDescription)
-              .font(.footnote)
-              .foregroundStyle(CompanionPalette.secondaryText)
-              .fixedSize(horizontal: false, vertical: true)
             Label(
-              "此健康分享范围不用于触碰交换；触碰交换只发送上方明确列出的公开宠物卡。",
+              "暂未启用；当前版本不会向好友发送任何健康摘要。",
               systemImage: "lock.shield"
             )
             .font(.footnote.weight(.semibold))
             .foregroundStyle(CompanionPalette.secondaryText)
             .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("phone.privacy.health-sharing-unavailable")
+            Text("触碰交换只发送上方明确列出的公开宠物卡。")
+              .font(.footnote)
+              .foregroundStyle(CompanionPalette.secondaryText)
+              .fixedSize(horizontal: false, vertical: true)
           }
         }
 
@@ -150,28 +122,6 @@ struct PrivacyView: View {
     }
     .navigationTitle("隐私")
     .accessibilityIdentifier("phone.privacy")
-  }
-
-  private var scopeDescription: String {
-    switch store.preferences.healthSharingScope {
-    case .gameStateOnly:
-      "只分享宠物等级、共同剧情与游戏关系。"
-    case .careSummary:
-      "默认范围：只分享“今天适合放慢”等非医疗、非数值表达。"
-    case .limitedHealthSummary:
-      "可分享用户明确允许的有限摘要；仍不包含睡眠阶段、心率数值或原始记录。"
-    }
-  }
-
-  private var scopeTitle: String {
-    switch store.preferences.healthSharingScope {
-    case .gameStateOnly:
-      "游戏状态"
-    case .careSummary:
-      "关心摘要"
-    case .limitedHealthSummary:
-      "有限健康摘要"
-    }
   }
 
   private func socialStateTitle(_ state: PublicPetSocialStateV1) -> String {

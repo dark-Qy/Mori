@@ -4,14 +4,17 @@ import WatchKit
 struct TouchExchangeView: View {
   @StateObject private var exchange: TouchExchangeViewModel
   private let socialSharingEnabled: Bool
+  private let socialSharingReady: Bool
   @State private var successPulse = false
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   init(
     localCard: TouchExchangeLocalCard,
-    socialSharingEnabled: Bool
+    socialSharingEnabled: Bool,
+    socialSharingReady: Bool
   ) {
     self.socialSharingEnabled = socialSharingEnabled
+    self.socialSharingReady = socialSharingReady
     _exchange = StateObject(
       wrappedValue: TouchExchangeViewModel(
         localCard: localCard,
@@ -37,6 +40,10 @@ struct TouchExchangeView: View {
       .navigationBarTitleDisplayMode(.inline)
       .accessibilityIdentifier("watch.touch-exchange")
       .onChange(of: exchange.phase) { _, phase in
+        if phase == .approaching {
+          WKInterfaceDevice.current().play(.notification)
+          return
+        }
         guard phase == .completed else { return }
         guard exchange.transferPresentation == nil else { return }
         WKInterfaceDevice.current().play(.success)
@@ -72,17 +79,24 @@ struct TouchExchangeView: View {
     case .idle:
       explanationCard
       Text(
-        exchange.socialSharingEnabled
-          ? "请让对方也打开这个页面，然后把两块手表靠近，系统会自动发现。"
-          : "请先在 iPhone 的隐私设置中开启“好友分享”。关闭时不会寻找设备，也不会上传公开宠物卡。"
+        !socialSharingReady
+          ? "正在从配对的 iPhone 自动同步好友分享设置，无需进入 iPhone 设置；完成后这里会自动可用。"
+          : exchange.socialSharingEnabled
+            ? "好友分享已默认开启。请让对方也打开这个页面，然后把两块手表靠近，系统会自动发现并提醒。"
+            : "好友分享已关闭。关闭时不会寻找设备，也不会上传公开宠物卡；可以稍后在 iPhone 隐私设置中重新开启。"
       )
       .font(.caption2)
       .foregroundStyle(.secondary)
       .fixedSize(horizontal: false, vertical: true)
       .accessibilityIdentifier("watch.touch-exchange.sharing-gate")
       primaryButton(
-        exchange.socialSharingEnabled ? "开始触碰" : "需先开启好友分享",
-        systemImage: exchange.socialSharingEnabled ? "wave.3.right" : "lock.fill"
+        !socialSharingReady
+          ? "好友分享准备中"
+          : exchange.socialSharingEnabled ? "开始触碰" : "好友分享已关闭",
+        systemImage:
+          !socialSharingReady
+          ? "arrow.triangle.2.circlepath"
+          : exchange.socialSharingEnabled ? "wave.3.right" : "lock.fill"
       ) {
         exchange.start()
       }
@@ -101,6 +115,7 @@ struct TouchExchangeView: View {
         title: "已经找到对方",
         detail: exchange.statusText
       )
+      .accessibilityIdentifier("watch.touch-exchange.candidate-found")
       cancelButton
 
     case .preview:

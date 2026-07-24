@@ -34,7 +34,8 @@ struct WatchRootView: View {
         if showsTouchExchangeDirectly {
           TouchExchangeView(
             localCard: store.touchExchangeLocalCard,
-            socialSharingEnabled: store.preferences.socialSharingEnabled
+            socialSharingEnabled: store.isTouchExchangeSharingEnabled,
+            socialSharingReady: store.isTouchExchangeSharingReady
           )
         } else if let destination = store.notificationDestination {
           WatchNotificationMessageView(
@@ -219,15 +220,18 @@ struct WatchRootView: View {
       NavigationLink {
         TouchExchangeView(
           localCard: store.touchExchangeLocalCard,
-          socialSharingEnabled: store.preferences.socialSharingEnabled
+          socialSharingEnabled: store.isTouchExchangeSharingEnabled,
+          socialSharingReady: store.isTouchExchangeSharingReady
         )
       } label: {
         DestinationRow(
           title: "触碰交换",
           detail:
-            store.preferences.socialSharingEnabled
-            ? "和附近的宠物交换遇见卡"
-            : "需先在 iPhone 开启好友分享",
+            !store.isTouchExchangeSharingReady
+            ? "正在自动同步好友分享"
+            : store.isTouchExchangeSharingEnabled
+              ? "和附近的宠物交换遇见卡"
+              : "好友分享已关闭",
           systemImage: "wave.3.right.circle.fill"
         )
       }

@@ -27,6 +27,9 @@ Redact serial numbers, account identifiers, health values, tokens, and notificat
 1. Pair the test Watch with the test iPhone.
 2. Install a clean build through Xcode.
 3. Launch both apps and verify version/schema agreement.
+   After upgrading from a build without versioned social authority, launch the updated iPhone app
+   once so it can republish the default-on or explicit opt-out value; the Watch must show
+   `好友分享准备中` and keep networking disabled until that context arrives.
 4. Disable connectivity, perform one Watch action and one iPhone wardrobe action, then reconnect.
 5. Verify queued events settle once, no reward duplicates, and the most recent valid wardrobe revision wins.
 
@@ -81,7 +84,8 @@ Do not claim precise real-time sleep-stage detection. Describe the feature as a 
 This test is independent of Phase 1 and requires two compatible physical Apple Watches and two test identities.
 
 1. Both users explicitly enter the proximity flow.
-2. Verify friend sharing is enabled on both paired iPhones, then tap `开始触碰` on both Watches;
+2. Unless either person explicitly opted out, friend sharing is already enabled; open the flow and
+   tap `开始触碰` on both Watches without first visiting iPhone settings;
    there is no user-entered pairing code.
 3. Verify the HTTPS discovery service exchanges only temporary discovery tokens before proximity.
 4. Validate expiration, replay protection, cancellation, candidate timeout/retry, and

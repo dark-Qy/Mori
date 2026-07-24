@@ -9,7 +9,11 @@ product domain. It owns mapping, local proactive-interaction orchestration, and 
 - Health events have deterministic semantic IDs and remain safe under repeated ingestion.
 - Notification text and timing must be approved by rules before reaching the adapter; AI cannot
   create or schedule a notification.
-- Social sharing is off by default. If a user later enables it, care summary is the default scope.
+- Public pet-card sharing is on by default and still requires bilateral Watch confirmation.
+  The Phone projection carries a versioned authority marker; until Watch has a trusted value it
+  does not construct the exchange network client. An explicit opt-out remains off across upgrades.
+  A Phone preference-read failure publishes no social authority. Care summary is only a future
+  configurable scope and is not part of touch exchange.
 - Clothing is stored as a cosmetic preference only.
 - Onboarding and management preferences persist locally; a legacy schema-1 record migrates without
   forcing an existing installation through onboarding again.

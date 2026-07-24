@@ -80,8 +80,15 @@ derived health or mood signals, vitality, story internals, free text, and sharin
 
 Candidate matching alone releases no pet card. The gateway releases the preview only after both
 Watches report overlapping UWB proximity, and an encounter completes only after both people
-confirm. The iPhone friend-sharing switch defaults off, synchronizes to Watch, and blocks the
-network exchange while disabled. The user-selected public social state is game-only
+confirm. Public pet-card sharing defaults on without requiring the iPhone settings screen,
+synchronizes to Watch, and can be disabled at any time. The Watch applies the latest retained
+iPhone setting before becoming interactive. The Phone projection carries a versioned authority
+marker; an unversioned, missing, or malformed setting keeps the Watch network gate closed while
+automatic sync is pending. If Phone cannot read its saved preferences, it publishes no authority
+instead of assuming consent. A synchronized opt-out remains persisted across relaunch and cancels
+an active flow when received. A change made while the devices cannot communicate takes effect
+after WatchConnectivity delivers it. A legacy record that explicitly stored an opt-out remains
+disabled after upgrade. The user-selected public social state is game-only
 (`greeting`, `walk`, or `quiet_company`). Candidate requests are bound to a per-encounter identifier
 and nonce to reject delayed requests after rotation. Cancellation prevents relationship creation,
 but cannot retract a preview that the other person has already seen. Timeout or an unverified

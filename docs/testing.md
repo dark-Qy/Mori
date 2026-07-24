@@ -80,7 +80,9 @@ Use launch arguments and synthetic fixture IDs. Test both Watch and iPhone surfa
 - AI unavailable and invalid response fallback;
 - process termination and relaunch;
 - zero-input Watch touch exchange through discovery, UWB-gated preview, bilateral confirmation,
-  friend-sharing privacy gating, public game-state selection, candidate-generation rotation,
+  default-on friend sharing, trusted Phone-authority waiting, explicit opt-out gating,
+  public game-state selection,
+  candidate-generation rotation,
   cancellation retry, confirm/cancel arbitration, and candidate retry;
 - VoiceOver labels, largest supported text, Reduce Motion, high contrast, and non-color cues.
 
@@ -115,7 +117,7 @@ Apple clients require the compile-time `DEBUG` condition and the runtime `-UITes
 they resolve an allowlisted fixture through `DebugScenarioSupport`. `Scripts/test-release-boundaries`
 builds the Release iPhone app and embedded Watch app, then rejects fixture resources, fixture
 identifiers, E2E storage selectors, offline-runtime selectors, and notification-route launch hooks
-in either executable. It also rejects the touch-exchange demo selector and injects a reserved
+in either executable. It also rejects the touch-exchange test selectors and injects a reserved
 non-production HTTPS URL solely so the Release configuration check can build; an actual archive
 must receive its deployment URL through `SOCIAL_GATEWAY_BASE_URL`.
 
