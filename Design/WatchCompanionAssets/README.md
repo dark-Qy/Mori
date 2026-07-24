@@ -8,7 +8,10 @@ evidence. Scene art never contains a character, and character art never contains
 - `backgrounds/catalog.json` is the source of truth for the ten shared backgrounds.
 - `backgrounds/<scene-id>/` contains the master PNG and Watch-sized exports for one scene.
 - `characters/catalog.json` is the source of truth for the two initial characters.
-- `characters/runtime-state-map.json` maps product interactions to animation rows.
+- `characters/motion-catalog.json` is the versioned product-motion contract shared by both
+  characters.
+- `characters/runtime-state-map.json` is the legacy eight-state export map retained only for the
+  pre-G4 app runtime.
 - `characters/<character-id>/final/` contains the approved v2 atlas and package manifest.
 - `characters/<character-id>/qa/` contains the retained acceptance evidence and runtime source
   frames.
