@@ -67,7 +67,7 @@ public struct ProfileLedger: Codable, Equatable, Sendable {
       self.initialState = initialState
       self.envelopes = []
       for envelope in envelopes.sorted(by: Self.canonicalOrder) {
-        try append(envelope)
+        try appendAcceptedLedgerEnvelope(envelope)
       }
       return
     }
@@ -75,6 +75,58 @@ public struct ProfileLedger: Codable, Equatable, Sendable {
   }
 
   public mutating func append(_ envelope: ExperienceSyncEnvelope) throws {
+    try validateEnvelopeForStorage(envelope)
+    if let existing = envelopes.first(where: { $0.eventID == envelope.eventID }) {
+      guard existing == envelope else {
+        throw ProfileLedgerError.conflictingEnvelopeID(envelope.eventID)
+      }
+      return
+    }
+    if let rejection = incomingAdmissionRejection(for: envelope) {
+      throw ProfileLedgerError.invalidEnvelope(envelope.eventID, rejection)
+    }
+    envelopes.append(envelope)
+    envelopes.sort(by: Self.canonicalOrder)
+  }
+
+  /// Advances the persisted sensing authority without rewriting accepted
+  /// product history. Subsequent incoming envelopes must use this exact epoch;
+  /// replay continues to reconstruct records accepted by earlier epochs.
+  @discardableResult
+  public mutating func setCompanionSensing(
+    enabled: Bool,
+    epoch: SensingEpoch,
+    effectiveAt: Date
+  ) -> MutationResult {
+    var baseline = initialState
+    let result = baseline.setCompanionSensing(
+      enabled: enabled,
+      epoch: epoch,
+      effectiveAt: effectiveAt
+    )
+    if case .applied = result {
+      initialState = baseline
+    }
+    return result
+  }
+
+  private mutating func appendAcceptedLedgerEnvelope(
+    _ envelope: ExperienceSyncEnvelope
+  ) throws {
+    try validateEnvelopeForStorage(envelope)
+    if let existing = envelopes.first(where: { $0.eventID == envelope.eventID }) {
+      guard existing == envelope else {
+        throw ProfileLedgerError.conflictingEnvelopeID(envelope.eventID)
+      }
+      return
+    }
+    envelopes.append(envelope)
+    envelopes.sort(by: Self.canonicalOrder)
+  }
+
+  private func validateEnvelopeForStorage(
+    _ envelope: ExperienceSyncEnvelope
+  ) throws {
     if let rejection = envelope.validate() {
       throw ProfileLedgerError.invalidEnvelope(envelope.eventID, rejection)
     }
@@ -86,14 +138,73 @@ public struct ProfileLedger: Codable, Equatable, Sendable {
     else {
       throw ProfileLedgerError.envelopeProfileMismatch(envelope.eventID)
     }
-    if let existing = envelopes.first(where: { $0.eventID == envelope.eventID }) {
-      guard existing == envelope else {
-        throw ProfileLedgerError.conflictingEnvelopeID(envelope.eventID)
+  }
+
+  private func incomingAdmissionRejection(
+    for envelope: ExperienceSyncEnvelope
+  ) -> MoriDomainRejection? {
+    let replayedState = replay().state
+    switch envelope.payload {
+    case .derivedFact(let record):
+      guard case .companion(let epoch) = record.authorization else { return nil }
+      guard
+        replayedState.companionSensingEnabled,
+        epoch == replayedState.currentSensingEpoch
+      else {
+        return .sensingEpochMismatch
       }
-      return
+    case .passiveEvent(let event):
+      guard
+        replayedState.companionSensingEnabled,
+        event.sensingEpoch == replayedState.currentSensingEpoch
+      else {
+        return .sensingEpochMismatch
+      }
+      let knownEvidence = event.evidence.allSatisfy { reference in
+        replayedState.derivedFacts.contains {
+          $0.header.recordID == reference.id
+        }
+      }
+      if knownEvidence {
+        var candidateState = replayedState
+        if case .rejected(let rejection) = ProfileReducer.apply(
+          envelope,
+          to: &candidateState
+        ) {
+          return rejection
+        }
+      }
+    case .passiveEventTransition(let transition):
+      guard
+        let source = replayedState.passiveEvents.first(where: {
+          $0.header.recordID == transition.eventID
+        })
+      else {
+        return nil
+      }
+      if source.sensingEpoch < replayedState.currentSensingEpoch,
+        case .presented = transition.state
+      {
+        return .sensingEpochMismatch
+      }
+    case .task(let task):
+      guard
+        let source = replayedState.passiveEvents.first(where: {
+          $0.header.recordID == task.sourceEventID
+        })
+      else {
+        return nil
+      }
+      guard
+        replayedState.companionSensingEnabled,
+        source.sensingEpoch == replayedState.currentSensingEpoch
+      else {
+        return .sensingEpochMismatch
+      }
+    default:
+      break
     }
-    envelopes.append(envelope)
-    envelopes.sort(by: Self.canonicalOrder)
+    return nil
   }
 
   public func replay() -> ProfileReplayResult {
@@ -109,7 +220,7 @@ public struct ProfileLedger: Codable, Equatable, Sendable {
       var madeProgress = false
 
       for envelope in pending {
-        switch ProfileReducer.apply(envelope, to: &state) {
+        switch ProfileReducer.replayAcceptedLedgerEnvelope(envelope, to: &state) {
         case .applied, .duplicate:
           lastReasons.removeValue(forKey: envelope.eventID)
           madeProgress = true
@@ -123,6 +234,7 @@ public struct ProfileLedger: Codable, Equatable, Sendable {
       if madeProgress == false { break }
     }
 
+    ProfileReducer.finalizeAcceptedLedgerReplay(&state)
     let unresolved = pending.map {
       ProfileReplayRejection(
         eventID: $0.eventID,

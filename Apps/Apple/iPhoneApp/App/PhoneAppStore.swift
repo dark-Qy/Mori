@@ -40,6 +40,7 @@ final class PhoneAppStore: ObservableObject {
   private var notificationRouteTask: Task<Void, Never>?
   private var peerSyncRetryTask: Task<Void, Never>?
   private var peerUpdateTask: Task<Void, Never>?
+  private var peerUpdateGeneration: UInt64 = 0
   private var mockCareTask: Task<Void, Never>?
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
@@ -136,8 +137,14 @@ final class PhoneAppStore: ObservableObject {
   func selectDataSource(_ source: CompanionDataSource) async {
     guard !hasLaunchScenarioOverride else { return }
     mockCareTask?.cancel()
+    stopPeerUpdates()
     selectedDataSource = source
-    _ = await runtime?.saveDataSourceSelection(source)
+    if let runtime {
+      _ = await runtime.saveDataSourceSelection(source)
+      if source == .healthKit {
+        beginPeerUpdates(runtime: runtime)
+      }
+    }
     await applySelectedDataSource(requestAccessIfNeeded: source == .healthKit)
   }
 
@@ -432,8 +439,18 @@ final class PhoneAppStore: ObservableObject {
   #endif
 
   private func beginPeerUpdates(runtime: AppleCompanionRuntime) {
-    guard peerUpdateTask == nil else { return }
+    guard
+      selectedDataSource == .healthKit,
+      peerUpdateTask == nil
+    else { return }
+    peerUpdateGeneration &+= 1
+    let generation = peerUpdateGeneration
     peerUpdateTask = Task { [weak self] in
+      defer {
+        if let self, self.peerUpdateGeneration == generation {
+          self.peerUpdateTask = nil
+        }
+      }
       let peerUpdates = await runtime.peerValueUpdates()
       if let self, let values = await runtime.latestPeerValues() {
         await self.applyPeerValues(values, runtime: runtime)
@@ -443,6 +460,12 @@ final class PhoneAppStore: ObservableObject {
         await self.applyPeerValues(values, runtime: runtime)
       }
     }
+  }
+
+  private func stopPeerUpdates() {
+    peerUpdateGeneration &+= 1
+    peerUpdateTask?.cancel()
+    peerUpdateTask = nil
   }
 
   private func applyPeerValues(
@@ -464,7 +487,11 @@ final class PhoneAppStore: ObservableObject {
       shouldReloadDataSource
     else { return }
     selectedDataSource = incoming
+    stopPeerUpdates()
     await applySelectedDataSource(requestAccessIfNeeded: false)
+    if incoming == .healthKit {
+      beginPeerUpdates(runtime: runtime)
+    }
   }
 
   private var wardrobeSessionState: WardrobeSessionState {

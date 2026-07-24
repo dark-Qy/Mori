@@ -47,10 +47,31 @@ public enum CompanionDataSource: String, Codable, CaseIterable, Sendable {
   }
 }
 
+public struct PeerDataSourceSelectionPlan: Equatable, Sendable {
+  fileprivate let id: UUID
+  fileprivate let previousSelection: CompanionDataSource
+  fileprivate let previousToken: String?
+  fileprivate let selection: CompanionDataSource
+  fileprivate let token: String?
+
+  public var changesMode: Bool {
+    previousSelection != selection
+  }
+
+  public var target: CompanionDataSource {
+    selection
+  }
+
+  public var leavesProduction: Bool {
+    previousSelection == .healthKit && selection != .healthKit
+  }
+}
+
 public actor DataSourceSelectionRepository {
   private let defaults: UserDefaults
   private let key: String
   private let tokenKey: String
+  private var pendingPeerPlan: PeerDataSourceSelectionPlan?
 
   public init(
     defaults: UserDefaults = .standard,
@@ -73,6 +94,7 @@ public actor DataSourceSelectionRepository {
 
   @discardableResult
   public func save(_ selection: CompanionDataSource) -> String {
+    pendingPeerPlan = nil
     let token = UUID().uuidString
     defaults.set(selection.rawValue, forKey: key)
     defaults.set(token, forKey: tokenKey)
@@ -83,6 +105,60 @@ public actor DataSourceSelectionRepository {
     defaults.string(forKey: tokenKey)
   }
 
+  /// Previews the exact idempotency rule used by `applyPeerSelection`.
+  ///
+  /// Callers use this to avoid tearing down production services for replayed
+  /// peer snapshots. A new token can still represent an intentional
+  /// same-source reselection, such as resetting a Mock scenario.
+  public func wouldApplyPeerSelection(
+    _ selection: CompanionDataSource,
+    token: String?
+  ) -> Bool {
+    if let token {
+      return token != defaults.string(forKey: tokenKey)
+    }
+    return selection != load()
+  }
+
+  /// Reserves one peer action without changing the selected source. A local
+  /// save or a newer peer preparation invalidates the reservation, allowing
+  /// the runtime to establish its mode-transition fence before commit.
+  public func preparePeerSelection(
+    _ selection: CompanionDataSource,
+    token: String?
+  ) -> PeerDataSourceSelectionPlan? {
+    guard wouldApplyPeerSelection(selection, token: token) else {
+      pendingPeerPlan = nil
+      return nil
+    }
+    let plan = PeerDataSourceSelectionPlan(
+      id: UUID(),
+      previousSelection: load(),
+      previousToken: defaults.string(forKey: tokenKey),
+      selection: selection,
+      token: token
+    )
+    pendingPeerPlan = plan
+    return plan
+  }
+
+  @discardableResult
+  public func commitPeerSelection(
+    _ plan: PeerDataSourceSelectionPlan
+  ) -> Bool {
+    guard
+      pendingPeerPlan == plan,
+      load() == plan.previousSelection,
+      defaults.string(forKey: tokenKey) == plan.previousToken
+    else {
+      return false
+    }
+    pendingPeerPlan = nil
+    defaults.set(plan.selection.rawValue, forKey: key)
+    defaults.set(plan.token ?? UUID().uuidString, forKey: tokenKey)
+    return true
+  }
+
   /// Returns true when the peer sent a new selection action. A token lets reselecting the same
   /// Mock reset both devices without replaying old peer snapshots as fresh resets.
   @discardableResult
@@ -90,15 +166,9 @@ public actor DataSourceSelectionRepository {
     _ selection: CompanionDataSource,
     token: String?
   ) -> Bool {
-    if let token {
-      guard token != defaults.string(forKey: tokenKey) else { return false }
-      defaults.set(selection.rawValue, forKey: key)
-      defaults.set(token, forKey: tokenKey)
-      return true
+    guard let plan = preparePeerSelection(selection, token: token) else {
+      return false
     }
-
-    guard selection != load() else { return false }
-    _ = save(selection)
-    return true
+    return commitPeerSelection(plan)
   }
 }

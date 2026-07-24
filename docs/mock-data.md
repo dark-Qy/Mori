@@ -1,123 +1,169 @@
-# Mock Data
+# Mori Mock Data
 
-> **Historical prototype Mock contract — non-authoritative for the rebuild.**
-> Its in-memory-only and no-WatchConnectivity rules are superseded by ADR 0003,
-> which requires durable, profile/epoch-isolated Mock state and deterministic
-> Mock adapters on both devices. G2 must rewrite this document to match the
-> implemented repository before G2 closes.
+This document is the authoritative development-data contract for the Mori
+rebuild. Mock is a durable, isolated product profile used to exercise the same
+domain reducers and presentation paths as real data. It is never evidence that
+an Apple capability works on physical hardware.
 
-## Purpose
+## Current Implementation Priority
 
-Mocks make deterministic development possible when HealthKit history, physical hardware, APNs, AI, or proximity is unavailable. A mock is a product-development mode, not evidence that the real capability works.
+Mock is the execution priority for the current rebuild checkpoint. A feature is
+in scope now when it affects deterministic Mock behavior, persistent profile
+isolation, the shared reducers, or the Watch/iPhone presentation path. Physical
+sensor fidelity, background execution, paired-device timing, haptic feel,
+energy use, and other hardware-only behavior are deferred when they do not
+change that Mock path.
 
-## Non-negotiable labeling
+The production composition boundary still fails closed and remains covered by
+Release checks. Deferral means the physical behavior is `DEVICE_UNVERIFIED`; it
+does not permit a Mock implementation to read, write, fall back to, or claim
+validation of production data.
 
-- Every debug screen using synthetic data displays **Demo Data** or **模拟数据** persistently.
-- Screenshots and recordings retain that label.
-- Debug diagnostics identify the fixture and random seed.
-- Release builds do not expose fixture selection or silently substitute synthetic health data.
-- If production data is unavailable, production UI uses a neutral no-data state rather than a fake successful state.
-- An unknown Mock scenario fails closed into a labeled neutral error state and never falls back to
-  live HealthKit or other Apple capabilities.
-- Mock application stores use in-memory presentation state only; changing a Mock wardrobe or
-  privacy control must not mutate live UserDefaults, notifications, files, or WatchConnectivity.
+## Product Boundary
 
-## Interactive demo selector
+- Mock controls compile only in Debug builds.
+- Every Mock surface persistently displays `模拟数据`.
+- Release builds expose no Mock scenario, fixture selector, launch selector, or
+  automatic synthetic fallback.
+- An unknown, malformed, or profile-mismatched scenario fails closed. It never
+  constructs or falls back to HealthKit, location, motion, notifications,
+  remote Chat, narration, WatchConnectivity, or production social services.
+- Mock conversation and Touch Exchange are local-only. They cannot publish,
+  relate people, notify another person, or send content to production services.
+- Simulator and Mock results validate deterministic application behavior only.
+  Physical HealthKit, motion, location, background delivery, haptics, energy,
+  and paired-device behavior remain `DEVICE_UNVERIFIED`.
 
-The current debug product build starts with `Mock 1` when no data source has been selected. Both
-iPhone and Watch expose one compact data-source button with `Apple 健康`, `Mock 1`, `Mock 2`, and
-`Mock 3`. A single tap applies the selection, closes the chooser, remembers only the selected
-label, and projects that label through the existing WatchConnectivity state.
+## Profile And Storage Isolation
 
-Mock world state remains in memory. Selecting a fixture again or relaunching reconstructs its
-canonical initial state instead of persisting interactions into the next demonstration.
+Every selection is a complete `RuntimeProfile`:
 
-## Fixture format
-
-Fixtures use versioned JSON stored separately from user data:
-
-```json
-{
-  "schemaVersion": 1,
-  "scenarioID": "health_normal",
-  "displayName": "Normal recent health data",
-  "clock": {
-    "now": "2026-07-23T09:00:00+08:00",
-    "timeZone": "Asia/Shanghai"
-  },
-  "launchArguments": ["-MockScenario", "health_normal"],
-  "state": {},
-  "expectations": { "primaryState": "petHome", "mockBadgeVisible": true }
-}
+```text
+profile ID
++ profile epoch
++ deletion epoch
++ Mock scenario ID
++ winning Lamport selection revision
 ```
 
-`ScenarioFixture` validates the envelope. `MockScenarioRuntime` converts it into typed health,
-permission, service, wardrobe, and pet state. `MockScenarioRun` owns a deterministic clock, event
-ledger, and replayable reducer. A fixture that cannot enter this executable path fails the core
-test suite.
+`MockProfileDerivation` deterministically derives the profile and epoch from the
+scenario plus the winning revision. A later selection revision creates a new
+Mock profile epoch. Offline selections converge by complete Lamport order;
+arrival time and wall-clock time are not authority.
 
-Installation state and executable domain state derive the initial screen. For example,
-`hasLaunchedBefore: false` produces onboarding, while a created pet produces the pet home. The
-`expectations.primaryState` field validates that derived result; it is never used as runtime input.
-`fresh_install` begins with a truly empty event ledger, so onboarding cannot inherit synthetic
-progress accidentally.
+`RuntimeStorageLayout` creates distinct real and Mock parent directories. Raw
+profile, scenario, and device identifiers are SHA-256 inputs and never path
+components. Each namespace owns separate:
 
-The same rule applies to behavior-triggered stories. `soccer_workout` provides a synthetic workout;
-`SoccerSideStoryRule` derives whether `lost_ball` is eligible from its activity, duration, and
-freshness. `expectations.eligibleRandomStory` only validates that derived result and never grants the
-eligibility itself. Eligibility also does not force the random story to unlock.
+- profile ledger;
+- experience outbox;
+- cache;
+- conversation storage.
 
-Dates are interpreted relative to `clock.now` where possible. Fixtures never contain copied health exports, real names, contact details, provider keys, device identifiers, or personal conversations.
+Tasks, cooldowns, coins, collection state, Mori identity, passive events,
+memories, letters, and their tombstones live in the profile ledger. A Mock
+record cannot validate against a real profile or another Mock epoch.
 
-## Required scenarios
+The filesystem reset primitive requires:
 
-| ID | Purpose | Key expectation |
-|---|---|---|
-| `fresh_install` | Empty ledger and first launch | deterministic onboarding |
-| `permission_not_requested` | No HealthKit request yet | neutral explanation, no negative inference |
-| `health_no_data` | Permission path with no samples | pet remains playable |
-| `health_partial` | Some requested types unavailable | use only known context and disclose limits |
-| `health_normal` | Representative recent trends | primary single-user loop |
-| `sleep_stale` | Old sleep sample | freshness rule rejects health claim |
-| `activity_high` | Activity near soft cap | diminishing reward behavior |
-| `soccer_workout` | Recorded soccer workout | eligibility without guaranteed random trigger |
-| `notification_denied` | Notification permission denied | in-app path, no repeated prompt loop |
-| `ai_offline` | Narration unavailable | deterministic local template |
-| `ai_malformed` | Invalid narration schema | validation and local fallback |
-| `sync_unreachable` | Watch/iPhone unavailable | queue and idempotent recovery |
-| `pet_new` | Initial pet state | first chapter behavior |
-| `outfit_locked` | Locked cosmetic | clear non-punitive state |
-| `outfit_unlocked` | Available cosmetic | preview/equip/reset flow |
-| `mock1` | Everyday demo | normal sleep and activity |
-| `mock2` | Relationship and care demo | three complete days without interaction plus an explicitly logged stressful State of Mind |
-| `mock3` | High-activity story demo | high activity and an explicit soccer workout eligible for `lost_ball` |
+- the currently selected profile to be a valid Mock profile;
+- an exact selected-profile match;
+- a valid namespace ownership marker;
+- lexical and symlink-resolved containment.
 
-Add explicit scenarios for each bug that depends on time, permission, ordering, or randomness.
+It refuses real profiles and outside paths, and tests preserve every real byte.
+The user-facing reset orchestration must additionally select a newly derived
+Mock epoch before stale peer data can be admitted; that orchestration belongs
+to the durable preference/synchronization work and must not be replaced by a
+filesystem-only reset button.
 
-## Fault injection
+## Runtime Composition
 
-Mocks support controlled:
+`MoriRuntimeDependencyComposer` validates the complete profile before invoking
+any factory.
 
-- latency and timeout;
-- duplicate, delayed, reordered, and missing events;
-- corrupted persistence and unsupported schema;
-- revoked or partial permissions;
-- clock and time-zone changes;
-- provider 401, 429, 5xx, invalid JSON, unsafe text, and oversize text;
-- disconnected Watch/iPhone and reconciliation;
-- background callback never arriving.
+- A real profile constructs exactly the production dependency for health,
+  location, motion, notification, Chat, narration, connectivity, and social.
+- A valid Mock profile constructs deterministic local implementations for all
+  eight roles.
+- An invalid Mock profile constructs nothing.
+- Production factories must return the requested role and production
+  isolation. A local or wrong-role result fails composition.
 
-The rule result must be inspectable through a redacted `DecisionTrace`.
+This boundary is structural: Mock code has no execution path to an injected
+production factory closure.
 
-## Determinism
+## Evidence And Sensing
 
-Fixture, application version, rule version, clock, and random seed fully identify an expected run. Tests may assert a specific branch only when the seed is fixed. Production randomness never selects an option that did not pass rule eligibility.
+Mock adapters emit the same privacy-minimized `DerivedFactRecord` types as real
+adapters. They never manufacture raw HealthKit samples, precise coordinates,
+routes, accelerometer streams, contacts, or personal conversations.
 
-## Adding a fixture
+Every companion-authorized fact carries the active sensing epoch.
+`CompanionSensingCoordinator`:
 
-1. State the behavior and invariant it proves.
-2. Use entirely synthetic values near meaningful boundaries.
-3. Add schema validation and a test that loads the fixture.
-4. Add an E2E assertion or document why it is adapter-only.
-5. Confirm the Demo Data label remains visible.
-6. Record the fixture in this document.
+1. captures the selected profile, sensing epoch, active-since time, and callback
+   generation;
+2. invalidates old generations before stopping adapters;
+3. stops live adapters and invalidates pending presentation when `Mori 随行`
+   is disabled;
+4. persists enabled authority before starting adapters;
+5. revalidates profile and session authority after asynchronous boundaries;
+6. degrades stale, pre-enable, disabled, or losing-profile callbacks to
+   display-only evidence.
+
+Re-enabling never upgrades or backfills facts observed during the disabled
+interval. Display-only facts cannot create passive events, tasks, letters, or
+memory eligibility.
+
+## Deterministic Scenarios
+
+The rebuilt runtime provides seven Debug-only scenarios:
+
+| ID | Purpose | Expected inference |
+| --- | --- | --- |
+| `normal-day` | Representative exact step summary | shared walk, no manufactured task |
+| `fast-walking` | Step delta corroborated by broad walking | fast-pace event and confirmable hydration task |
+| `walk-and-stop` | Walking followed by stationary | shared pause |
+| `late-sleep` | Recent exact sleep duration late in the day | sleep reflection and wind-down recommendation |
+| `denied-permission` | Companion activation lacks permission | neutral, no claim |
+| `stale-evidence` | Evidence exceeds freshness budget | neutral, no claim |
+| `offline-synchronization` | Selected profile remains usable while peer is offline | local shared-walk inference; sync deferred |
+
+For a fixed scenario, app version, rule version, clock, profile, and sensing
+epoch, the seed and inference output are identical. Scenario expectations are
+test assertions, never runtime inputs that grant eligibility.
+
+Unknown scenario IDs and scenario/profile mismatches resolve to no seed. They do
+not choose a default scenario.
+
+## Current UI Migration Boundary
+
+The existing prototype screens still contain historical `Mock 1`, `Mock 2`, and
+`Mock 3` presentation fixtures. They remain only until G5/G6 replace the Watch
+and iPhone stores with the profile-aware Mori runtime.
+
+During that migration:
+
+- legacy selectors must remain Debug-only;
+- legacy Mock presentation must not write the real event ledger or invoke
+  HealthKit, notifications, or connectivity;
+- new product features must use the seven scenarios above rather than adding
+  more view-owned fixture state;
+- no historical fixture is accepted as evidence that durable profile switching
+  or cross-device synchronization is complete.
+
+## Adding A Scenario
+
+1. State the product behavior and privacy invariant it proves.
+2. Use synthetic boundary values and a fixed clock.
+3. Add it to `MoriMockScenario`; do not add a production fallback.
+4. Normalize through the same evidence types used by real adapters.
+5. Add deterministic branch and invalid-profile tests.
+6. Add a UI journey only after the profile-aware stores are integrated.
+7. Keep the `模拟数据` label visible in screenshots and recordings.
+
+Fault cases such as duplicate, delayed, reordered, missing, corrupted, revoked,
+offline, time-zone, and restart behavior belong in deterministic tests. They
+must change delivery conditions, not bypass domain admission or settlement
+rules.

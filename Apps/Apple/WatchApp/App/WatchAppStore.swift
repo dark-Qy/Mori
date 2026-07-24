@@ -36,6 +36,7 @@ final class WatchAppStore: ObservableObject {
   private var latestHealth: HealthSnapshot?
   private var latestPeerValues: [String: String]?
   private var peerUpdateTask: Task<Void, Never>?
+  private var peerUpdateGeneration: UInt64 = 0
   private var notificationRouteTask: Task<Void, Never>?
   private var peerSyncRetryTask: Task<Void, Never>?
   private var mockCareTask: Task<Void, Never>?
@@ -156,8 +157,18 @@ final class WatchAppStore: ObservableObject {
   }
 
   private func beginPeerUpdates(runtime: AppleCompanionRuntime) {
-    guard peerUpdateTask == nil else { return }
+    guard
+      selectedDataSource == .healthKit,
+      peerUpdateTask == nil
+    else { return }
+    peerUpdateGeneration &+= 1
+    let generation = peerUpdateGeneration
     peerUpdateTask = Task { [weak self] in
+      defer {
+        if let self, self.peerUpdateGeneration == generation {
+          self.peerUpdateTask = nil
+        }
+      }
       let peerUpdates = await runtime.peerValueUpdates()
       if let self {
         if let latestPeerValues = await runtime.latestPeerValues() {
@@ -169,6 +180,12 @@ final class WatchAppStore: ObservableObject {
         await self.receivePeerValues(values, runtime: runtime)
       }
     }
+  }
+
+  private func stopPeerUpdates() {
+    peerUpdateGeneration &+= 1
+    peerUpdateTask?.cancel()
+    peerUpdateTask = nil
   }
 
   /// A previous process may have reached WatchConnectivity before its durable acknowledgement
@@ -188,8 +205,14 @@ final class WatchAppStore: ObservableObject {
   func selectDataSource(_ source: CompanionDataSource) async {
     guard !hasLaunchScenarioOverride else { return }
     mockCareTask?.cancel()
+    stopPeerUpdates()
     selectedDataSource = source
-    _ = await runtime?.saveDataSourceSelection(source)
+    if let runtime {
+      _ = await runtime.saveDataSourceSelection(source)
+      if source == .healthKit {
+        beginPeerUpdates(runtime: runtime)
+      }
+    }
     await applySelectedDataSource(requestAccessIfNeeded: source == .healthKit)
   }
 
@@ -445,7 +468,15 @@ final class WatchAppStore: ObservableObject {
       // Presentation consumes the validated, merged management subset. Raw or partial peer
       // payloads must never reset a valid local character or scene to a default.
       latestPeerValues = Self.peerValues(from: preferences)
+      if shouldReloadDataSource {
+        stopPeerUpdates()
+      }
       await applyPeerValues(values, shouldReloadDataSource: shouldReloadDataSource)
+      if shouldReloadDataSource,
+        values["dataSource"] == CompanionDataSource.healthKit.rawValue
+      {
+        beginPeerUpdates(runtime: runtime)
+      }
     } catch {
       statusMessage = "配对设置暂时无法同步"
     }

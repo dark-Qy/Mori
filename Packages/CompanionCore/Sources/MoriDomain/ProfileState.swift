@@ -308,20 +308,42 @@ public enum ProfileMutation: Sendable {
 }
 
 public enum ProfileReducer {
+  private enum EnvelopeAdmission {
+    case incoming
+    case acceptedLedgerReplay
+  }
+
   public static func apply(
     _ mutation: ProfileMutation,
     to state: inout ProfileState
   ) -> MutationResult {
     guard state.validate() == nil else { return .rejected(.invalidRecord) }
+    return applyValidated(
+      mutation,
+      to: &state,
+      admission: .incoming
+    )
+  }
+
+  private static func applyValidated(
+    _ mutation: ProfileMutation,
+    to state: inout ProfileState,
+    admission: EnvelopeAdmission
+  ) -> MutationResult {
     switch mutation {
     case .derivedFact(let record):
-      return insertFact(record, into: &state)
+      return insertFact(record, into: &state, admission: admission)
     case .passiveEvent(let event):
-      return insertPassiveEvent(event, into: &state)
+      return insertPassiveEvent(event, into: &state, admission: admission)
     case .passiveEventTransition(let transition):
       return applyPassiveTransition(transition, to: &state)
     case .task(let task, let visible):
-      return issueTask(task, manualTaskHasVisibleSlot: visible, into: &state)
+      return issueTask(
+        task,
+        manualTaskHasVisibleSlot: visible,
+        into: &state,
+        admission: admission
+      )
     case .taskTransition(let transition):
       return applyTaskTransition(transition, to: &state)
     case .coinTransaction(let transaction):
@@ -369,6 +391,43 @@ public enum ProfileReducer {
     _ envelope: ExperienceSyncEnvelope,
     to state: inout ProfileState
   ) -> MutationResult {
+    guard state.validate() == nil else { return .rejected(.invalidRecord) }
+    return applyEnvelope(envelope, to: &state, admission: .incoming)
+  }
+
+  /// Reconstructs envelopes that were admitted while their sensing epoch was
+  /// authoritative. This is intentionally separate from `apply(_:to:)`: a new
+  /// peer envelope must always pass current incoming admission, while an
+  /// app-private accepted ledger may replay an older, already-authorized epoch.
+  package static func replayAcceptedLedgerEnvelope(
+    _ envelope: ExperienceSyncEnvelope,
+    to state: inout ProfileState
+  ) -> MutationResult {
+    applyEnvelope(envelope, to: &state, admission: .acceptedLedgerReplay)
+  }
+
+  /// Completes the accepted-ledger projection after fixed-point replay.
+  /// Pending glances from superseded epochs remain in history but can never be
+  /// presented after a sensing preference change.
+  package static func finalizeAcceptedLedgerReplay(
+    _ state: inout ProfileState
+  ) {
+    for index in state.passiveEvents.indices {
+      let event = state.passiveEvents[index]
+      guard event.sensingEpoch < state.currentSensingEpoch else { continue }
+      guard case .pending = event.reminderState else { continue }
+      _ = state.passiveEvents[index].expireForSupersededSensingEpoch(
+        state.currentSensingEpoch,
+        at: event.presentationDeadline ?? event.observedAt
+      )
+    }
+  }
+
+  private static func applyEnvelope(
+    _ envelope: ExperienceSyncEnvelope,
+    to state: inout ProfileState,
+    admission: EnvelopeAdmission
+  ) -> MutationResult {
     if let existing = state.experienceLedger.first(where: { $0.eventID == envelope.eventID }) {
       return existing == envelope ? .duplicate : .rejected(.conflictingDuplicate)
     }
@@ -389,53 +448,106 @@ public enum ProfileReducer {
     let result: MutationResult
     switch envelope.payload {
     case .derivedFact(let record):
-      result = apply(.derivedFact(record), to: &state)
+      result = applyValidated(
+        .derivedFact(record),
+        to: &state,
+        admission: admission
+      )
     case .passiveEvent(let event):
       guard case .pending = event.reminderState else {
         return .rejected(.invalidPayload)
       }
-      result = apply(.passiveEvent(event), to: &state)
+      result = applyValidated(
+        .passiveEvent(event),
+        to: &state,
+        admission: admission
+      )
     case .passiveEventTransition(let transition):
-      result = apply(.passiveEventTransition(transition), to: &state)
+      result = applyValidated(
+        .passiveEventTransition(transition),
+        to: &state,
+        admission: admission
+      )
     case .task(let task):
       guard case .active = task.lifecycle else { return .rejected(.invalidPayload) }
-      result = apply(.task(task, manualTaskHasVisibleSlot: true), to: &state)
+      result = applyValidated(
+        .task(task, manualTaskHasVisibleSlot: true),
+        to: &state,
+        admission: admission
+      )
     case .taskTransition(let transition):
-      result = apply(.taskTransition(transition), to: &state)
+      result = applyValidated(
+        .taskTransition(transition),
+        to: &state,
+        admission: admission
+      )
     case .coinTransaction(let transaction):
-      result = apply(.coinTransaction(transaction), to: &state)
+      result = applyValidated(
+        .coinTransaction(transaction),
+        to: &state,
+        admission: admission
+      )
     case .memory(let memory):
       guard memory.lifecycle.isSealed else {
         return .rejected(.invalidPayload)
       }
-      result = apply(.memory(memory), to: &state)
+      result = applyValidated(
+        .memory(memory),
+        to: &state,
+        admission: admission
+      )
     case .memoryTransition(let transition):
       guard case .delete = transition.kind else {
         return .rejected(.invalidPayload)
       }
-      result = apply(.memoryTransition(transition), to: &state)
+      result = applyValidated(
+        .memoryTransition(transition),
+        to: &state,
+        admission: admission
+      )
     case .letter(let letter):
       guard letter.isRead == false, letter.isDeleted == false else {
         return .rejected(.invalidPayload)
       }
-      result = apply(.letter(letter), to: &state)
+      result = applyValidated(
+        .letter(letter),
+        to: &state,
+        admission: admission
+      )
     case .letterTransition(let transition):
-      result = apply(.letterTransition(transition), to: &state)
+      result = applyValidated(
+        .letterTransition(transition),
+        to: &state,
+        admission: admission
+      )
     case .identitySelection(let selection):
-      result = apply(.identitySelection(selection), to: &state)
+      result = applyValidated(
+        .identitySelection(selection),
+        to: &state,
+        admission: admission
+      )
     case .collectionPurchase(let purchase):
-      result = apply(
+      result = applyValidated(
         .purchase(
           item: purchase.item,
           ownership: purchase.ownership,
           transaction: purchase.transaction
         ),
-        to: &state
+        to: &state,
+        admission: admission
       )
     case .collectionOwnership(let ownership):
-      result = apply(.collectionOwnership(ownership), to: &state)
+      result = applyValidated(
+        .collectionOwnership(ownership),
+        to: &state,
+        admission: admission
+      )
     case .collectionTransition(let transition):
-      result = apply(.collectionTransition(transition), to: &state)
+      result = applyValidated(
+        .collectionTransition(transition),
+        to: &state,
+        admission: admission
+      )
     }
     switch result {
     case .applied, .duplicate:
@@ -452,17 +564,29 @@ public enum ProfileReducer {
 
   private static func insertFact(
     _ record: DerivedFactRecord,
-    into state: inout ProfileState
+    into state: inout ProfileState,
+    admission: EnvelopeAdmission
   ) -> MutationResult {
     if let rejection = record.validate(in: state.runtimeProfile) {
       return .rejected(rejection)
     }
     if case .companion(let sensingEpoch) = record.authorization {
-      guard
-        state.companionSensingEnabled,
-        sensingEpoch == state.currentSensingEpoch
-      else {
-        return .rejected(.sensingEpochMismatch)
+      switch admission {
+      case .incoming:
+        guard
+          state.companionSensingEnabled,
+          sensingEpoch == state.currentSensingEpoch
+        else {
+          return .rejected(.sensingEpochMismatch)
+        }
+      case .acceptedLedgerReplay:
+        guard
+          sensingEpoch < state.currentSensingEpoch
+            || (state.companionSensingEnabled
+              && sensingEpoch == state.currentSensingEpoch)
+        else {
+          return .rejected(.sensingEpochMismatch)
+        }
       }
     }
     if let existing = state.derivedFacts.first(where: {
@@ -476,19 +600,34 @@ public enum ProfileReducer {
 
   private static func insertPassiveEvent(
     _ event: PassiveCompanionEvent,
-    into state: inout ProfileState
+    into state: inout ProfileState,
+    admission: EnvelopeAdmission
   ) -> MutationResult {
-    guard state.companionSensingEnabled else {
-      return .rejected(.sensingEpochMismatch)
-    }
     if let existing = state.passiveEvents.first(where: {
       $0.header.recordID == event.header.recordID
     }) {
       return existing == event ? .duplicate : .rejected(.conflictingDuplicate)
     }
+    let validationEpoch: SensingEpoch
+    switch admission {
+    case .incoming:
+      guard state.companionSensingEnabled else {
+        return .rejected(.sensingEpochMismatch)
+      }
+      validationEpoch = state.currentSensingEpoch
+    case .acceptedLedgerReplay:
+      guard
+        event.sensingEpoch < state.currentSensingEpoch
+          || (state.companionSensingEnabled
+            && event.sensingEpoch == state.currentSensingEpoch)
+      else {
+        return .rejected(.sensingEpochMismatch)
+      }
+      validationEpoch = event.sensingEpoch
+    }
     if let rejection = event.validate(
       in: state.runtimeProfile,
-      sensingEpoch: state.currentSensingEpoch
+      sensingEpoch: validationEpoch
     ) {
       return .rejected(rejection)
     }
@@ -525,7 +664,8 @@ public enum ProfileReducer {
   private static func issueTask(
     _ task: TaskInstance,
     manualTaskHasVisibleSlot: Bool,
-    into state: inout ProfileState
+    into state: inout ProfileState,
+    admission: EnvelopeAdmission
   ) -> MutationResult {
     guard
       let event = state.passiveEvents.first(where: {
@@ -541,6 +681,13 @@ public enum ProfileReducer {
         if $0.revision != $1.revision { return $0.revision < $1.revision }
         return $0.header.recordID < $1.header.recordID
       }
+    let policySensingEpoch: SensingEpoch
+    switch admission {
+    case .incoming:
+      policySensingEpoch = state.currentSensingEpoch
+    case .acceptedLedgerReplay:
+      policySensingEpoch = event.sensingEpoch
+    }
     let decision = TaskIssuancePolicy.evaluate(
       event: event,
       candidate: task,
@@ -548,7 +695,7 @@ public enum ProfileReducer {
       cooldown: cooldown,
       manualTaskHasVisibleSlot: manualTaskHasVisibleSlot,
       profile: state.runtimeProfile,
-      sensingEpoch: state.currentSensingEpoch
+      sensingEpoch: policySensingEpoch
     )
     guard decision == .applied else { return decision }
     state.tasks.append(task)

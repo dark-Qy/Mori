@@ -46,6 +46,71 @@ struct DataSourceSelectionTests {
       #expect(await storage.repository.load() == .mock2)
       #expect(await storage.repository.loadSelectionToken() == "second")
     }
+
+    @Test("Peer selection preview and apply use the same idempotency rule")
+    func peerSelectionPreview() async {
+      let storage = makeRepository()
+      defer { removeStorage(suiteName: storage.suiteName) }
+
+      #expect(
+        await storage.repository.wouldApplyPeerSelection(
+          .mock2,
+          token: "first"
+        )
+      )
+      #expect(
+        await storage.repository.applyPeerSelection(
+          .mock2,
+          token: "first"
+        )
+      )
+      #expect(
+        !(await storage.repository.wouldApplyPeerSelection(
+          .mock2,
+          token: "first"
+        ))
+      )
+      #expect(
+        !(await storage.repository.applyPeerSelection(
+          .mock2,
+          token: "first"
+        ))
+      )
+      #expect(
+        await storage.repository.wouldApplyPeerSelection(
+          .mock2,
+          token: "second"
+        )
+      )
+      #expect(
+        await storage.repository.applyPeerSelection(
+          .mock2,
+          token: "second"
+        )
+      )
+    }
+
+    @Test("A local save invalidates a prepared peer selection")
+    func preparedPeerSelectionIsAtomic() async throws {
+      let storage = makeRepository()
+      defer { removeStorage(suiteName: storage.suiteName) }
+      _ = await storage.repository.save(.mock1)
+      let plan = try #require(
+        await storage.repository.preparePeerSelection(
+          .healthKit,
+          token: "peer-health"
+        )
+      )
+      #expect(plan.changesMode)
+
+      _ = await storage.repository.save(.mock3)
+
+      #expect(!(await storage.repository.commitPeerSelection(plan)))
+      #expect(await storage.repository.load() == .mock3)
+      #expect(
+        await storage.repository.loadSelectionToken() != "peer-health"
+      )
+    }
   #endif
 
   @Test("Invalid stored selection uses the build-appropriate safe default")

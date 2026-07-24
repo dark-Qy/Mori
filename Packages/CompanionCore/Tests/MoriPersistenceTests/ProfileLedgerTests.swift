@@ -123,6 +123,56 @@ struct ProfileLedgerTests {
     #expect(replay.state.derivedFacts.count == 1)
   }
 
+  @Test("Repository serializes concurrent appends across suspended storage writes")
+  func repositorySerializesConcurrentAppends() async throws {
+    let state = try sampleState()
+    let storage = PausingProfileLedgerStorage()
+    let repository = ProfileLedgerRepository(storage: storage, initialState: state)
+    let firstEnvelope = uniqueFactEnvelope(
+      id: "concurrent-fact-a",
+      evidenceID: "concurrent-steps-a",
+      stepTotal: 3_250,
+      in: state,
+      revision: revision(2),
+      sequence: 1
+    )
+    let secondEnvelope = uniqueFactEnvelope(
+      id: "concurrent-fact-b",
+      evidenceID: "concurrent-steps-b",
+      stepTotal: 4_000,
+      in: state,
+      revision: revision(3),
+      sequence: 2
+    )
+
+    let firstAppend = Task {
+      try await repository.append(firstEnvelope)
+    }
+    await storage.waitUntilFirstSaveStarts()
+
+    let secondAppend = Task {
+      await storage.markSecondAppendStarted()
+      return try await repository.append(secondEnvelope)
+    }
+    await storage.waitUntilSecondAppendStarts()
+
+    for _ in 0..<1_000 {
+      if await storage.saveCount > 1 { break }
+      await Task.yield()
+    }
+    #expect(await storage.saveCount == 1)
+
+    await storage.resumeFirstSave()
+    _ = try await firstAppend.value
+    _ = try await secondAppend.value
+
+    let persistedData = try #require(await storage.persistedData)
+    let persistedLedger = try ProfileLedgerCodec().decode(persistedData)
+    let currentLedger = try await repository.currentLedger()
+    #expect(persistedLedger.envelopes == [firstEnvelope, secondEnvelope])
+    #expect(currentLedger.envelopes == [firstEnvelope, secondEnvelope])
+  }
+
   @Test("Malformed persisted bytes fail closed")
   func malformedBytes() async throws {
     let state = try sampleState()
@@ -642,6 +692,64 @@ private actor AlwaysFailingResetDestination: LegacyResetBundleStorage {
   func save(_: Data) throws { throw ResetFailure.write }
 }
 
+private actor PausingProfileLedgerStorage: ProfileLedgerStorage {
+  private(set) var persistedData: Data?
+  private(set) var saveCount = 0
+  private var firstSaveStarted = false
+  private var firstSaveStartWaiters: [CheckedContinuation<Void, Never>] = []
+  private var firstSaveResume: CheckedContinuation<Void, Never>?
+  private var secondAppendStarted = false
+  private var secondAppendStartWaiters: [CheckedContinuation<Void, Never>] = []
+
+  func load() -> Data? {
+    persistedData
+  }
+
+  func save(_ data: Data) async {
+    saveCount += 1
+    if saveCount == 1 {
+      firstSaveStarted = true
+      let waiters = firstSaveStartWaiters
+      firstSaveStartWaiters.removeAll()
+      for waiter in waiters {
+        waiter.resume()
+      }
+      await withCheckedContinuation { continuation in
+        firstSaveResume = continuation
+      }
+    }
+    persistedData = data
+  }
+
+  func waitUntilFirstSaveStarts() async {
+    guard !firstSaveStarted else { return }
+    await withCheckedContinuation { continuation in
+      firstSaveStartWaiters.append(continuation)
+    }
+  }
+
+  func resumeFirstSave() {
+    firstSaveResume?.resume()
+    firstSaveResume = nil
+  }
+
+  func markSecondAppendStarted() {
+    secondAppendStarted = true
+    let waiters = secondAppendStartWaiters
+    secondAppendStartWaiters.removeAll()
+    for waiter in waiters {
+      waiter.resume()
+    }
+  }
+
+  func waitUntilSecondAppendStarts() async {
+    guard !secondAppendStarted else { return }
+    await withCheckedContinuation { continuation in
+      secondAppendStartWaiters.append(continuation)
+    }
+  }
+}
+
 private func sampleState(profileID: String = "real") throws -> ProfileState {
   let profile = RuntimeProfile(
     id: ProfileID(profileID),
@@ -677,17 +785,35 @@ private func factEnvelope(
   revision: LamportRevision,
   sequence: UInt64
 ) -> ExperienceSyncEnvelope {
+  uniqueFactEnvelope(
+    id: "experience-fact",
+    evidenceID: "steps",
+    stepTotal: 3_250,
+    in: state,
+    revision: revision,
+    sequence: sequence
+  )
+}
+
+private func uniqueFactEnvelope(
+  id: String,
+  evidenceID: String,
+  stepTotal: Int,
+  in state: ProfileState,
+  revision: LamportRevision,
+  sequence: UInt64
+) -> ExperienceSyncEnvelope {
   let profile = state.runtimeProfile
   let fact = DerivedFactRecord(
-    header: header(EvidenceID("steps"), in: profile),
+    header: header(EvidenceID(evidenceID), in: profile),
     observedAt: Date(timeIntervalSince1970: 1_700_000_000),
     freshUntil: Date(timeIntervalSince1970: 1_700_003_600),
-    value: .stepTotal(3_250),
+    value: .stepTotal(stepTotal),
     provenance: .healthSummary,
     authorization: .companion(state.currentSensingEpoch)
   )
   return ExperienceSyncEnvelope(
-    eventID: ExperienceEventID("experience-fact"),
+    eventID: ExperienceEventID(id),
     eventType: .derivedFact,
     profileID: profile.id,
     profileEpoch: profile.epoch,

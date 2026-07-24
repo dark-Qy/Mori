@@ -6,11 +6,11 @@
 | --- | --- |
 | Branch | `codex/mori-product-rebuild` |
 | Base revision | `51b9a58` |
-| Current revision | G1 product-authority checkpoint (this commit) |
-| Active goal | G2 — Evidence, Inference, And Profile Runtime |
-| Goal state | G1 reviewed; checkpoint ready |
-| Contract | G0 committed; G1 implementation and corrective review complete; G2 next |
-| Simulator validation | Historical baseline recorded; rebuilt UI not started |
+| Current revision | G2 Mock-first runtime checkpoint (this commit) |
+| Active goal | G3 — Automatic Sync, Reminder, And Daily Memory Runtime |
+| Goal state | G2 independently reviewed; checkpoint ready |
+| Contract | G0–G1 committed; G2 implementation and corrective review complete; G3 next |
+| Simulator validation | G2 iPhone and Watch Debug/Release builds pass; rebuilt UI not started |
 | Physical-device validation | UNVERIFIED |
 
 ## Goal Ledger
@@ -18,10 +18,10 @@
 | Goal | State | Revision | Evidence | Blocker / next action |
 | --- | --- | --- | --- | --- |
 | G0 Product and baseline contract | Committed | `e601225` | Product/design authority, ADR 0001–0006, route/state and deletion contracts, test matrix, capability audit, approved Image2 references, Release-boundary fix, fresh package/app/E2E baseline, four-round independent review | Complete; physical capability remains independently UNVERIFIED |
-| G1 Authoritative product domain | Committed | G1 product-authority checkpoint (this commit) | `MoriDomain` and `MoriPersistence`; profile/epoch/deletion/source isolation; passive-event, task, cooldown, coin, atomic purchase, memory, letter, collection, conversation, Experience and projection contracts; closed canonical codecs; exactly-once legacy reset; 158 tests in 33 suites; two 1,000-case properties; final independent review PASS with no P0/P1 | Complete; Computer Use not applicable because this checkpoint has no UI |
-| G2 Evidence and profile runtime | Contract ready | — | G1 authority available; deterministic adapter and isolation cases assigned | Implement adapters and prove disabled intervals create no memory eligibility or later backfill |
+| G1 Authoritative product domain | Committed | `67f0895` | `MoriDomain` and `MoriPersistence`; profile/epoch/deletion/source isolation; passive-event, task, cooldown, coin, atomic purchase, memory, letter, collection, conversation, Experience and projection contracts; closed canonical codecs; exactly-once legacy reset; 158 tests in 33 suites; two 1,000-case properties; final independent review PASS with no P0/P1 | Complete; Computer Use not applicable because this checkpoint has no UI |
+| G2 Evidence and profile runtime | Checkpoint ready | G2 Mock-first runtime checkpoint (this commit) | Profile-aware `MoriRuntime`; seven deterministic Mock scenarios; normalized bounded evidence; passive inference; global/profile sensing intent fences; isolated real/Mock storage and reset; lazy production adapters and serialized mode switching; Debug 136/136, Release 130/130, CompanionCore 164/164; iPhone/Watch Debug and Release builds; independent review PASS | Complete for Mock-first runtime; physical sensors, background behavior, paired timing, haptics, power, and thermal behavior remain `DEVICE_UNVERIFIED` |
 | G3 Sync, reminder, daily memory | Pending | — | Test cases assigned | Depends on G2 |
-| G4 Mori motion system | Pending | — | Existing asset baseline and approved semantic catalog contract | Depends on G0 |
+| G4 Mori motion system | External handoff ready | `codex/mori-motion-g4` / `ef80865` | Black `penguin`: 16 actions, 256 installed assets, Reduce Motion, deterministic priority/interruption/cooldown/recovery/fallback/haptic policy; validator 7/7 and runtime 24/24; independent code/visual review has no blocker | Integrate after G2 and remove three legacy placeholder mappings; white `polar_bear` explicitly deferred and disabled; physical Watch playback remains unverified |
 | G5 Watch experience | Pending | — | Route/state and UI journeys assigned | Depends on G2, G3, G4 |
 | G6 iPhone experience | Pending | — | Route/state and UI journeys assigned | Depends on G2, G3, G4, G7 |
 | G7 Mori conversation | Pending | — | Authority and privacy ADR plus adversarial cases assigned | Depends on G2, G3 |
@@ -46,6 +46,12 @@
 | `Scripts/check` and `git diff --check` | G1 product-authority tree | PASS |
 | `Scripts/test` | G1 product-authority tree | PASS: all Swift package suites and iPhone AppSmokeTests |
 | `Scripts/test-release-boundaries` | G1 product-authority tree | PASS: Release ships no fixture resources, test selectors, or Mock fixture identifiers |
+| `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` in `Packages/CompanionCore` | G2 Mock-first runtime tree | PASS: 164 tests in 34 suites |
+| `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` in `Packages/AppRuntime` | G2 Mock-first runtime tree | PASS: 136 tests in 22 suites |
+| `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test -c release` in `Packages/AppRuntime` | G2 Mock-first runtime tree | PASS: 130 tests in 21 suites |
+| iPhone and Watch app scheme builds, Debug and Release Simulator | G2 Mock-first runtime tree | PASS |
+| `Scripts/check` and `git diff --check` | G2 Mock-first runtime tree | PASS: strict Swift/Python lint, credential scan, whitespace |
+| `Scripts/test-release-boundaries` | G2 Mock-first runtime tree | PASS: no fixture resources, test selectors, or fixture identifiers ship |
 
 ### EXACT BASELINE FAILURES
 
@@ -123,6 +129,12 @@ current historical interface is not accepted as a visual target.
 - Frame pacing, decoded memory, thermal behavior, and battery.
 - Two-device Touch Exchange and Nearby Interaction.
 
+`CompanionCore` package tests in Release configuration also remain a
+non-blocking repository follow-up: existing test sources directly reference
+`#if DEBUG` MockKit types and therefore do not compile as Release tests. The
+product iPhone and Watch Release schemes and the dedicated Release boundary
+gate pass.
+
 The current machine has no connected iPhone or Watch, no Simulator pair, and no
 valid signing identity. See `docs/external-capability-audit.md`.
 
@@ -162,6 +174,8 @@ Non-blocking follow-up for later runtime goals:
 | Fourth G0 contract review | final G0 tree | PASS; no P0/P1 | Approved for scoped commit |
 | Initial G1 authority review | first G1 tree | FAIL: six P1 groups across derived-fact provenance, recursive lifecycle validation, source isolation, terminal replay, canonical coin/reversal behavior, and schema-shape fixtures | Every counterexample reproduced, fixed, and converted to regression coverage |
 | G1 corrective review | final G1 tree | PASS; P0=0, P1=0 | 158 tests/33 suites, both 1,000-case properties, static checks, canonical fixtures, and adversarial probes passed |
+| G2 runtime reviews | iterative G2 tree | Initial P1 findings covered canonical identity framing, post-enable HealthKit windows, storage symlink boundaries, concurrent repository writes, stale selection reservations, production-adapter TOCTOU, peer-listener lifetime, sensing epoch ordering, and cross-profile stale requests | Each counterexample fixed and covered before checkpoint |
+| G2 final corrective review | final G2 Mock-first runtime tree | PASS; P0=0, P1=0 | Debug 136/136, Release 130/130, CompanionCore 164/164, strict checks, Release boundary, and all iPhone/Watch builds passed |
 
 The G1 reviewer recorded one non-blocking G2/G3 follow-up: the inference and
 daily-memory authority must bind memory eligibility to sensing/source-event

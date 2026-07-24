@@ -63,6 +63,8 @@ public actor ProfileLedgerRepository<Storage: ProfileLedgerStorage> {
   private let initialState: ProfileState
   private let codec: ProfileLedgerCodec
   private var cached: ProfileLedger?
+  private var operationIsActive = false
+  private var operationWaiters: [CheckedContinuation<Void, Never>] = []
 
   public init(
     storage: Storage,
@@ -75,15 +77,22 @@ public actor ProfileLedgerRepository<Storage: ProfileLedgerStorage> {
   }
 
   public func currentLedger() async throws -> ProfileLedger {
-    try await loadIfNeeded()
+    await acquireOperation()
+    defer { releaseOperation() }
+    return try await loadIfNeeded()
   }
 
   public func currentReplay() async throws -> ProfileReplayResult {
-    try await loadIfNeeded().replay()
+    await acquireOperation()
+    defer { releaseOperation() }
+    return try await loadIfNeeded().replay()
   }
 
   @discardableResult
   public func append(_ envelope: ExperienceSyncEnvelope) async throws -> ProfileReplayResult {
+    await acquireOperation()
+    defer { releaseOperation() }
+
     var ledger = try await loadIfNeeded()
     try ledger.append(envelope)
     try await storage.save(codec.encode(ledger))
@@ -91,7 +100,34 @@ public actor ProfileLedgerRepository<Storage: ProfileLedgerStorage> {
     return ledger.replay()
   }
 
+  /// Persists the sensing authority before any caller can admit facts for the
+  /// new epoch. Historical accepted envelopes remain immutable.
+  @discardableResult
+  public func setCompanionSensing(
+    enabled: Bool,
+    epoch: SensingEpoch,
+    effectiveAt: Date
+  ) async throws -> MutationResult {
+    await acquireOperation()
+    defer { releaseOperation() }
+
+    var ledger = try await loadIfNeeded()
+    let result = ledger.setCompanionSensing(
+      enabled: enabled,
+      epoch: epoch,
+      effectiveAt: effectiveAt
+    )
+    if case .applied = result {
+      try await storage.save(codec.encode(ledger))
+      cached = ledger
+    }
+    return result
+  }
+
   public func replace(with replacement: ProfileLedger) async throws {
+    await acquireOperation()
+    defer { releaseOperation() }
+
     guard
       replacement.initialState.runtimeProfile == initialState.runtimeProfile
     else {
@@ -101,6 +137,26 @@ public actor ProfileLedgerRepository<Storage: ProfileLedgerStorage> {
     }
     try await storage.save(codec.encode(replacement))
     cached = replacement
+  }
+
+  private func acquireOperation() async {
+    guard operationIsActive else {
+      operationIsActive = true
+      return
+    }
+
+    await withCheckedContinuation { continuation in
+      operationWaiters.append(continuation)
+    }
+  }
+
+  private func releaseOperation() {
+    guard !operationWaiters.isEmpty else {
+      operationIsActive = false
+      return
+    }
+
+    operationWaiters.removeFirst().resume()
   }
 
   private func loadIfNeeded() async throws -> ProfileLedger {
