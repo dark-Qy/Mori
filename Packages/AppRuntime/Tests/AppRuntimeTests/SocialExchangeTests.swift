@@ -189,6 +189,42 @@ struct TouchExchangeStateMachineTests {
     #expect(machine.state.encounter == completed)
   }
 
+  @Test func completedEncounterAcceptsOnlyItsOwnTransferCue() throws {
+    let now = Date(timeIntervalSince1970: 2_100)
+    var machine = EncounterStateMachine(
+      configuration: ProximityStabilityPolicy(requiredConsecutiveSamples: 1)
+    )
+    machine.startRendezvous(participantID: localParticipantID)
+    try machine.didMatch(sessionID: "session", encounterID: "encounter")
+    _ = try machine.recordMeasurement(
+      NearbyMeasurement(distanceMeters: 0.1, capturedAt: now),
+      now: now
+    )
+    try machine.showPreview(peerCard: peerCard)
+    try machine.confirmLocal(now: now)
+    try machine.confirmPeer(now: now)
+
+    let cue = PetTransferAnimationCue(
+      eventID: "encounter",
+      role: .source,
+      startsAt: now.addingTimeInterval(1.25),
+      durationMilliseconds: 900
+    )
+    try machine.applyTransferAnimationCue(cue)
+    #expect(machine.state.transferAnimationCue == cue)
+
+    let wrongCue = PetTransferAnimationCue(
+      eventID: "another-encounter",
+      role: .destination,
+      startsAt: now,
+      durationMilliseconds: 900
+    )
+    #expect(throws: EncounterTransitionError.transferAnimationIdentityMismatch) {
+      try machine.applyTransferAnimationCue(wrongCue)
+    }
+    #expect(machine.state.transferAnimationCue == cue)
+  }
+
   @Test func anUnverifiedCandidateCanReturnToAutomaticDiscovery() throws {
     var machine = EncounterStateMachine()
     machine.startRendezvous(participantID: localParticipantID)
@@ -302,6 +338,116 @@ struct TouchExchangeCoordinatorTests {
     state = try await coordinator.confirm(now: base.addingTimeInterval(2))
     #expect(state.phase == .completed)
     #expect(await rendezvous.callLog.filter { $0 == "confirm" }.count == 1)
+  }
+
+  @Test func coordinatorProjectsTheConfirmedCueIntoTheLocalWatchClock() async throws {
+    let start = Date(timeIntervalSince1970: 3_250)
+    let serverTime = start.addingTimeInterval(-1.25)
+    let localReceivedAt = start.addingTimeInterval(120)
+    let cue = PetTransferAnimationCue(
+      eventID: "mock-encounter-1",
+      role: .destination,
+      startsAt: start,
+      durationMilliseconds: 900
+    )
+    let nearby = MockNearbyRangingClient(capability: .preciseDistance)
+    let rendezvous = DeterministicMockSocialRendezvousClient(
+      configuration: .init(
+        serverTime: serverTime,
+        transferRole: .destination,
+        transferAnimation: cue
+      )
+    )
+    let coordinator = TouchExchangeCoordinator(
+      rangingClient: nearby,
+      rendezvousClient: rendezvous,
+      proximityPolicy: ProximityStabilityPolicy(requiredConsecutiveSamples: 1),
+      clock: { localReceivedAt }
+    )
+
+    _ = try await coordinator.start(
+      participantID: "local-player-0001",
+      publicCard: PublicPetCardV1(
+        petName: "Local",
+        characterID: "penguin",
+        socialState: .greeting
+      ),
+      joinRequestID: "join-request-transfer-cue"
+    )
+    _ = try await coordinator.refresh(now: start.addingTimeInterval(-2))
+    _ = try await coordinator.processMeasurement(
+      NearbyMeasurement(
+        distanceMeters: 0.08,
+        capturedAt: start.addingTimeInterval(-1)
+      ),
+      now: start.addingTimeInterval(-1)
+    )
+    let completed = try await coordinator.confirm(
+      now: start.addingTimeInterval(-0.5)
+    )
+
+    #expect(completed.phase == .completed)
+    #expect(completed.transferRole == .destination)
+    #expect(completed.transferAnimationCue?.eventID == cue.eventID)
+    #expect(completed.transferAnimationCue?.role == .destination)
+    #expect(
+      completed.transferAnimationCue?.startsAt
+        == localReceivedAt.addingTimeInterval(1.25)
+    )
+  }
+
+  @Test func sameServerCueHasTheSameRemainingDelayOnOffsetWatchClocks() {
+    let serverTime = Date(timeIntervalSince1970: 10_000)
+    let serverStart = serverTime.addingTimeInterval(1.25)
+    let eventID = "0123456789abcdef0123456789abcdef"
+    let watchAReceivedAt = serverTime.addingTimeInterval(120)
+    let watchBReceivedAt = serverTime.addingTimeInterval(-75)
+    let common = (
+      sessionID: "session",
+      expiresAt: serverTime.addingTimeInterval(30),
+      encounterID: eventID,
+      encounterNonce: "encounter-nonce"
+    )
+    let source = RendezvousSessionSnapshot(
+      sessionID: common.sessionID,
+      status: .confirmed,
+      serverTime: serverTime,
+      expiresAt: common.expiresAt,
+      encounterID: common.encounterID,
+      encounterNonce: common.encounterNonce,
+      transferRole: .source,
+      transferAnimation: PetTransferAnimationCue(
+        eventID: eventID,
+        role: .source,
+        startsAt: serverStart,
+        durationMilliseconds: 900
+      )
+    )
+    let destination = RendezvousSessionSnapshot(
+      sessionID: common.sessionID,
+      status: .confirmed,
+      serverTime: serverTime,
+      expiresAt: common.expiresAt,
+      encounterID: common.encounterID,
+      encounterNonce: common.encounterNonce,
+      transferRole: .destination,
+      transferAnimation: PetTransferAnimationCue(
+        eventID: eventID,
+        role: .destination,
+        startsAt: serverStart,
+        durationMilliseconds: 900
+      )
+    )
+
+    let sourceCue = source.localizedTransferAnimation(receivedAt: watchAReceivedAt)
+    let destinationCue = destination.localizedTransferAnimation(
+      receivedAt: watchBReceivedAt
+    )
+    #expect(sourceCue?.eventID == destinationCue?.eventID)
+    #expect(sourceCue?.role == .source)
+    #expect(destinationCue?.role == .destination)
+    #expect(sourceCue?.startsAt.timeIntervalSince(watchAReceivedAt) == 1.25)
+    #expect(destinationCue?.startsAt.timeIntervalSince(watchBReceivedAt) == 1.25)
   }
 
   @Test func repeatsProximityReadyUntilThePeerOverlaps() async throws {
@@ -840,6 +986,7 @@ struct SocialRendezvousHTTPTests {
           "expires_at": "2026-07-23T12:03:00Z",
           "encounter_id": "encounter-1",
           "encounter_nonce": "encounter-nonce-1",
+          "transfer_role": "source",
           "peer_discovery_token": "Ag==",
           "self_proximity_ready": true,
           "peer_proximity_ready": true,
@@ -855,6 +1002,7 @@ struct SocialRendezvousHTTPTests {
     )
     #expect(status.nonce == nil)
     #expect(status.peerDiscoveryToken == Data([0x02]))
+    #expect(status.transferRole == .source)
 
     let confirmed = try decoder.decode(
       RendezvousSessionSnapshot.self,
@@ -863,9 +1011,11 @@ struct SocialRendezvousHTTPTests {
         {
           "session_id": "session-1",
           "status": "confirmed",
+          "server_time": "2026-07-23T12:00:07Z",
           "expires_at": "2026-07-23T12:03:00Z",
           "encounter_id": "encounter-1",
           "encounter_nonce": "encounter-nonce-1",
+          "transfer_role": "source",
           "self_proximity_ready": true,
           "peer_proximity_ready": true,
           "proximity_verified": true,
@@ -873,12 +1023,24 @@ struct SocialRendezvousHTTPTests {
           "self_preview_released": true,
           "peer_preview_released": true,
           "self_confirmed": true,
-          "peer_confirmed": true
+          "peer_confirmed": true,
+          "transfer_animation": {
+            "schema_version": "pet_transfer_animation_v1",
+            "event_id": "0123456789abcdef0123456789abcdef",
+            "role": "source",
+            "starts_at": "2026-07-23T12:00:08Z",
+            "duration_ms": 900
+          }
         }
         """.utf8
       )
     )
     #expect(confirmed.status == .confirmed)
+    #expect(confirmed.serverTime == Date(timeIntervalSince1970: 1_784_808_007))
+    #expect(confirmed.transferRole == .source)
+    #expect(confirmed.transferAnimation?.role == .source)
+    #expect(confirmed.transferAnimation?.durationMilliseconds == 900)
+    #expect(confirmed.transferAnimation?.isSupported == true)
 
     let peer = try decoder.decode(
       PeerCardSnapshot.self,

@@ -1,18 +1,18 @@
 {
   "ok": true,
-  "allowPending": true,
+  "allowPending": false,
   "backgrounds": {
     "count": 10,
     "ready": 10
   },
   "characters": {
     "count": 2,
-    "ready": 0
+    "ready": 2
   },
   "runtime": {
     "platforms": 2,
     "backgroundImages": 40,
-    "characterFrames": 256
+    "characterFrames": 288
   },
   "composites": {
     "single": 20,

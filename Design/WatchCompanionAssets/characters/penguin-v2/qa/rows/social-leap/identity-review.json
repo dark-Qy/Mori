@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "social_leap_identity_review_v1",
+  "reviewer": "social_transfer_review",
+  "reviewedAt": "2026-07-24T06:31:00+08:00",
+  "verdict": "passed",
+  "canonicalBaseSHA256": "f53d08fb5c8fcc2754c1e31fed860fa50436cf9b43730af9102d8fd8d4cff98e",
+  "socialLeapSourceSHA256": "62a9f6a81811c222fb9e26ba6b689708cb155527e759de07d732fb7751681deb",
+  "checks": [
+    "character identity matches the supplied canonical penguin design",
+    "motion reads ready, compression, takeoff, apex, descent, landing, recovery",
+    "transparent crop and detached-effect review passed"
+  ]
+}

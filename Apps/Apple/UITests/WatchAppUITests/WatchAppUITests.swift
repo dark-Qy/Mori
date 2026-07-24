@@ -1,6 +1,11 @@
 import XCTest
 
 final class WatchAppUITests: XCTestCase {
+  private var sharedTransferEventID: String {
+    ProcessInfo.processInfo.environment["SOCIAL_TRANSFER_E2E_EVENT_ID"]
+      ?? "0123456789abcdef0123456789abcdef"
+  }
+
   override func setUpWithError() throws {
     continueAfterFailure = false
   }
@@ -99,6 +104,111 @@ final class WatchAppUITests: XCTestCase {
     scrollToElement(persistenceStatus, in: app)
     XCTAssertTrue(
       persistenceStatus.waitForExistence(timeout: 5)
+    )
+  }
+
+  func testTouchExchangeSourcePetLeavesThisWatchAndLandsOnce() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: [
+        "--touch-exchange-demo",
+        "--touch-exchange-transfer-role=source",
+        "--touch-exchange-transfer-event-id=\(sharedTransferEventID)",
+        "--touch-exchange-transfer-ledger-reset",
+      ]
+    )
+
+    completeTouchExchange(in: app)
+    let transfer = element(
+      "watch.touch-exchange.transfer.source",
+      in: app
+    )
+    XCTAssertTrue(transfer.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.frame.intersects(transfer.frame))
+    XCTAssertTrue(
+      (transfer.value as? String)?.contains("event:\(sharedTransferEventID)|") == true
+    )
+    XCTAssertTrue((transfer.value as? String)?.contains("source|") == true)
+    XCTAssertTrue((transfer.value as? String)?.contains("|penguin|") == true)
+    XCTAssertEqual(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate(
+              format: "value CONTAINS %@",
+              "source|landed|penguin|frame:7"
+            ),
+            object: transfer
+          )
+        ],
+        timeout: 4
+      ),
+      .completed
+    )
+
+    app.terminate()
+    let replay = launchApp(
+      scenario: "activity_high",
+      additionalArguments: [
+        "--touch-exchange-demo",
+        "--touch-exchange-transfer-role=source",
+        "--touch-exchange-transfer-event-id=\(sharedTransferEventID)",
+      ]
+    )
+    completeTouchExchange(in: replay)
+    let replayedTransfer = element(
+      "watch.touch-exchange.transfer.source",
+      in: replay
+    )
+    let duplicatePlayback = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "exists == true"),
+      object: replayedTransfer
+    )
+    duplicatePlayback.isInverted = true
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [duplicatePlayback], timeout: 1.2),
+      .completed
+    )
+  }
+
+  func testTouchExchangeDestinationReceivesTheSamePetAndHandlesLateCue() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: [
+        "--touch-exchange-demo",
+        "--touch-exchange-transfer-role=destination",
+        "--touch-exchange-transfer-event-id=\(sharedTransferEventID)",
+        "--touch-exchange-transfer-late",
+        "--touch-exchange-transfer-ledger-reset",
+      ]
+    )
+
+    completeTouchExchange(in: app)
+    let transfer = element(
+      "watch.touch-exchange.transfer.destination",
+      in: app
+    )
+    XCTAssertTrue(transfer.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.frame.intersects(transfer.frame))
+    XCTAssertTrue(
+      (transfer.value as? String)?.contains("event:\(sharedTransferEventID)|") == true
+    )
+    XCTAssertTrue((transfer.value as? String)?.contains("destination|") == true)
+    XCTAssertTrue((transfer.value as? String)?.contains("|penguin|") == true)
+    XCTAssertEqual(
+      XCTWaiter.wait(
+        for: [
+          XCTNSPredicateExpectation(
+            predicate: NSPredicate(
+              format: "value CONTAINS %@",
+              "destination|landed|penguin|frame:7"
+            ),
+            object: transfer
+          )
+        ],
+        timeout: 3
+      ),
+      .completed
     )
   }
 
@@ -525,6 +635,24 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(exchangeLink.exists)
     exchangeLink.tap()
     XCTAssertTrue(element("watch.touch-exchange", in: app).waitForExistence(timeout: 5))
+  }
+
+  private func completeTouchExchange(in app: XCUIApplication) {
+    openTouchExchange(in: app)
+    let startButton = app.buttons["watch.touch-exchange.start"]
+    scrollToElement(startButton, in: app)
+    startButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.peer-card", in: app)
+        .waitForExistence(timeout: 5)
+    )
+    let confirmButton = app.buttons["watch.touch-exchange.confirm"]
+    scrollToElement(confirmButton, in: app)
+    confirmButton.tap()
+    XCTAssertTrue(
+      element("watch.touch-exchange.completed", in: app)
+        .waitForExistence(timeout: 5)
+    )
   }
 
   private func launchLiveApp(

@@ -10,6 +10,13 @@ struct WatchRootView: View {
   @State private var sceneReaction: WatchSceneReaction?
 
   private var model: WatchPresentationModel { store.model }
+  private var showsTouchExchangeDirectly: Bool {
+    #if DEBUG
+      ProcessInfo.processInfo.arguments.contains("--touch-exchange-direct")
+    #else
+      false
+    #endif
+  }
 
   var body: some View {
     Group {
@@ -24,7 +31,12 @@ struct WatchRootView: View {
       case .petIntroduction:
         WatchOnboardingView(store: store, isPetIntroduction: true)
       case .ready:
-        if let destination = store.notificationDestination {
+        if showsTouchExchangeDirectly {
+          TouchExchangeView(
+            localCard: store.touchExchangeLocalCard,
+            socialSharingEnabled: store.preferences.socialSharingEnabled
+          )
+        } else if let destination = store.notificationDestination {
           WatchNotificationMessageView(
             destination: destination,
             onDismiss: store.dismissNotificationDestination

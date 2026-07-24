@@ -70,6 +70,15 @@
       "behavior": "oneShot",
       "trigger": "event.story_reaction",
       "reduceMotionFrame": 2
+    },
+    {
+      "id": "social_leap",
+      "sourceRow": "social-leap",
+      "sourceFrameCount": 8,
+      "behavior": "oneShot",
+      "trigger": "event.social_transfer",
+      "durationMilliseconds": 900,
+      "reduceMotionFrame": 7
     }
   ]
 }

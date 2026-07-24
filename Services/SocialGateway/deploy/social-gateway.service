@@ -7,7 +7,9 @@ Wants=network-online.target
 Type=simple
 User=social-gateway
 Group=social-gateway
-WorkingDirectory=/opt/watch-companion-social-gateway
+# Keep the interpreter away from legacy source checkouts under the install root.
+# Otherwise Python can shadow the wheel with /opt/.../social_gateway.
+WorkingDirectory=/opt/watch-companion-social-gateway/runtime
 EnvironmentFile=/etc/watch-companion/social-gateway.env
 ExecStart=/opt/watch-companion-social-gateway/venv/bin/python -m social_gateway
 Restart=on-failure

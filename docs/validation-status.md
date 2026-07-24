@@ -3,6 +3,50 @@
 This document records reproducible evidence separately from physical-device claims. A Simulator or
 mock result never upgrades a hardware-dependent capability to `PASS`.
 
+## 2026-07-24 synchronized pet-transfer acceptance
+
+This acceptance run covers the complete software seam for the no-code A/B touch exchange and the
+cross-Watch pet leap.
+
+| Surface | Evidence | Result |
+| --- | --- | --- |
+| Social-leap art | Penguin and polar-bear 8-frame rows; SHA-bound independent identity reviews; 288 runtime frames; 20 single and 10 duo composites | PASS |
+| Live local A/B gateway | A real uvicorn process plus two independent HTTP clients produced one shared event, start time, duration, and opposite source/destination roles | PASS |
+| Public HTTPS A/B gateway | Immutable bundle `f1ce4b43…f9344` deployed to `social.bsti.online`; health check plus three consecutive dual-client runs produced one event per run, opposite roles, identical start times, and 1.060–1.101 s projected lead | PASS |
+| Social Gateway | 62 total tests, including deployment-permission, clean-runtime-directory, and bounded health-wait regressions; the one-command E2E reruns 18 transfer, privacy, and configuration tests | PASS |
+| AppRuntime | 86 tests in 14 suites, including server-time projection on Watch clocks offset by +120 and -75 seconds | PASS |
+| Watch A/B UI | Source exit, destination late-entry/landing, same gateway event injection, viewport visibility, and persistent no-replay ledger | PASS |
+| One-command E2E | `Scripts/test-social-transfer-e2e`; exactly 2/2 focused UI tests | PASS |
+| Release build | Watch Release build with `SOCIAL_GATEWAY_BASE_URL=https://social.bsti.online` | PASS |
+| Static policy and formatting | `Scripts/check` plus independent read-only review | PASS |
+| Visible 46 mm Simulator inspection | Product touch-exchange screen and the existing Mori/polar-bear identities rendered together after landing | PASS |
+| Two physical Watches, live HTTPS Swift clients, UWB, haptics, and mixed-size screen seam | Requires the device runbook | UNVERIFIED |
+
+The final UI result bundle is:
+
+```text
+.artifacts/social-transfer-watch-20260723T234220Z-67501.xcresult
+```
+
+The deployed integration bundle is:
+
+```text
+.artifacts/social-gateway-deploy.siJfYt/watch-social-gateway-deploy.tar.gz
+SHA-256 f1ce4b431885379d66c7e22188bb056251da19a7926bc3e5915b171a230f9344
+```
+
+The HTTPS endpoint is suitable for the two-device integration run recorded here. It remains an
+anonymous, single-process, in-memory rendezvous service, so this row does not upgrade it to a public
+launch architecture; authenticated device ownership, abuse controls, and a shared atomic TTL store
+remain production-launch work.
+
+The UI suite obtains its shared event ID from the preceding real two-client Gateway run, then
+executes the source and destination roles sequentially on one Watch Simulator. This proves the
+software protocol-to-presentation seam without a short-lived exchange code. It does not claim that
+two physical Watches supplied concurrent Nearby Interaction measurements. The transfer cue is
+projected from `server_time` into each Watch's local clock; residual network-response asymmetry can
+still create small real-world jitter and belongs in the two-device run.
+
 ## 2026-07-24 zero-input touch-exchange implementation check
 
 This check ran against the current uncommitted worktree after removing user-entered pairing codes.

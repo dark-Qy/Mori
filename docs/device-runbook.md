@@ -90,9 +90,15 @@ This test is independent of Phase 1 and requires two compatible physical Apple W
 5. Test approaching, separating, foreground interruption, permission denial, and `nil` distance.
 6. Require a stable threshold for multiple samples, then show a preview.
 7. Require confirmation on both Watches before creating an encounter.
-8. Interrupt a cancel request and verify the Watch reports an unconfirmed cancellation, retries
+8. Place Watch A physically to the left of Watch B. Confirm that the pet on A starts after the
+   same countdown as B, exits A's right edge, enters B's left edge, lands once, and is not replayed
+   by status refresh or relaunch. Repeat with the other character. Record both screens in one shot
+   when possible; the framework does not report physical left/right placement.
+9. Enable Reduce Motion on both Watches and verify the travel becomes a bounded cross-fade.
+   Delay one client past the scheduled end and verify its short landing fallback completes once.
+10. Interrupt a cancel request and verify the Watch reports an unconfirmed cancellation, retries
    cleanup, and does not start a new session first.
-9. Repeat at least twenty times in representative environments.
+11. Repeat at least twenty times in representative environments.
 
 Target: at least eighteen of twenty sessions identify proximity within ten seconds, with zero incorrect or duplicate friendship creation. Treat this as a product target, not a guarantee of the framework.
 

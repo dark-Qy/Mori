@@ -16,10 +16,12 @@ from .models import (
     CleanupResponse,
     JoinSessionRequest,
     PeerCardResponse,
+    PetTransferAnimationV1,
     PublicPetCardV1,
     SessionJoinedResponse,
     SessionStateResponse,
     SessionStatus,
+    TransferAnimationRole,
 )
 
 
@@ -61,7 +63,9 @@ class EncounterRecord:
     status: SessionStatus
     expires_at: datetime
     candidate_expires_at: datetime
+    transfer_source_session_id: str
     proximity_verified_at: Optional[datetime] = None
+    transfer_starts_at: Optional[datetime] = None
     purge_at: Optional[datetime] = None
 
 
@@ -263,7 +267,12 @@ class RendezvousStore:
                 )
             session.confirmed = True
             if peer.confirmed:
+                now = self._now()
                 encounter.status = SessionStatus.CONFIRMED
+                if encounter.transfer_starts_at is None:
+                    encounter.transfer_starts_at = now + timedelta(
+                        seconds=self._config.transfer_animation_lead_seconds
+                    )
                 session.status = SessionStatus.CONFIRMED
                 peer.status = SessionStatus.CONFIRMED
                 encounter.purge_at = encounter.expires_at
@@ -345,6 +354,7 @@ class RendezvousStore:
                 expires_at,
                 now + timedelta(seconds=self._config.candidate_ttl_seconds),
             ),
+            transfer_source_session_id=first.session_id,
         )
         self._encounters[encounter_id] = encounter
         for session in (first, second):
@@ -499,16 +509,41 @@ class RendezvousStore:
         return session
 
     def _snapshot(self, session: SessionRecord) -> SessionStateResponse:
+        now = self._now()
         peer = self._peer_for(session)
         encounter = (
             self._encounters.get(session.encounter_id) if session.encounter_id is not None else None
         )
+        transfer_animation = None
+        if (
+            session.status == SessionStatus.CONFIRMED
+            and encounter is not None
+            and encounter.transfer_starts_at is not None
+        ):
+            transfer_animation = PetTransferAnimationV1(
+                schema_version="pet_transfer_animation_v1",
+                event_id=encounter.encounter_id,
+                role=(
+                    TransferAnimationRole.SOURCE
+                    if session.session_id == encounter.transfer_source_session_id
+                    else TransferAnimationRole.DESTINATION
+                ),
+                starts_at=encounter.transfer_starts_at,
+                duration_ms=self._config.transfer_animation_duration_ms,
+            )
         return SessionStateResponse(
             session_id=session.session_id,
             status=session.status,
+            server_time=now,
             expires_at=session.expires_at,
             encounter_id=session.encounter_id,
             encounter_nonce=session.encounter_nonce,
+            transfer_role=(
+                TransferAnimationRole.SOURCE
+                if encounter is not None
+                and session.session_id == encounter.transfer_source_session_id
+                else (TransferAnimationRole.DESTINATION if encounter is not None else None)
+            ),
             peer_discovery_token=(
                 peer.discovery_token
                 if peer is not None
@@ -529,6 +564,7 @@ class RendezvousStore:
             peer_preview_released=peer.preview_released if peer is not None else False,
             self_confirmed=session.confirmed,
             peer_confirmed=peer.confirmed if peer is not None else False,
+            transfer_animation=transfer_animation,
         )
 
     def _joined_snapshot(self, session: SessionRecord) -> SessionJoinedResponse:

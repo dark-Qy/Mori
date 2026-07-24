@@ -13,6 +13,9 @@ public actor DeterministicMockSocialRendezvousClient: SocialRendezvousClient {
     public let expiresAt: Date
     public let peerReadyAfterMarkCount: Int
     public let peerConfirmsBeforeLocal: Bool
+    public let serverTime: Date?
+    public let transferRole: PetTransferAnimationRole?
+    public let transferAnimation: PetTransferAnimationCue?
 
     public init(
       sessionID: String = "mock-session-1",
@@ -29,7 +32,10 @@ public actor DeterministicMockSocialRendezvousClient: SocialRendezvousClient {
       ),
       expiresAt: Date = Date(timeIntervalSince1970: 4_102_444_800),
       peerReadyAfterMarkCount: Int = 1,
-      peerConfirmsBeforeLocal: Bool = false
+      peerConfirmsBeforeLocal: Bool = false,
+      serverTime: Date? = nil,
+      transferRole: PetTransferAnimationRole? = nil,
+      transferAnimation: PetTransferAnimationCue? = nil
     ) {
       self.sessionID = sessionID
       self.nonce = nonce
@@ -40,6 +46,9 @@ public actor DeterministicMockSocialRendezvousClient: SocialRendezvousClient {
       self.expiresAt = expiresAt
       self.peerReadyAfterMarkCount = max(1, peerReadyAfterMarkCount)
       self.peerConfirmsBeforeLocal = peerConfirmsBeforeLocal
+      self.serverTime = serverTime
+      self.transferRole = transferRole
+      self.transferAnimation = transferAnimation
     }
   }
 
@@ -171,9 +180,11 @@ public actor DeterministicMockSocialRendezvousClient: SocialRendezvousClient {
       sessionID: configuration.sessionID,
       nonce: configuration.nonce,
       status: currentStatus,
+      serverTime: configuration.serverTime,
       expiresAt: configuration.expiresAt,
       encounterID: currentStatus == .waitingForPeer ? nil : configuration.encounterID,
       encounterNonce: currentStatus == .waitingForPeer ? nil : configuration.encounterNonce,
+      transferRole: currentStatus == .waitingForPeer ? nil : configuration.transferRole,
       peerDiscoveryToken: includePeerToken ? configuration.peerDiscoveryToken : nil,
       selfProximityReady: selfProximityReady,
       peerProximityReady: peerProximityReady,
@@ -184,7 +195,9 @@ public actor DeterministicMockSocialRendezvousClient: SocialRendezvousClient {
       selfPreviewReleased: selfPreviewReleased,
       peerPreviewReleased: peerPreviewReleased,
       selfConfirmed: selfConfirmed,
-      peerConfirmed: peerConfirmed
+      peerConfirmed: peerConfirmed,
+      transferAnimation: currentStatus == .confirmed
+        ? configuration.transferAnimation : nil
     )
   }
 }

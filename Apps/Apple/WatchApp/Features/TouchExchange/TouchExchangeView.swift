@@ -22,31 +22,48 @@ struct TouchExchangeView: View {
   }
 
   var body: some View {
-    ScrollView {
-      VStack(spacing: AdventureSpacing.medium) {
-        phaseArtwork
-        phaseContent
+    ScrollViewReader { scrollProxy in
+      ScrollView {
+        VStack(spacing: AdventureSpacing.medium) {
+          phaseArtwork
+            .id("touch-exchange-transfer-artwork")
+          phaseContent
+        }
+        .padding(.horizontal, AdventureSpacing.page)
+        .padding(.bottom, AdventureSpacing.large)
       }
-      .padding(.horizontal, AdventureSpacing.page)
-      .padding(.bottom, AdventureSpacing.large)
-    }
-    .background(AdventurePalette.background.ignoresSafeArea())
-    .navigationTitle("触碰交换")
-    .navigationBarTitleDisplayMode(.inline)
-    .accessibilityIdentifier("watch.touch-exchange")
-    .onChange(of: exchange.phase) { _, phase in
-      guard phase == .completed else { return }
-      WKInterfaceDevice.current().play(.success)
-      guard !reduceMotion else { return }
-      withAnimation(.bouncy(duration: 0.55)) {
-        successPulse.toggle()
+      .background(AdventurePalette.background.ignoresSafeArea())
+      .navigationTitle("触碰交换")
+      .navigationBarTitleDisplayMode(.inline)
+      .accessibilityIdentifier("watch.touch-exchange")
+      .onChange(of: exchange.phase) { _, phase in
+        guard phase == .completed else { return }
+        guard exchange.transferPresentation == nil else { return }
+        WKInterfaceDevice.current().play(.success)
+        guard !reduceMotion else { return }
+        withAnimation(.bouncy(duration: 0.55)) {
+          successPulse.toggle()
+        }
       }
-    }
-    .onChange(of: socialSharingEnabled) { _, enabled in
-      exchange.updateSocialSharingEnabled(enabled)
-    }
-    .onDisappear {
-      exchange.cancelIfNeeded()
+      .onChange(of: exchange.transferPresentation?.eventID) { _, eventID in
+        guard eventID != nil else { return }
+        if reduceMotion {
+          scrollProxy.scrollTo("touch-exchange-transfer-artwork", anchor: .top)
+        } else {
+          withAnimation(.easeOut(duration: 0.22)) {
+            scrollProxy.scrollTo("touch-exchange-transfer-artwork", anchor: .top)
+          }
+        }
+      }
+      .onChange(of: socialSharingEnabled) { _, enabled in
+        exchange.updateSocialSharingEnabled(enabled)
+      }
+      .onDisappear {
+        exchange.cancelIfNeeded()
+      }
+      .task {
+        await exchange.runVisualDemoIfRequested()
+      }
     }
   }
 
@@ -195,26 +212,32 @@ struct TouchExchangeView: View {
     }
   }
 
-  private var phaseArtwork: some View {
-    ZStack {
-      Circle()
-        .fill(AdventurePalette.blue.opacity(0.14))
-        .frame(width: 100, height: 100)
+  @ViewBuilder private var phaseArtwork: some View {
+    if exchange.phase == .completed,
+      let presentation = exchange.transferPresentation
+    {
+      TouchExchangePetTransferView(presentation: presentation)
+    } else {
+      ZStack {
+        Circle()
+          .fill(AdventurePalette.blue.opacity(0.14))
+          .frame(width: 100, height: 100)
 
-      HStack(spacing: exchange.phase == .completed ? -4 : 20) {
-        Image(systemName: "pawprint.fill")
-          .foregroundStyle(AdventurePalette.mint)
-        Image(systemName: "pawprint.fill")
-          .foregroundStyle(AdventurePalette.gold)
+        HStack(spacing: exchange.phase == .completed ? -4 : 20) {
+          Image(systemName: "pawprint.fill")
+            .foregroundStyle(AdventurePalette.mint)
+          Image(systemName: "pawprint.fill")
+            .foregroundStyle(AdventurePalette.gold)
+        }
+        .font(.system(size: 31, weight: .semibold))
+        .scaleEffect(successPulse ? 1.12 : 0.94)
+        .animation(
+          reduceMotion ? nil : .smooth(duration: 0.35),
+          value: exchange.phase
+        )
       }
-      .font(.system(size: 31, weight: .semibold))
-      .scaleEffect(successPulse ? 1.12 : 0.94)
-      .animation(
-        reduceMotion ? nil : .smooth(duration: 0.35),
-        value: exchange.phase
-      )
+      .accessibilityHidden(true)
     }
-    .accessibilityHidden(true)
   }
 
   private var explanationCard: some View {

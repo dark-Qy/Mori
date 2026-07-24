@@ -1,0 +1,173 @@
+#!/bin/bash
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_ROOT
+
+if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer" ]]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
+DEFAULT_PYTHON="/Users/shubing/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3"
+if [[ -n "${VISUAL_ASSET_PYTHON:-}" ]]; then
+  VISUAL_PYTHON="$VISUAL_ASSET_PYTHON"
+elif [[ -x "$DEFAULT_PYTHON" ]]; then
+  VISUAL_PYTHON="$DEFAULT_PYTHON"
+else
+  VISUAL_PYTHON="$(command -v python3)"
+fi
+readonly VISUAL_PYTHON
+
+SOCIAL_PYTHON="$REPO_ROOT/.artifacts/social-gateway-venv/bin/python"
+if [[ ! -x "$SOCIAL_PYTHON" ]]; then
+  echo "error: Social Gateway environment is missing; run Scripts/bootstrap first." >&2
+  exit 1
+fi
+
+WATCH_UDID="${SOCIAL_TRANSFER_WATCH_UDID:-}"
+if [[ -z "$WATCH_UDID" ]]; then
+  devices_json="$(mktemp "${TMPDIR:-/tmp}/social-transfer-devices.XXXXXX")"
+  xcrun simctl list devices available -j >"$devices_json"
+  WATCH_UDID="$(
+    /usr/bin/python3 - "$devices_json" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    runtimes = json.load(source).get("devices", {})
+
+def version(runtime):
+    match = re.search(r"([0-9]+(?:-[0-9]+)*)$", runtime)
+    return tuple(int(part) for part in match.group(1).split("-")) if match else ()
+
+candidates = []
+for runtime, devices in sorted(runtimes.items(), key=lambda item: version(item[0]), reverse=True):
+    if ".watchOS-" not in runtime:
+        continue
+    for device in devices:
+        if device.get("isAvailable", True) and device.get("name", "").startswith("Apple Watch"):
+            candidates.append(device)
+
+selected = next((item for item in candidates if item.get("state") == "Booted"), None)
+selected = selected or (candidates[0] if candidates else None)
+if selected:
+    print(selected["udid"])
+PY
+  )"
+  rm -f "$devices_json"
+fi
+
+if [[ -z "$WATCH_UDID" ]]; then
+  echo "error: no available Apple Watch Simulator was found." >&2
+  exit 1
+fi
+
+xcrun simctl boot "$WATCH_UDID" >/dev/null 2>&1 || true
+xcrun simctl bootstatus "$WATCH_UDID" -b
+
+echo "Validating both generated social-leap rows and runtime exports."
+"$VISUAL_PYTHON" "$REPO_ROOT/Tools/VisualAssets/validate_social_leap_frames.py" \
+  --repo-root "$REPO_ROOT"
+"$VISUAL_PYTHON" "$REPO_ROOT/Tools/VisualAssets/validate_visual_assets.py" \
+  --repo-root "$REPO_ROOT"
+
+echo "Running real A/B Social Gateway route and synchronization tests."
+"$SOCIAL_PYTHON" -m pytest \
+  "$REPO_ROOT/Services/SocialGateway/tests/test_transfer_animation.py" \
+  "$REPO_ROOT/Services/SocialGateway/tests/test_privacy_and_config.py"
+
+gateway_e2e_result="$(mktemp "${TMPDIR:-/tmp}/social-transfer-gateway.XXXXXX")"
+gateway_e2e_log="$(mktemp "${TMPDIR:-/tmp}/social-transfer-gateway-log.XXXXXX")"
+gateway_port="${SOCIAL_TRANSFER_GATEWAY_PORT:-$(
+  /usr/bin/python3 - <<'PY'
+import socket
+
+with socket.socket() as listener:
+    listener.bind(("127.0.0.1", 0))
+    print(listener.getsockname()[1])
+PY
+)}"
+gateway_base_url="http://127.0.0.1:$gateway_port"
+PYTHONPATH="$REPO_ROOT/Services/SocialGateway/src" \
+  "$SOCIAL_PYTHON" -m uvicorn social_gateway.app:create_app \
+  --factory \
+  --host 127.0.0.1 \
+  --port "$gateway_port" \
+  --no-access-log \
+  >"$gateway_e2e_log" 2>&1 &
+gateway_e2e_pid=$!
+cleanup_gateway() {
+  kill "$gateway_e2e_pid" >/dev/null 2>&1 || true
+  wait "$gateway_e2e_pid" >/dev/null 2>&1 || true
+}
+trap cleanup_gateway EXIT INT TERM
+for _ in {1..50}; do
+  if curl --fail --silent "$gateway_base_url/healthz" >/dev/null; then
+    break
+  fi
+  sleep 0.1
+done
+if ! curl --fail --silent "$gateway_base_url/healthz" >/dev/null; then
+  cat "$gateway_e2e_log" >&2
+  exit 1
+fi
+"$SOCIAL_PYTHON" \
+  "$REPO_ROOT/Services/SocialGateway/tests/run_dual_client_e2e.py" \
+  --base-url "$gateway_base_url" \
+  >"$gateway_e2e_result"
+export SOCIAL_TRANSFER_E2E_EVENT_ID
+SOCIAL_TRANSFER_E2E_EVENT_ID="$(
+  /usr/bin/python3 -c \
+    'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["event_id"])' \
+    "$gateway_e2e_result"
+)"
+cleanup_gateway
+trap - EXIT INT TERM
+rm -f "$gateway_e2e_log" "$gateway_e2e_result"
+
+echo "Running AppRuntime protocol, state-machine, and coordinator tests."
+swift test --package-path "$REPO_ROOT/Packages/AppRuntime" --parallel
+
+artifact_directory="$REPO_ROOT/.artifacts"
+mkdir -p "$artifact_directory"
+run_stamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+result_path="$artifact_directory/social-transfer-watch-$run_stamp.xcresult"
+derived_data_path="${SOCIAL_TRANSFER_DERIVED_DATA_PATH:-$artifact_directory/DerivedData-social-transfer}"
+
+echo "Running source, destination, and late-cue Watch UI E2E tests."
+xcodebuild test \
+  -project "$REPO_ROOT/Apps/Apple/WatchCompanion.xcodeproj" \
+  -scheme WatchCompanion-Watch \
+  -destination "platform=watchOS Simulator,id=$WATCH_UDID" \
+  -derivedDataPath "$derived_data_path" \
+  -resultBundlePath "$result_path" \
+  -only-testing:WatchAppUITests/WatchAppUITests/testTouchExchangeSourcePetLeavesThisWatchAndLandsOnce \
+  -only-testing:WatchAppUITests/WatchAppUITests/testTouchExchangeDestinationReceivesTheSamePetAndHandlesLateCue \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  COMPILER_INDEX_STORE_ENABLE=NO
+
+summary_path="$(mktemp "${TMPDIR:-/tmp}/social-transfer-result.XXXXXX")"
+xcrun xcresulttool get test-results summary --path "$result_path" --compact >"$summary_path"
+/usr/bin/python3 - "$summary_path" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    summary = json.load(source)
+
+if (
+    summary.get("result") != "Passed"
+    or summary.get("totalTestCount") != 2
+    or summary.get("passedTests") != 2
+    or summary.get("failedTests") != 0
+):
+    raise SystemExit(f"social transfer UI E2E did not pass exactly two tests: {summary}")
+PY
+rm -f "$summary_path"
+
+echo "PASS: synchronized A/B protocol plus both Watch presentation roles."
+echo "Result bundle: $result_path"
+echo "Physical UWB/contact placement remains a two-Watch device-runbook gate."

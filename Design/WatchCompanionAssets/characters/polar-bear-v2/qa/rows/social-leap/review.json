@@ -1,0 +1,167 @@
+{
+  "ok": true,
+  "characterID": "polar_bear",
+  "state": "social-leap",
+  "frameCount": 8,
+  "extractionMethod": "stable-slots",
+  "canonicalIdentityReview": "passed",
+  "identityReviewEvidence": "Design/WatchCompanionAssets/characters/polar-bear-v2/qa/rows/social-leap/identity-review.json",
+  "motionSemantics": [
+    "ready",
+    "compression",
+    "push-off",
+    "rise",
+    "apex",
+    "descent",
+    "landing",
+    "recovery"
+  ],
+  "source": "Design/WatchCompanionAssets/characters/polar-bear-v2/decoded/social-leap.png",
+  "frames": [
+    {
+      "index": 0,
+      "path": "Design/WatchCompanionAssets/characters/polar-bear-v2/qa/rows/social-leap/frames/social-leap/00.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        48,
+        58,
+        143,
+        203
+      ],
+      "nontransparentPixels": 11048,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "e6a12e3644b61bca7cf4dd97b086a0704d2417d280eda22f31e1dfb67e0b7531"
+    },
+    {
+      "index": 1,
+      "path": "Design/WatchCompanionAssets/characters/polar-bear-v2/qa/rows/social-leap/frames/social-leap/01.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        43,
+        77,
+        148,
+        203
+      ],
+      "nontransparentPixels": 9945,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 2,
+      "sha256": "fed4dadbde7b04feb67619e818090e92ba4bf298480ccc0c111981ddf0391f13"
+    },
+    {
+      "index": 2,
+      "path": "Design/WatchCompanionAssets/characters/polar-bear-v2/qa/rows/social-leap/frames/social-leap/02.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        45,
+        40,
+        145,
+        194
+      ],
+      "nontransparentPixels": 11164,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "0216c446c3cc61ad18e703b5ec5410aeb95a76111552a1c6e3339d03cc36d1f3"
+    },
+    {
+      "index": 3,
+      "path": "Design/WatchCompanionAssets/characters/polar-bear-v2/qa/rows/social-leap/frames/social-leap/03.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        39,
+        20,
+        152,
+        192
+      ],
+      "nontransparentPixels": 12697,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "6af2c04f93da984fb0c62a1a841d3f7577e63ccedce76871bb6741a824bd7d69"
+    },
+    {
+      "index": 4,
+      "path": "Design/WatchCompanionAssets/characters/polar-bear-v2/qa/rows/social-leap/frames/social-leap/04.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        33,
+        5,
+        158,
+        155
+      ],
+      "nontransparentPixels": 12196,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "ba0b4032757954c93492f3af9eff4ae8d3081fa0bec4ebfee63682f96b8eebee"
+    },
+    {
+      "index": 5,
+      "path": "Design/WatchCompanionAssets/characters/polar-bear-v2/qa/rows/social-leap/frames/social-leap/05.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        32,
+        30,
+        159,
+        180
+      ],
+      "nontransparentPixels": 11950,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "291b9e585a7d765e3592d1186954cdc1f19ed3fe6b4a3bddffcaa402283598db"
+    },
+    {
+      "index": 6,
+      "path": "Design/WatchCompanionAssets/characters/polar-bear-v2/qa/rows/social-leap/frames/social-leap/06.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        44,
+        87,
+        147,
+        203
+      ],
+      "nontransparentPixels": 9198,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "fdeb1062ad49014a1779183f730d73d5e949fbd28afc27339c0398660758fb35"
+    },
+    {
+      "index": 7,
+      "path": "Design/WatchCompanionAssets/characters/polar-bear-v2/qa/rows/social-leap/frames/social-leap/07.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        43,
+        28,
+        148,
+        203
+      ],
+      "nontransparentPixels": 12987,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "d7b310e9ee1e79841a43f416da98a97c3038f3fb37ce2e0f9a52f113e1750d1b"
+    }
+  ],
+  "errors": []
+}

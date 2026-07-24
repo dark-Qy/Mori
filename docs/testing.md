@@ -95,8 +95,13 @@ The touch-exchange UI test additionally requires `--touch-exchange-demo`. That D
 drives a deterministic synthetic candidate and synthetic distance result so the simulator can
 verify navigation, preview-before-confirm, bilateral-confirmation UI, and the completion animation.
 Additional DEBUG-only variants cover peer-first consent, cancellation failure before retry, and
-server-completion/cancel arbitration. They do not validate Nearby Interaction hardware, candidate
-accuracy, or physical haptic quality.
+server-completion/cancel arbitration. `--touch-exchange-transfer-role=source` and
+`--touch-exchange-transfer-role=destination` exercise the two halves of the shared path;
+`--touch-exchange-transfer-late` verifies the bounded late-arrival fallback. The UI assertions
+require the same penguin asset identity and final frame on both roles. Gateway integration tests
+separately prove that both clients receive one stable event ID/start/duration with opposite roles,
+even when confirmation order is reversed. They do not validate Nearby Interaction hardware,
+candidate accuracy, physical haptic quality, or literal Watch placement.
 
 The iPhone stateful E2E uses isolated Application Support and UserDefaults namespaces to verify
 onboarding, wardrobe preview versus equip, offline persistence across termination, reset, and

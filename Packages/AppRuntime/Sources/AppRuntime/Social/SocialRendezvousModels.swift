@@ -164,13 +164,75 @@ public struct RendezvousStatus: RawRepresentable, Codable, Hashable, Sendable {
   public static let expired = Self(rawValue: "expired")
 }
 
+/// Open-ended transfer role so future presentation roles remain decodable.
+public struct PetTransferAnimationRole: RawRepresentable, Codable, Hashable, Sendable {
+  public let rawValue: String
+
+  public init(rawValue: String) {
+    self.rawValue = rawValue
+  }
+
+  public static let source = Self(rawValue: "source")
+  public static let destination = Self(rawValue: "destination")
+}
+
+/// A synchronized, presentation-only cue. It never changes whether the
+/// encounter completed and is intentionally not persisted with the encounter.
+public struct PetTransferAnimationCue: Codable, Equatable, Sendable {
+  public let schemaVersion: String
+  public let eventID: String
+  public let role: PetTransferAnimationRole
+  public let startsAt: Date
+  public let durationMilliseconds: Int
+
+  public init(
+    schemaVersion: String = "pet_transfer_animation_v1",
+    eventID: String,
+    role: PetTransferAnimationRole,
+    startsAt: Date,
+    durationMilliseconds: Int
+  ) {
+    self.schemaVersion = schemaVersion
+    self.eventID = eventID
+    self.role = role
+    self.startsAt = startsAt
+    self.durationMilliseconds = durationMilliseconds
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case schemaVersion = "schema_version"
+    case eventID = "event_id"
+    case role
+    case startsAt = "starts_at"
+    case durationMilliseconds = "duration_ms"
+  }
+
+  public var isSupported: Bool {
+    schemaVersion == "pet_transfer_animation_v1"
+      && (role == .source || role == .destination)
+      && (500...2_000).contains(durationMilliseconds)
+  }
+
+  public func replacingStart(with startsAt: Date) -> Self {
+    PetTransferAnimationCue(
+      schemaVersion: schemaVersion,
+      eventID: eventID,
+      role: role,
+      startsAt: startsAt,
+      durationMilliseconds: durationMilliseconds
+    )
+  }
+}
+
 public struct RendezvousSessionSnapshot: Codable, Equatable, Sendable {
   public let sessionID: String
   public let nonce: String?
   public let status: RendezvousStatus
+  public let serverTime: Date?
   public let expiresAt: Date
   public let encounterID: String?
   public let encounterNonce: String?
+  public let transferRole: PetTransferAnimationRole?
   public let peerDiscoveryToken: Data?
   public let selfProximityReady: Bool?
   public let peerProximityReady: Bool?
@@ -180,14 +242,17 @@ public struct RendezvousSessionSnapshot: Codable, Equatable, Sendable {
   public let peerPreviewReleased: Bool?
   public let selfConfirmed: Bool?
   public let peerConfirmed: Bool?
+  public let transferAnimation: PetTransferAnimationCue?
 
   public init(
     sessionID: String,
     nonce: String? = nil,
     status: RendezvousStatus,
+    serverTime: Date? = nil,
     expiresAt: Date,
     encounterID: String? = nil,
     encounterNonce: String? = nil,
+    transferRole: PetTransferAnimationRole? = nil,
     peerDiscoveryToken: Data? = nil,
     selfProximityReady: Bool? = nil,
     peerProximityReady: Bool? = nil,
@@ -196,14 +261,17 @@ public struct RendezvousSessionSnapshot: Codable, Equatable, Sendable {
     selfPreviewReleased: Bool? = nil,
     peerPreviewReleased: Bool? = nil,
     selfConfirmed: Bool? = nil,
-    peerConfirmed: Bool? = nil
+    peerConfirmed: Bool? = nil,
+    transferAnimation: PetTransferAnimationCue? = nil
   ) {
     self.sessionID = sessionID
     self.nonce = nonce
     self.status = status
+    self.serverTime = serverTime
     self.expiresAt = expiresAt
     self.encounterID = encounterID
     self.encounterNonce = encounterNonce
+    self.transferRole = transferRole
     self.peerDiscoveryToken = peerDiscoveryToken
     self.selfProximityReady = selfProximityReady
     self.peerProximityReady = peerProximityReady
@@ -213,15 +281,18 @@ public struct RendezvousSessionSnapshot: Codable, Equatable, Sendable {
     self.peerPreviewReleased = peerPreviewReleased
     self.selfConfirmed = selfConfirmed
     self.peerConfirmed = peerConfirmed
+    self.transferAnimation = transferAnimation
   }
 
   private enum CodingKeys: String, CodingKey {
     case sessionID = "session_id"
     case nonce
     case status
+    case serverTime = "server_time"
     case expiresAt = "expires_at"
     case encounterID = "encounter_id"
     case encounterNonce = "encounter_nonce"
+    case transferRole = "transfer_role"
     case peerDiscoveryToken = "peer_discovery_token"
     case selfProximityReady = "self_proximity_ready"
     case peerProximityReady = "peer_proximity_ready"
@@ -231,10 +302,25 @@ public struct RendezvousSessionSnapshot: Codable, Equatable, Sendable {
     case peerPreviewReleased = "peer_preview_released"
     case selfConfirmed = "self_confirmed"
     case peerConfirmed = "peer_confirmed"
+    case transferAnimation = "transfer_animation"
   }
 
   public var peerToken: NearbyDiscoveryToken? {
     peerDiscoveryToken.map(NearbyDiscoveryToken.init(encodedValue:))
+  }
+
+  /// Projects the server-authored start into this device's local clock.
+  ///
+  /// The absolute `starts_at` value must not be compared directly with a Watch
+  /// wall clock: two devices can have different clock offsets. The response's
+  /// `server_time` gives each device the same remaining delay instead.
+  public func localizedTransferAnimation(receivedAt: Date) -> PetTransferAnimationCue? {
+    guard let transferAnimation else { return nil }
+    guard let serverTime else { return transferAnimation }
+    let remainingDelay = transferAnimation.startsAt.timeIntervalSince(serverTime)
+    return transferAnimation.replacingStart(
+      with: receivedAt.addingTimeInterval(remainingDelay)
+    )
   }
 
   public var encounterIdentity: RendezvousEncounterIdentity? {

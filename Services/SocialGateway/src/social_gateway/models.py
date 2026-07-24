@@ -39,6 +39,26 @@ class SocialState(str, Enum):
     QUIET_COMPANY = "quiet_company"
 
 
+class TransferAnimationRole(str, Enum):
+    SOURCE = "source"
+    DESTINATION = "destination"
+
+
+class PetTransferAnimationV1(StrictModel):
+    schema_version: Literal["pet_transfer_animation_v1"]
+    event_id: str = Field(min_length=32, max_length=32)
+    role: TransferAnimationRole
+    starts_at: datetime
+    duration_ms: int = Field(ge=500, le=2_000)
+
+    @field_validator("event_id")
+    @classmethod
+    def validate_event_id(cls, value: str) -> str:
+        if not ENCOUNTER_ID_PATTERN.fullmatch(value):
+            raise ValueError("event_id has an invalid format")
+        return value
+
+
 class PublicPetCardV1(StrictModel):
     """Allowlisted game-only card. Health, mood inference, and free text are absent."""
 
@@ -165,9 +185,11 @@ class CancelRequest(SessionCredential):
 class SessionStateResponse(StrictModel):
     session_id: str
     status: SessionStatus
+    server_time: datetime
     expires_at: datetime
     encounter_id: Optional[str] = None
     encounter_nonce: Optional[str] = None
+    transfer_role: Optional[TransferAnimationRole] = None
     peer_discovery_token: Optional[str] = None
     self_proximity_ready: bool = False
     peer_proximity_ready: bool = False
@@ -177,6 +199,7 @@ class SessionStateResponse(StrictModel):
     peer_preview_released: bool = False
     self_confirmed: bool = False
     peer_confirmed: bool = False
+    transfer_animation: Optional[PetTransferAnimationV1] = None
 
 
 class SessionJoinedResponse(SessionStateResponse):

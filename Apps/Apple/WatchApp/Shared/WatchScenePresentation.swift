@@ -11,17 +11,19 @@ enum WatchCharacterAnimation: String, CaseIterable {
   case touchBody = "touch_body"
   case actionSuccess = "action_success"
   case storyReaction = "story_reaction"
+  case socialLeap = "social_leap"
 
   var reduceMotionFrameIndex: Int {
     switch self {
     case .touchHead, .touchBody: 1
     case .actionSuccess, .storyReaction: 2
+    case .socialLeap: 7
     case .idleNeutral, .idleResting, .idleCurious, .idleLively: 0
     }
   }
 
   var isOneShot: Bool {
-    self == .actionSuccess || self == .storyReaction
+    self == .actionSuccess || self == .storyReaction || self == .socialLeap
   }
 }
 

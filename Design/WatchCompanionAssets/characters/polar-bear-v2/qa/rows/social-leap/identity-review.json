@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "social_leap_identity_review_v1",
+  "reviewer": "social_transfer_review",
+  "reviewedAt": "2026-07-24T06:31:00+08:00",
+  "verdict": "passed",
+  "canonicalBaseSHA256": "3ad18c0116d1ccd54642ef0b94ffe8773c08da6791a13b7d3698a6c33d6e7dbc",
+  "socialLeapSourceSHA256": "3519f59812ea876cf5a1e47b97b8cd09eff93eb2211ce9ef2dae38b80289de72",
+  "checks": [
+    "character identity matches the supplied canonical polar-bear design",
+    "motion reads ready, compression, takeoff, apex, descent, landing, recovery",
+    "transparent crop and detached-effect review passed"
+  ]
+}

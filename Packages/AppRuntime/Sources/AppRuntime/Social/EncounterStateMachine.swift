@@ -45,32 +45,38 @@ public struct EncounterState: Equatable, Sendable {
   public internal(set) var phase: EncounterPhase
   public internal(set) var sessionID: String?
   public internal(set) var encounterID: String?
+  public internal(set) var transferRole: PetTransferAnimationRole?
   public internal(set) var peerCard: PublicPetCardV1?
   public internal(set) var proximitySatisfied: Bool
   public internal(set) var localConfirmed: Bool
   public internal(set) var peerConfirmed: Bool
   public internal(set) var encounter: Encounter?
+  public internal(set) var transferAnimationCue: PetTransferAnimationCue?
   public internal(set) var failure: EncounterFailure?
 
   public init(
     phase: EncounterPhase = .idle,
     sessionID: String? = nil,
     encounterID: String? = nil,
+    transferRole: PetTransferAnimationRole? = nil,
     peerCard: PublicPetCardV1? = nil,
     proximitySatisfied: Bool = false,
     localConfirmed: Bool = false,
     peerConfirmed: Bool = false,
     encounter: Encounter? = nil,
+    transferAnimationCue: PetTransferAnimationCue? = nil,
     failure: EncounterFailure? = nil
   ) {
     self.phase = phase
     self.sessionID = sessionID
     self.encounterID = encounterID
+    self.transferRole = transferRole
     self.peerCard = peerCard
     self.proximitySatisfied = proximitySatisfied
     self.localConfirmed = localConfirmed
     self.peerConfirmed = peerConfirmed
     self.encounter = encounter
+    self.transferAnimationCue = transferAnimationCue
     self.failure = failure
   }
 }
@@ -103,6 +109,7 @@ public enum EncounterTransitionError: Error, Equatable, Sendable {
   case proximityNotSatisfied
   case missingPeerCard
   case missingEncounterID
+  case transferAnimationIdentityMismatch
 }
 
 /// A deterministic reducer for the complete touch-exchange lifecycle.
@@ -143,15 +150,18 @@ public struct EncounterStateMachine: Sendable {
 
   public mutating func didMatch(
     sessionID: String,
-    encounterID: String? = nil
+    encounterID: String? = nil,
+    transferRole: PetTransferAnimationRole? = nil
   ) throws {
     try requirePhase([.rendezvous, .ranging, .preview, .awaitingConfirmations])
     state.sessionID = sessionID
     state.encounterID = encounterID
+    state.transferRole = transferRole
     state.peerCard = nil
     state.localConfirmed = false
     state.peerConfirmed = false
     state.encounter = nil
+    state.transferAnimationCue = nil
     state.failure = nil
     state.phase = .ranging
     resetMeasurements()
@@ -164,10 +174,12 @@ public struct EncounterStateMachine: Sendable {
     try requirePhase([.ranging, .preview, .awaitingConfirmations])
     state.phase = .rendezvous
     state.encounterID = nil
+    state.transferRole = nil
     state.peerCard = nil
     state.localConfirmed = false
     state.peerConfirmed = false
     state.encounter = nil
+    state.transferAnimationCue = nil
     resetMeasurements()
   }
 
@@ -249,6 +261,20 @@ public struct EncounterStateMachine: Sendable {
     state.phase = .cancelled
     state.failure = nil
     resetMeasurements()
+  }
+
+  public mutating func applyTransferAnimationCue(
+    _ cue: PetTransferAnimationCue
+  ) throws {
+    try requirePhase([.completed])
+    guard cue.eventID == state.encounterID else {
+      throw EncounterTransitionError.transferAnimationIdentityMismatch
+    }
+    guard state.transferRole == nil || cue.role == state.transferRole else {
+      throw EncounterTransitionError.transferAnimationIdentityMismatch
+    }
+    state.transferRole = cue.role
+    state.transferAnimationCue = cue
   }
 
   private mutating func confirm(local: Bool, now: Date) throws {

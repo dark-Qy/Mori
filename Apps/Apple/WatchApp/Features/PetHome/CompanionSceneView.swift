@@ -165,7 +165,7 @@ struct CompanionSceneView: View {
       WKInterfaceDevice.current().play(.click)
     case .touchBody:
       WKInterfaceDevice.current().play(.directionUp)
-    case .actionSuccess:
+    case .actionSuccess, .socialLeap:
       WKInterfaceDevice.current().play(.success)
     case .storyReaction:
       WKInterfaceDevice.current().play(.notification)

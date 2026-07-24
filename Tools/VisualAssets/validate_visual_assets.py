@@ -11,7 +11,7 @@ from typing import Any
 from PIL import Image
 
 
-EXPECTED_STATES = {
+EXPECTED_BASE_STATES = {
     "idle_neutral",
     "idle_resting",
     "idle_curious",
@@ -21,6 +21,8 @@ EXPECTED_STATES = {
     "action_success",
     "story_reaction",
 }
+EXPECTED_SUPPLEMENTARY_STATES = {"social_leap"}
+EXPECTED_STATES = EXPECTED_BASE_STATES | EXPECTED_SUPPLEMENTARY_STATES
 EXPECTED_SOURCE_ROWS = {
     "idle",
     "running-right",
@@ -31,6 +33,7 @@ EXPECTED_SOURCE_ROWS = {
     "waiting",
     "running",
     "review",
+    "social-leap",
 }
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
@@ -165,7 +168,9 @@ def validate_characters(repo_root: Path, allow_pending: bool, errors: list[str])
     path = repo_root / "Design/WatchCompanionAssets/characters/catalog.json"
     catalog = load_json(path, errors)
     if set(catalog.get("watchStates", [])) != EXPECTED_STATES:
-        errors.append(f"{path}: watchStates do not match the required 8-state interface")
+        errors.append(
+            f"{path}: watchStates do not match the required base plus supplementary interface"
+        )
     cell = catalog.get("cell", {})
     if (cell.get("width"), cell.get("height")) != (192, 208):
         errors.append(f"{path}: cell must be 192x208")
@@ -193,7 +198,9 @@ def validate_characters(repo_root: Path, allow_pending: bool, errors: list[str])
         item.get("id") for item in mapped_states if isinstance(item, dict)
     }
     if mapped_ids != EXPECTED_STATES:
-        errors.append(f"{state_map_path}: states do not match the required 8-state interface")
+        errors.append(
+            f"{state_map_path}: states do not match the required base plus supplementary interface"
+        )
     if state_map.get("framesPerSecond") != runtime.get("framesPerSecond"):
         errors.append(f"{state_map_path}: framesPerSecond must match character runtime")
     if state_map.get("runtimeFrameCount") != 8:
@@ -256,8 +263,18 @@ def validate_characters(repo_root: Path, allow_pending: bool, errors: list[str])
                 "qa/contact-sheet-extended.png",
                 "qa/look-directions.png",
                 "qa/direction-blind-pairs.png",
+                "qa/rows/social-leap/contact-sheet.png",
             ):
                 check_image(run_dir / relative, errors)
+            social_leap_review = load_json(
+                run_dir / "qa/rows/social-leap/review.json", errors
+            )
+            if social_leap_review.get("ok") is not True:
+                errors.append(f"{character_id}: social-leap QA must pass")
+            if social_leap_review.get("canonicalIdentityReview") != "passed":
+                errors.append(
+                    f"{character_id}: social-leap canonical identity review is required"
+                )
             for state in EXPECTED_SOURCE_ROWS:
                 preview_path = run_dir / "qa/previews" / f"{state}.gif"
                 if not preview_path.is_file():

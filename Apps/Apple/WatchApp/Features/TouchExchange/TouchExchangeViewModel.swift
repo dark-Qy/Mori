@@ -56,6 +56,7 @@ final class TouchExchangeViewModel: ObservableObject {
   @Published private(set) var canConfirm = false
   @Published private(set) var encounterWasSaved = false
   @Published private(set) var socialSharingEnabled: Bool
+  @Published private(set) var transferPresentation: TouchExchangeTransferPresentation?
 
   var localSocialStatusText: String { localCard.socialStatusText }
 
@@ -63,6 +64,10 @@ final class TouchExchangeViewModel: ObservableObject {
   private let isDeterministicDemo: Bool
   private let isPeerFirstDemo: Bool
   private let isCancelConfirmRaceDemo: Bool
+  private let demoTransferRole: PetTransferAnimationRole
+  private let demoTransferEventID: String
+  private let isLateTransferDemo: Bool
+  private let shouldAutoCompleteDemo: Bool
   private let encounterRepository: TouchExchangeEncounterRepository
   private let defaults: UserDefaults
   private var operationTask: Task<Void, Never>?
@@ -74,6 +79,7 @@ final class TouchExchangeViewModel: ObservableObject {
   private var shouldFailNextDemoCancellation = false
   private var demoCancellationPending = false
   private var currentJoinRequestID: String?
+  private var presentedTransferEventIDs: Set<String> = []
 
   init(
     localCard: TouchExchangeLocalCard,
@@ -96,6 +102,26 @@ final class TouchExchangeViewModel: ObservableObject {
       isCancelConfirmRaceDemo =
         isDeterministicDemo
         && arguments.contains("--touch-exchange-cancel-confirm-race")
+      demoTransferRole =
+        arguments.contains("--touch-exchange-transfer-role=destination")
+        ? .destination
+        : .source
+      let transferEventArgument = arguments.first {
+        $0.hasPrefix("--touch-exchange-transfer-event-id=")
+      }
+      let requestedTransferEventID = transferEventArgument.map {
+        String($0.dropFirst("--touch-exchange-transfer-event-id=".count))
+      }
+      demoTransferEventID =
+        requestedTransferEventID?.count == 32
+        ? requestedTransferEventID!
+        : "0123456789abcdef0123456789abcdef"
+      isLateTransferDemo =
+        isDeterministicDemo
+        && arguments.contains("--touch-exchange-transfer-late")
+      shouldAutoCompleteDemo =
+        isDeterministicDemo
+        && arguments.contains("--touch-exchange-auto-complete")
       shouldFailNextDemoCancellation =
         isDeterministicDemo
         && arguments.contains("--touch-exchange-cancel-failure")
@@ -105,7 +131,18 @@ final class TouchExchangeViewModel: ObservableObject {
       isDeterministicDemo = false
       isPeerFirstDemo = false
       isCancelConfirmRaceDemo = false
+      demoTransferRole = .source
+      demoTransferEventID = "0123456789abcdef0123456789abcdef"
+      isLateTransferDemo = false
+      shouldAutoCompleteDemo = false
       self.socialSharingEnabled = socialSharingEnabled
+    #endif
+    #if DEBUG
+      if isDeterministicDemo,
+        arguments.contains("--touch-exchange-transfer-ledger-reset")
+      {
+        self.encounterRepository.resetConsumedTransferEventsForTesting()
+      }
     #endif
     if !self.socialSharingEnabled {
       statusText = "请先在 iPhone 的隐私设置中开启好友分享"
@@ -119,6 +156,16 @@ final class TouchExchangeViewModel: ObservableObject {
     }
     guard phase == .idle || phase == .failed || phase == .cancelled else { return }
     beginAttempt()
+  }
+
+  func runVisualDemoIfRequested() async {
+    #if DEBUG
+      guard shouldAutoCompleteDemo, phase == .idle else { return }
+      start()
+      try? await Task.sleep(for: .milliseconds(650))
+      guard canConfirm else { return }
+      confirm()
+    #endif
   }
 
   func updateSocialSharingEnabled(_ enabled: Bool) {
@@ -404,6 +451,7 @@ final class TouchExchangeViewModel: ObservableObject {
 
   private func resetForStart() {
     peerCard = nil
+    transferPresentation = nil
     canConfirm = false
     encounterWasSaved = false
     didRevealCard = false
@@ -421,9 +469,10 @@ final class TouchExchangeViewModel: ObservableObject {
 
       try? await Task.sleep(for: .milliseconds(220))
       guard isCurrent(generation) else { return }
+      let isDestination = demoTransferRole == .destination
       peerCard = TouchExchangePeerCard(
-        displayName: "Nori",
-        petAssetID: "polar_bear",
+        displayName: isDestination ? "Mori" : "Nori",
+        petAssetID: isDestination ? "penguin" : "polar_bear",
         outfitAssetID: "star",
         backgroundAssetID: "sunset_coast",
         socialState: .greeting
@@ -455,20 +504,32 @@ final class TouchExchangeViewModel: ObservableObject {
         socialState: peerCard.socialState
       )
       let encounter = Encounter(
-        id: "demo-touch-exchange-encounter",
+        id: demoTransferEventID,
         localParticipantID: Self.installationParticipantID(defaults: defaults),
         peerCard: publicCard,
         completedAt: Date()
+      )
+      let transferStartsAt =
+        isLateTransferDemo
+        ? Date().addingTimeInterval(-2)
+        : Date().addingTimeInterval(0.8)
+      let transferCue = PetTransferAnimationCue(
+        eventID: encounter.id,
+        role: demoTransferRole,
+        startsAt: transferStartsAt,
+        durationMilliseconds: 900
       )
       return EncounterState(
         phase: .completed,
         sessionID: "demo-touch-exchange-session",
         encounterID: encounter.id,
+        transferRole: demoTransferRole,
         peerCard: publicCard,
         proximitySatisfied: true,
         localConfirmed: true,
         peerConfirmed: true,
-        encounter: encounter
+        encounter: encounter,
+        transferAnimationCue: transferCue
       )
     }
   #endif
@@ -737,11 +798,13 @@ final class TouchExchangeViewModel: ObservableObject {
     case .ranging:
       phase = .approaching
       canConfirm = false
-      statusText = "请把两块手表保持在约 15 厘米内"
+      statusText = placementInstruction(for: state.transferRole)
     case .preview:
       phase = .preview
       canConfirm = !state.localConfirmed
-      statusText = "已确认双方同时靠近"
+      statusText =
+        "已确认双方同时靠近；"
+        + placementInstruction(for: state.transferRole)
     case .awaitingConfirmations:
       phase = .awaitingPeer
       canConfirm = !state.localConfirmed
@@ -751,10 +814,13 @@ final class TouchExchangeViewModel: ObservableObject {
         : "对方已经确认，仍需要你的确认"
     case .completed:
       canConfirm = false
-      phase = .completed
       if let encounter = state.encounter {
         encounterWasSaved = encounterRepository.save(encounter)
       }
+      applyTransferPresentation(from: state)
+      // Publish the transfer before completion so the generic completion
+      // observer cannot race the transfer view's one-shot haptic.
+      phase = .completed
       statusText =
         encounterWasSaved
         ? "双方已经确认，相遇记录已保存"
@@ -772,6 +838,53 @@ final class TouchExchangeViewModel: ObservableObject {
         didRevealCard
         ? "公开遇见卡预览可能已经显示，已经显示的内容无法撤回；本次交换没有完成。"
         : "已停止寻找，本次没有显示遇见卡，也没有完成交换。"
+    }
+  }
+
+  private func applyTransferPresentation(from state: EncounterState) {
+    guard let cue = state.transferAnimationCue,
+      let peerCard,
+      !presentedTransferEventIDs.contains(cue.eventID)
+    else { return }
+
+    let canPresent = encounterRepository.consumeTransferEvent(id: cue.eventID)
+    guard canPresent else { return }
+
+    let localCharacterID: String
+    #if DEBUG
+      localCharacterID =
+        isDeterministicDemo && demoTransferRole == .destination
+        ? "polar_bear"
+        : localCard.petAssetID
+    #else
+      localCharacterID = localCard.petAssetID
+    #endif
+
+    guard
+      let presentation = TouchExchangeTransferPresentation.make(
+        cue: cue,
+        localCharacterID: localCharacterID,
+        peerCharacterID: peerCard.petAssetID,
+        backgroundID:
+          localCard.backgroundAssetID
+          ?? peerCard.backgroundAssetID
+          ?? CompanionVisualCatalog.defaultBackgroundID,
+        receivedAt: Date()
+      )
+    else { return }
+
+    presentedTransferEventIDs.insert(cue.eventID)
+    transferPresentation = presentation
+  }
+
+  private func placementInstruction(for role: PetTransferAnimationRole?) -> String {
+    switch role {
+    case .source:
+      "请把这块手表放在左侧，并保持两块表在约 15 厘米内"
+    case .destination:
+      "请把这块手表放在右侧，并保持两块表在约 15 厘米内"
+    default:
+      "请把两块手表保持在约 15 厘米内"
     }
   }
 

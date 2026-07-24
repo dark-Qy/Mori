@@ -238,7 +238,33 @@ that completed after candidate rotation.
 This returns 409 `preview_required` unless that participant has already called
 `peer-card`. It is then idempotent. The first confirmation leaves the encounter
 at `proximity_ready`; after the peer previews and confirms, both clients observe
-`confirmed`.
+`confirmed`. Every session snapshot also includes `server_time`. A confirmed
+snapshot adds one presentation-only transfer cue:
+
+```json
+{
+  "server_time": "2026-07-24T08:00:00Z",
+  "status": "confirmed",
+  "transfer_role": "source",
+  "transfer_animation": {
+    "schema_version": "pet_transfer_animation_v1",
+    "event_id": "the-shared-encounter-id",
+    "role": "source",
+    "starts_at": "2026-07-24T08:00:01.250Z",
+    "duration_ms": 900
+  }
+}
+```
+
+Both clients receive the same `event_id`, `starts_at`, and duration. The
+participant that entered the waiting pool first is always `source`; the other
+is `destination`, independent of confirmation order. `transfer_role` is also
+present as soon as a match is formed so the clients can show the source on the
+left and destination on the right before the animation begins. Repeated confirm/status
+calls return the same cue. This cue affects presentation only and cannot create
+or alter an encounter. The 1.25-second default lead lets both Watches receive
+the confirmed snapshot before the animation begins.
+
 The existing `encounter_nonce` is a correlation/synchronization value, not an
 account identity credential; together with `encounter_id`, it is the required
 unreplayable generation credential for candidate-scoped mutations.
@@ -318,6 +344,8 @@ headers, audit redaction, and configuration bounds.
 | `SOCIAL_CANDIDATE_TTL_SECONDS` | 12 | 5–60 |
 | `SOCIAL_TOMBSTONE_TTL_SECONDS` | 60 | 5–300 |
 | `SOCIAL_PROXIMITY_WINDOW_SECONDS` | 5.0 | 1.0–15.0 |
+| `SOCIAL_TRANSFER_ANIMATION_LEAD_SECONDS` | 1.25 | 0.75–3.0 |
+| `SOCIAL_TRANSFER_ANIMATION_DURATION_MS` | 900 | 500–2000 |
 | `SOCIAL_CLEANUP_INTERVAL_SECONDS` | 1.0 | 0.01–60.0 |
 | `SOCIAL_MAX_REQUEST_BYTES` | 16384 | 4096–65536 |
 | `SOCIAL_MAX_ACTIVE_PARTICIPANTS` | 10000 | 2–100000 |

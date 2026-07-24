@@ -12,6 +12,10 @@ if [[ $# -ne 1 || ! -f $1 ]]; then
   exit 1
 fi
 
+# Package files are not secrets and must remain readable by the service user,
+# even when the caller uses a restrictive deployment umask.
+umask 022
+
 bundle_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 wheel_path=$(realpath "$1")
 service_user=social-gateway
@@ -28,6 +32,7 @@ if ! id "$service_user" >/dev/null 2>&1; then
 fi
 
 install -d -o root -g root -m 0755 "$install_root"
+install -d -o root -g root -m 0755 "$install_root/runtime"
 install -d -o root -g "$service_user" -m 0750 "$config_root"
 
 if [[ ! -x "$install_root/venv/bin/python" ]]; then
@@ -58,6 +63,21 @@ install \
 systemctl daemon-reload
 systemctl enable social-gateway.service
 systemctl restart social-gateway.service
-systemctl --no-pager --full status social-gateway.service
-curl --fail --silent --show-error http://127.0.0.1:8788/healthz
-echo
+
+health_payload=
+for _ in {1..30}; do
+  if health_payload=$(curl --fail --silent http://127.0.0.1:8788/healthz); then
+    break
+  fi
+  sleep 0.5
+done
+
+if [[ -z $health_payload ]]; then
+  systemctl --no-pager --full status social-gateway.service || true
+  journalctl -u social-gateway.service -n 50 --no-pager || true
+  echo "Social Gateway did not become healthy within 15 seconds." >&2
+  exit 1
+fi
+
+systemctl is-active social-gateway.service
+echo "$health_payload"

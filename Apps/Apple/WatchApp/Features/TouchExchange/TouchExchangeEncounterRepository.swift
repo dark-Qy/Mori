@@ -8,7 +8,10 @@ import Foundation
 @MainActor
 final class TouchExchangeEncounterRepository {
   private static let storageKey = "social.completed-encounters.v1"
+  private static let consumedTransferEventsKey =
+    "social.consumed-transfer-events.v1"
   private static let maximumStoredEncounters = 100
+  private static let maximumConsumedTransferEvents = 100
 
   private let defaults: UserDefaults
 
@@ -36,6 +39,33 @@ final class TouchExchangeEncounterRepository {
   func contains(encounterID: String) -> Bool {
     load().contains(where: { $0.id == encounterID })
   }
+
+  /// Returns `true` exactly once for a presentation event on this installation.
+  ///
+  /// The animation is presentation-only, so this list is deliberately stored
+  /// separately from completed encounter history.
+  @discardableResult
+  func consumeTransferEvent(id: String) -> Bool {
+    var eventIDs =
+      defaults.stringArray(
+        forKey: Self.consumedTransferEventsKey
+      ) ?? []
+    guard !eventIDs.contains(id) else { return false }
+    eventIDs.append(id)
+    if eventIDs.count > Self.maximumConsumedTransferEvents {
+      eventIDs.removeFirst(
+        eventIDs.count - Self.maximumConsumedTransferEvents
+      )
+    }
+    defaults.set(eventIDs, forKey: Self.consumedTransferEventsKey)
+    return true
+  }
+
+  #if DEBUG
+    func resetConsumedTransferEventsForTesting() {
+      defaults.removeObject(forKey: Self.consumedTransferEventsKey)
+    }
+  #endif
 
   private func load() -> [Encounter] {
     guard let data = defaults.data(forKey: Self.storageKey) else { return [] }

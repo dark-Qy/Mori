@@ -1,0 +1,167 @@
+{
+  "ok": true,
+  "characterID": "penguin",
+  "state": "social-leap",
+  "frameCount": 8,
+  "extractionMethod": "stable-slots",
+  "canonicalIdentityReview": "passed",
+  "identityReviewEvidence": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/social-leap/identity-review.json",
+  "motionSemantics": [
+    "ready",
+    "compression",
+    "push-off",
+    "rise",
+    "apex",
+    "descent",
+    "landing",
+    "recovery"
+  ],
+  "source": "Design/WatchCompanionAssets/characters/penguin-v2/decoded/social-leap.png",
+  "frames": [
+    {
+      "index": 0,
+      "path": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/social-leap/frames/social-leap/00.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        54,
+        86,
+        137,
+        203
+      ],
+      "nontransparentPixels": 7627,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "320a8a08ceeb6d738bb6ec793b950895fe4add4418669a3aebf31bb8f090976b"
+    },
+    {
+      "index": 1,
+      "path": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/social-leap/frames/social-leap/01.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        54,
+        94,
+        137,
+        203
+      ],
+      "nontransparentPixels": 7096,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "56d5824b6a837e429fbd4366e4105185f26e0068cf17c815ecc739148058fc05"
+    },
+    {
+      "index": 2,
+      "path": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/social-leap/frames/social-leap/02.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        41,
+        51,
+        150,
+        183
+      ],
+      "nontransparentPixels": 8816,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "65e8c291773458e6460194b32ee356124c556c37ca9bdf325814c361a776cdb7"
+    },
+    {
+      "index": 3,
+      "path": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/social-leap/frames/social-leap/03.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        43,
+        34,
+        148,
+        176
+      ],
+      "nontransparentPixels": 9306,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "a331a12554dacd443c274dc9d0363a8b747ea61ff58518f42d43fb37cde19de0"
+    },
+    {
+      "index": 4,
+      "path": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/social-leap/frames/social-leap/04.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        42,
+        5,
+        149,
+        146
+      ],
+      "nontransparentPixels": 9224,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "267cccc88f9d2fdd5e6fe0f3d882dd069b0cbaacf9c22e3252ee1c2715cd55e3"
+    },
+    {
+      "index": 5,
+      "path": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/social-leap/frames/social-leap/05.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        40,
+        42,
+        151,
+        187
+      ],
+      "nontransparentPixels": 9235,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "b64a76da18a44c12967686950e802f2f676f49d43b51f917d9d0b9d45f1e3cef"
+    },
+    {
+      "index": 6,
+      "path": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/social-leap/frames/social-leap/06.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        49,
+        91,
+        142,
+        203
+      ],
+      "nontransparentPixels": 7607,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "b7fe27827b14a956bb14f6b51886492714999a29fdd5ebf3f68e694f7a8cb217"
+    },
+    {
+      "index": 7,
+      "path": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/social-leap/frames/social-leap/07.png",
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        50,
+        49,
+        141,
+        203
+      ],
+      "nontransparentPixels": 9927,
+      "edgePixels": 0,
+      "chromaAdjacentPixels": 0,
+      "sha256": "947f6a22e9444a5dd83a858afa2d8807dc0ac5a86362402a127ead094b1d83ae"
+    }
+  ],
+  "errors": []
+}

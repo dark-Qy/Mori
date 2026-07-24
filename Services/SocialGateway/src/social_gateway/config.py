@@ -42,6 +42,8 @@ class GatewayConfig:
     candidate_ttl_seconds: int = 12
     tombstone_ttl_seconds: int = 60
     proximity_window_seconds: float = 5.0
+    transfer_animation_lead_seconds: float = 1.25
+    transfer_animation_duration_ms: int = 900
     cleanup_interval_seconds: float = 1.0
     max_request_bytes: int = 16_384
     max_active_participants: int = 10_000
@@ -56,6 +58,12 @@ class GatewayConfig:
             tombstone_ttl_seconds=_bounded_int(env, "SOCIAL_TOMBSTONE_TTL_SECONDS", 60, 5, 300),
             proximity_window_seconds=_bounded_float(
                 env, "SOCIAL_PROXIMITY_WINDOW_SECONDS", 5.0, 1.0, 15.0
+            ),
+            transfer_animation_lead_seconds=_bounded_float(
+                env, "SOCIAL_TRANSFER_ANIMATION_LEAD_SECONDS", 1.25, 0.75, 3.0
+            ),
+            transfer_animation_duration_ms=_bounded_int(
+                env, "SOCIAL_TRANSFER_ANIMATION_DURATION_MS", 900, 500, 2_000
             ),
             cleanup_interval_seconds=_bounded_float(
                 env, "SOCIAL_CLEANUP_INTERVAL_SECONDS", 1.0, 0.01, 60.0

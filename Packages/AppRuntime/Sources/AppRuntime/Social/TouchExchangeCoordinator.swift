@@ -6,6 +6,7 @@ import Foundation
 public actor TouchExchangeCoordinator {
   private let rangingClient: any NearbyRangingClient
   private let rendezvousClient: any SocialRendezvousClient
+  private let clock: @Sendable () -> Date
   private var stateMachine: EncounterStateMachine
   private var credentials: RendezvousCredentials?
   private var pendingCreateRequest: CreateRendezvousSessionRequest?
@@ -21,10 +22,12 @@ public actor TouchExchangeCoordinator {
   public init(
     rangingClient: any NearbyRangingClient,
     rendezvousClient: any SocialRendezvousClient,
-    proximityPolicy: ProximityStabilityPolicy = ProximityStabilityPolicy()
+    proximityPolicy: ProximityStabilityPolicy = ProximityStabilityPolicy(),
+    clock: @escaping @Sendable () -> Date = { Date() }
   ) {
     self.rangingClient = rangingClient
     self.rendezvousClient = rendezvousClient
+    self.clock = clock
     stateMachine = EncounterStateMachine(configuration: proximityPolicy)
   }
 
@@ -142,6 +145,7 @@ public actor TouchExchangeCoordinator {
     {
       try stateMachine.confirmPeer(now: now)
       if stateMachine.state.phase == .completed {
+        try applyTransferAnimationCue(from: snapshot)
         await rangingClient.stop()
         activePeerToken = nil
       }
@@ -258,6 +262,7 @@ public actor TouchExchangeCoordinator {
       try stateMachine.confirmPeer(now: now)
     }
     if stateMachine.state.phase == .completed {
+      try applyTransferAnimationCue(from: snapshot)
       await rangingClient.stop()
       activePeerToken = nil
     }
@@ -440,7 +445,8 @@ public actor TouchExchangeCoordinator {
     activePeerToken = peerToken
     try stateMachine.didMatch(
       sessionID: snapshot.sessionID,
-      encounterID: snapshotIdentity.id
+      encounterID: snapshotIdentity.id,
+      transferRole: snapshot.transferRole
     )
     let installGeneration = candidateGeneration
     do {
@@ -568,7 +574,22 @@ public actor TouchExchangeCoordinator {
     if !stateMachine.state.peerConfirmed {
       try stateMachine.confirmPeer(now: now)
     }
+    try applyTransferAnimationCue(from: snapshot)
     return stateMachine.state
+  }
+
+  private func applyTransferAnimationCue(
+    from snapshot: RendezvousSessionSnapshot
+  ) throws {
+    guard let cue = snapshot.localizedTransferAnimation(receivedAt: clock()),
+      cue.isSupported
+    else { return }
+    guard snapshot.status == .confirmed,
+      snapshot.encounterID == stateMachine.state.encounterID
+    else {
+      throw SocialRendezvousError.encounterIdentityMismatch
+    }
+    try stateMachine.applyTransferAnimationCue(cue)
   }
 
   /// Applies only the identity portion of a conflict status. Cancellation must

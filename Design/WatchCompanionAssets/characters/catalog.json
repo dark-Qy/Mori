@@ -22,7 +22,8 @@
     "touch_head",
     "touch_body",
     "action_success",
-    "story_reaction"
+    "story_reaction",
+    "social_leap"
   ],
   "characters": [
     {

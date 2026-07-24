@@ -51,11 +51,14 @@ The installer:
 
 - creates the `social-gateway` system user;
 - installs into `/opt/watch-companion-social-gateway/venv`;
+- starts from the empty `/opt/watch-companion-social-gateway/runtime` directory so a legacy source
+  checkout cannot shadow the installed wheel;
 - stores the resolved dependency versions in
   `/opt/watch-companion-social-gateway/requirements.deployed.txt`;
 - loads bounded integration settings from
   `/etc/watch-companion/social-gateway.env`;
-- starts one systemd process bound only to `127.0.0.1:8788`.
+- starts one systemd process bound only to `127.0.0.1:8788` and waits up to 15 seconds for its
+  health endpoint.
 
 ## 3. Add the public Nginx route
 

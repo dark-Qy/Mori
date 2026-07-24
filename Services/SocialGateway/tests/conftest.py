@@ -31,6 +31,8 @@ def config() -> GatewayConfig:
         candidate_ttl_seconds=8,
         tombstone_ttl_seconds=5,
         proximity_window_seconds=5.0,
+        transfer_animation_lead_seconds=1.25,
+        transfer_animation_duration_ms=900,
         cleanup_interval_seconds=1.0,
         max_request_bytes=16_384,
         max_active_participants=20,

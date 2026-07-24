@@ -176,12 +176,24 @@ explicit start on both Watches
   -> release allowlisted game-only preview
   -> explicit confirmation on both Watches
   -> create the encounter
+  -> return one shared, role-specific transfer animation cue
+  -> source pet exits Watch A while the same pet enters Watch B
 ```
 
 An unverified candidate times out and returns to discovery; it never becomes an encounter. The
 server stores the temporary token and allowlisted card only for the session TTL. Every
 candidate-level request is bound to the current encounter identifier and nonce, so a delayed
 proximity or confirmation request from an expired candidate cannot affect a replacement candidate.
+After bilateral confirmation, the gateway assigns the first waiting participant the stable
+`source` role and the other participant the `destination` role. Both snapshots carry the same
+versioned event ID, absolute start time, and duration. Watch A renders the source pet across a
+shared left-to-right path; Watch B renders the peer pet from the corresponding off-screen point
+to its landing slot. Confirmation order cannot reverse the direction. A consumed-event ledger
+prevents status retries or relaunch from replaying the animation, while a client that receives the
+cue after its scheduled end uses a short local landing fallback. Reduce Motion replaces travel
+with a bounded cross-fade. This presentation cue does not transfer ownership, mutate either pet,
+or expand the public-card data contract.
+
 The current MVP uses anonymous installation identifiers and an in-memory gateway, so production
 deployment still requires an injected HTTPS `SOCIAL_GATEWAY_BASE_URL`, authenticated identities,
 abuse controls, a shared atomic store, and the two-Watch device runbook. Release builds fail when
