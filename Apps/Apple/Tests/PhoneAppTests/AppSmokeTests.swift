@@ -10,6 +10,13 @@ final class AppSmokeTests: XCTestCase {
     XCTAssertNotNil(WatchCompanionApp.self as Any.Type)
   }
 
+  func testPhonePetInteractionMatchesWatchEventKindsAndCopy() {
+    XCTAssertEqual(PhonePetInteraction.touchHead.rawValue, "touch_head")
+    XCTAssertEqual(PhonePetInteraction.touchBody.rawValue, "touch_body")
+    XCTAssertEqual(PhonePetInteraction.touchHead.statusMessage, "Mori 开心地眨了眨眼")
+    XCTAssertEqual(PhonePetInteraction.touchBody.statusMessage, "Mori 转过身回应了你")
+  }
+
   func testNoLaunchArgumentUsesNeutralLiveMode() {
     let model = PhonePresentationModel.initial(arguments: ["WatchCompanion"])
 

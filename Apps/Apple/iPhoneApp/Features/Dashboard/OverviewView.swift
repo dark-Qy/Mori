@@ -19,7 +19,12 @@ struct OverviewView: View {
 
         PetOverviewCard(
           model: model,
-          onCompanionInteraction: { Task { await store.companionInteraction() } }
+          characterID: store.preferences.selectedCharacterIDs.first
+            ?? CompanionVisualCatalog.defaultCharacterID,
+          backgroundID: store.preferences.selectedBackgroundID,
+          onCompanionInteraction: { interaction in
+            Task { await store.companionInteraction(interaction) }
+          }
         )
 
         metricTiles
@@ -112,29 +117,26 @@ struct OverviewView: View {
 
 private struct PetOverviewCard: View {
   let model: PhonePresentationModel
-  let onCompanionInteraction: () -> Void
+  let characterID: String
+  let backgroundID: String
+  let onCompanionInteraction: (PhonePetInteraction) -> Void
 
   var body: some View {
     VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
-      HStack(spacing: CompanionSpacing.medium) {
-        ZStack {
-          Circle()
-            .fill(Color.white.opacity(0.22))
-            .frame(width: 78, height: 78)
-          Image(systemName: "pawprint.fill")
-            .font(.system(size: 36, weight: .semibold))
-            .foregroundStyle(.white)
-        }
-        .accessibilityHidden(true)
-        VStack(alignment: .leading, spacing: 3) {
-          Text("Mori · Lv.\(model.level)")
-            .font(.title3.weight(.bold))
-            .accessibilityIdentifier("phone.pet-level")
-          Text(model.mood)
-            .font(.subheadline)
-            .foregroundStyle(.white)
-            .fixedSize(horizontal: false, vertical: true)
-        }
+      PhoneCompanionSceneView(
+        characterID: characterID,
+        backgroundID: backgroundID,
+        onInteraction: onCompanionInteraction
+      )
+
+      VStack(alignment: .leading, spacing: 3) {
+        Text("Mori · Lv.\(model.level)")
+          .font(.title3.weight(.bold))
+          .accessibilityIdentifier("phone.pet-level")
+        Text(model.mood)
+          .font(.subheadline)
+          .foregroundStyle(.white)
+          .fixedSize(horizontal: false, vertical: true)
       }
 
       VStack(spacing: 5) {
@@ -157,14 +159,6 @@ private struct PetOverviewCard: View {
       Label(model.syncStatus, systemImage: "applewatch.radiowaves.left.and.right")
         .font(.caption)
         .foregroundStyle(.white)
-
-      Button(action: onCompanionInteraction) {
-        Label("陪陪 Mori", systemImage: "hand.wave.fill")
-          .frame(maxWidth: .infinity)
-      }
-      .buttonStyle(.bordered)
-      .tint(.white)
-      .accessibilityIdentifier("phone.companion-interaction")
     }
     .foregroundStyle(.white)
     .padding(CompanionSpacing.large)

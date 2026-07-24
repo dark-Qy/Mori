@@ -76,6 +76,21 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(healthSharingUnavailable.waitForExistence(timeout: 5))
   }
 
+  func testPetSceneRespondsDifferentlyToHeadAndBodyTouches() {
+    let app = launchApp(scenario: "health_normal")
+
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
+    let scene = app.buttons["phone.companion-interaction"]
+    XCTAssertTrue(scene.waitForExistence(timeout: 5))
+
+    scene.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap()
+    XCTAssertTrue(app.staticTexts["Mori 开心地眨了眨眼"].waitForExistence(timeout: 2))
+
+    Thread.sleep(forTimeInterval: 0.4)
+    scene.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.64)).tap()
+    XCTAssertTrue(app.staticTexts["Mori 转过身回应了你"].waitForExistence(timeout: 2))
+  }
+
   func testThirtyFiveDayScenarioRendersWeeklyTimeline() {
     let app = launchApp(scenario: "mock7_active")
 

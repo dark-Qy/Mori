@@ -46,6 +46,7 @@ final class PhoneAppStore: ObservableObject {
   private var peerUpdateTask: Task<Void, Never>?
   private var mockCareTask: Task<Void, Never>?
   private var deletedWeeklyMemoryIDs: Set<String> = []
+  private var companionInteractionRevision: UInt64 = 0
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
     let initialModel = PhonePresentationModel.initial(arguments: arguments)
@@ -255,6 +256,7 @@ final class PhoneAppStore: ObservableObject {
   func selectDataSource(_ source: CompanionDataSource) async {
     guard !hasLaunchScenarioOverride else { return }
     mockCareTask?.cancel()
+    companionInteractionRevision &+= 1
     selectedDataSource = source
     _ = await runtime?.saveDataSourceSelection(source)
     await applySelectedDataSource(requestAccessIfNeeded: source == .healthKit)
@@ -323,26 +325,37 @@ final class PhoneAppStore: ObservableObject {
     }
   }
 
-  func companionInteraction() async {
+  func companionInteraction(_ interaction: PhonePetInteraction) async {
+    companionInteractionRevision &+= 1
+    let revision = companionInteractionRevision
     if selectedDataSource.isMock || hasLaunchScenarioOverride {
       if CompanionDataSource.isPeerExchangeFixtureID(model.mockScenario?.id) {
         model = model.resolvingMockRelationship()
       }
-      statusMessage = "Mori 靠近了一点，安静地陪着你"
+      statusMessage = interaction.statusMessage
       return
     }
     guard let runtime else { return }
     do {
-      let state = try await runtime.recordPetInteraction(kind: "phone_companion")
+      let state = try await runtime.recordPetInteraction(kind: interaction.rawValue)
+      guard revision == companionInteractionRevision, selectedDataSource == .healthKit else {
+        return
+      }
       let trend = try await runtime.personalHealthTrend()
+      guard revision == companionInteractionRevision, selectedDataSource == .healthKit else {
+        return
+      }
       model = .live(
         companion: state,
         health: latestHealth,
         trend: trend,
         syncStatus: "互动已保存"
       )
-      statusMessage = "Mori 靠近了一点，安静地陪着你"
+      statusMessage = interaction.statusMessage
     } catch {
+      guard revision == companionInteractionRevision, selectedDataSource == .healthKit else {
+        return
+      }
       statusMessage = "这次互动没能保存，但 Mori 已经看见你了"
     }
   }
