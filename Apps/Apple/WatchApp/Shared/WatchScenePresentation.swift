@@ -109,7 +109,7 @@ struct WatchCharacterSlotPresentation: Identifiable {
 
 struct WatchScenePresentation {
   static let frameCount = 8
-  static let framesPerSecond = 10.0
+  static let framesPerSecond = 6.0
 
   let backgroundID: String
   let backgroundDisplayName: String
