@@ -1,5 +1,11 @@
 # Mock Data
 
+> **Historical prototype Mock contract — non-authoritative for the rebuild.**
+> Its in-memory-only and no-WatchConnectivity rules are superseded by ADR 0003,
+> which requires durable, profile/epoch-isolated Mock state and deterministic
+> Mock adapters on both devices. G2 must rewrite this document to match the
+> implemented repository before G2 closes.
+
 ## Purpose
 
 Mocks make deterministic development possible when HealthKit history, physical hardware, APNs, AI, or proximity is unavailable. A mock is a product-development mode, not evidence that the real capability works.

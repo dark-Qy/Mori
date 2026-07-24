@@ -32,6 +32,14 @@ Every goal moves through the same states:
 Failure at any gate returns the goal to implementation. A later goal must not
 weaken an already passed invariant.
 
+These six states measure the implementation axis. Hardware-dependent evidence
+is tracked independently as `DEVICE_VALIDATED`, `DEVICE_PARTIAL`, or
+`DEVICE_UNVERIFIED`. When required equipment, signing, pairing, or permission
+state is unavailable, the owning Goal records `UNVERIFIED` and may still become
+`Committed` after its code, automated, Simulator, Computer Use, documentation,
+and review gates pass. It cannot claim device validation or public release
+readiness.
+
 ```mermaid
 flowchart LR
   G0["G0 · Product and baseline contract"]
@@ -48,15 +56,16 @@ flowchart LR
   G0 --> G1
   G0 --> G4
   G1 --> G2
-  G1 --> G3
+  G2 --> G3
   G2 --> G5
   G3 --> G5
   G2 --> G6
   G3 --> G6
   G4 --> G5
   G4 --> G6
-  G1 --> G7
+  G2 --> G7
   G3 --> G7
+  G7 --> G6
   G5 --> G8
   G6 --> G8
   G7 --> G8
@@ -116,10 +125,15 @@ exactly ten commits.
 - A route map for every Watch and iPhone destination.
 - A state matrix for loading, ready, empty, partial permission, denied, stale,
   offline, invalid Mock, sync waiting, and destructive reset.
-- Repository-owned copies of the approved Image2 references, their source
-  prompts, and behavior annotations under
+- A global, executable data-deletion inventory covering every authority domain,
+  notification, peer, processor, and system-owned limitation.
+- Repository-owned copies of the approved Image2 references, their available
+  prompt provenance, canonical regeneration briefs, and behavior annotations
+  under
   `Design/WatchCompanionAssets/references/approved-mori-rebuild/`. Any newly
-  introduced surface is reviewed with Image2 before implementation.
+  introduced surface is reviewed with Image2 before implementation. If an
+  original prompt is unavailable, the repository states that explicitly rather
+  than presenting a reconstructed brief as verbatim provenance.
 - A keep/move/replace/remove decision for every existing screen and domain
   feature.
 - `docs/mori-rebuild-status.md` recording each Goal state, revision, automated
@@ -134,9 +148,13 @@ exactly ten commits.
   - derived experience-event synchronization;
   - chat authority and fact provenance;
   - legacy growth/story migration.
-- An updated privacy contract before conversation work begins: remote Chat and
-  narration receive only approved derived facts and memory references. Existing
-  documentation that allows raw health samples to leave the device is removed.
+- An updated privacy contract before conversation work begins: remote Chat
+  distinguishes explicitly sent user conversation text from app-added context;
+  app-added context contains only consented approved derived facts, memory
+  references, and—under a separate enabled memory-context consent—one selected
+  excerpt of at most 500 Unicode scalars. Revocation or memory deletion
+  invalidates that excerpt. Existing documentation that allows raw health
+  samples to leave the device is removed.
 - A fresh validation baseline from the current branch.
 
 ### Fixed Product Decisions
@@ -167,15 +185,32 @@ exactly ten commits.
   not claim access to a guaranteed wrist-raise event.
 - Settings and experience events synchronize automatically. There is no manual
   sync, sync test, or simulated sync-failure product control.
-- Persistence uses three explicit namespaces:
+- Persistence uses five explicit authority domains:
   - `GlobalSyncedPreferences`: `activeProfileSelection`, `mockScenarioID`,
     companion sensing, reminder mode, and quiet hours. Every change carries a
-    monotonic `PreferenceRevision`, `effectiveAt`, and stable origin device ID;
-  - `DeviceCapabilities`: actual HealthKit, location, motion, notification, and
-    background capability on the current device; capabilities are never synced
-    as if they were permissions on the peer;
-  - `ProfileState`: tasks, coins, collection, memories, letters, conversation,
-    and experience ledgers; real and Mock profiles are strictly isolated.
+    Lamport-style `PreferenceRevision(counter, originDeviceID)`. A profile, Mock
+    scenario, or sensing epoch is the winning revision identity, not a
+    device-local integer;
+  - `GlobalConsentState`: versioned remote-Chat/context consent, friend sharing,
+    public-pet publication, proactive-notification consent version,
+    daily-memory/letter notification opt-ins, and onboarding disclosures.
+    Either device may revoke immediately; only the iPhone may expand remote
+    sharing or proactive notification after an explicit consent flow.
+    Concurrent states merge to the most restrictive choice before revision
+    tie-breaking;
+  - `DeviceLocalState`: actual HealthKit, location, motion, notification, and
+    background capabilities plus local onboarding presentation, navigation
+    restoration, pending UI, and adapter state. Device capability and route
+    state are never synced as if they applied to the peer;
+  - `ProfileState`: selected Mori identity, tasks, coins,
+    collection/equipped cosmetics, memories, letters, conversation, tone
+    preferences, and experience ledgers; real and Mock profiles are strictly
+    isolated;
+  - `SocialState`: relationship and public-card state owned by the social
+    service when enabled, with a minimal local projection and deletion status.
+    Production social side effects are real-profile only. A Mock profile uses a
+    deterministic isolated social adapter and cannot call the production
+    gateway or create a real relationship.
 - Turning off `Mori 随行` immediately stops new passive evidence collection and
   inference, clears pending reminders, and prevents passive tasks and memories.
   Existing records remain. Re-enabling never backfills the disabled interval.
@@ -183,17 +218,19 @@ exactly ten commits.
   because those facts are independent of companion inference.
 - A device changing `Mori 随行` stops its local adapters immediately. Every
   passive evidence and derived event carries the active companion-sensing
-  generation. When an offline peer later receives the disabling revision, it
-  rejects post-`effectiveAt` events from the superseded generation and never
-  merges or backfills them. Concurrent changes resolve by the highest logical
-  revision and then stable origin-device ID; wall-clock rollback cannot win over
-  the logical revision.
+  epoch, defined by the winning preference revision identity. When an offline
+  peer later receives a disabling revision, it rejects every not-yet-accepted
+  passive event from a superseded epoch. `effectiveAt` is explanatory metadata,
+  never the authorization boundary. If causal ordering cannot prove an old
+  event was accepted before revocation, privacy fails closed and discards it.
+  Wall-clock rollback cannot win over the logical revision.
 - `mockScenarioID` synchronizes with the active profile selection. A Mock
   `ProfileState` records both `profileID` and `seededFromScenarioID`. Changing
-  scenario creates a new Mock generation, resets and deterministically reseeds
-  only Mock state, and explains that reset in the selection UI. Offline
-  conflicting selections use the same revision rule; losing-generation events
-  are discarded and real state is untouched.
+  scenario creates a new Mock epoch keyed by the winning selection revision,
+  resets and deterministically reseeds only Mock state, and explains that reset
+  in the selection UI. Two devices selecting concurrently therefore create
+  distinct epochs even if their counters match; the losing epoch and all of its
+  events are discarded and real state is untouched.
 - Watch Today shows one recommendation and at most two secondary tasks. iPhone
   Today shows one recommendation and at most three secondary tasks. Lower-ranked
   automatic tasks may complete while collapsed; a manual-confirmation task must
@@ -215,12 +252,33 @@ exactly ten commits.
 
 | Existing capability | Decision |
 | --- | --- |
+| First-run onboarding | Keep the delayed-permission principle; rewrite for Mori, profiles, and companion sensing |
+| Separate Watch pet-introduction phase | Merge into onboarding; do not retain a second long-lived navigation phase |
 | Event ledger, deterministic reducers, replay | Keep and extend |
+| HealthKit adapters and freshness/provenance mapping | Keep; expose capabilities per device and never treat missing data as zero |
+| Personal trend analyzer | Remove from primary UI; reuse only an approved local baseline input where a passive policy requires it |
+| Health rules that settle vitality | Remove; health outcomes do not settle coins or task rewards |
 | Health missing/stale neutrality | Keep |
 | Notification budget, quiet hours, cooldown | Keep and adapt |
+| Fixed recovery/activity/care notification message pages | Replace with typed routes to a real letter, task, or memory; opening a route never completes or rewards it |
+| Notification route coordinator | Keep the bounded resolver concept; version routes and validate profile, epoch, and object ID |
 | WatchConnectivity outbox and retry | Keep and extend |
+| Latest-value management projection | Keep only for global preferences; add a separate append-only experience-event channel |
 | Touch Exchange privacy state machine | Keep; move its entry |
+| Social rendezvous gateway | Keep only for mutually confirmed Touch Exchange identity/rendezvous; never transfer health or experience history |
+| Health-sharing scope preference | Remove unless a concrete new consumer is accepted; current Touch Exchange does not use it |
 | Wardrobe preview/equip flow | Keep; adapt into Collection |
+| Character and background catalog | Keep; make identity and cosmetics profile-scoped and coin-neutral until an explicit purchase settles |
+| Daily habit suggestion and settlement | Replace with event-sourced Mori tasks, one task per real event, cooldown, automatic or explicit completion |
+| Commitment and repair lifecycle | Remove from the first rebuilt Goal; it is too close to a traditional obligation system |
+| Proactive interaction and care planners | Adapt into passive-event policy; explicit State of Mind may inform care, physiology alone may not infer mood |
+| Message inbox | Replace its view-owned mock messages with structured, profile-scoped `LetterRecord` data |
+| Narration gateway `/v1/narrations` | Keep as bounded one-shot memory prose; do not stretch it into multi-turn Chat |
+| Smart Alarm capability | Remove from product navigation and Goal scope; retain only isolated adapter research until separately accepted |
+| Privacy tab and management controls | Move into native Settings destinations; keep explicit consent and deletion |
+| Manual health refresh and home data controls | Replace with automatic foreground refresh plus a Settings permission/recovery entry; no manual sync control |
+| Single global preferences and data-source storage | Replace with the five authority domains frozen in ADR 0003 |
+| Legacy storage compatibility | Perform one idempotent versioned development reset; do not carry a long-lived compatibility layer |
 | Fixed seven-day main story | Deprecate and migrate out |
 | Level, XP, vitality, bond, insight | Remove through the versioned development reset; do not rename them to coins |
 | Health-centered trend dashboard | Remove from primary UI |
@@ -230,14 +288,23 @@ exactly ten commits.
 ### Acceptance Gate
 
 - Every old surface has a recorded decision.
+- The approved Image2 references, canonical regeneration brief, and behavior
+  annotations are repository-owned.
+- Watch and iPhone route maps, notification fallbacks, destructive paths, and
+  cross-surface state matrices are frozen as implementation contracts.
 - `Scripts/check`, `Scripts/test`, `Scripts/test-release-boundaries`, and the
   existing E2E suite have a fresh PASS or an exact baseline failure record.
 - The known release-boundary `mock1` conflict is resolved before feature
   migration begins.
-- `GlobalSyncedPreferences`, `DeviceCapabilities`, and `ProfileState` have
-  separate schemas and testable ownership.
-- The `Mori 随行` off/on behavior, Today visibility rules, daily-memory
-  authority, privacy contract, and development reset are represented in tests.
+- ADRs freeze ownership and versioning for `GlobalSyncedPreferences`,
+  `GlobalConsentState`, `DeviceLocalState`, `ProfileState`, `SocialState`,
+  passive inference, experience-event
+  synchronization, Chat authority, and the development reset. Their executable
+  schemas become G1–G3 gates rather than a circular prerequisite for G1.
+- The test matrix assigns `Mori 随行` off/on, Today visibility, daily-memory
+  authority, privacy, and development-reset behavior to the Goal that owns the
+  implementation. G0 requires reviewable test cases and fixtures; those tests
+  must pass at their owning G1–G6 gate.
 - The external capability audit is complete. Missing hardware is recorded as
   `UNVERIFIED`, not treated as an implementation failure or a simulated pass.
 - No unverified physical capability is reported as passing.
@@ -248,9 +315,15 @@ exactly ten commits.
 
 Add versioned, Codable, Sendable domain types and pure policy engines:
 
+- `ProfileScopedRecordHeader`
+  - profile ID and complete profile epoch;
+  - current deletion epoch;
+  - stable record ID and schema version;
+  - every profile domain record embeds this header or an equivalent validated
+    value; a device-local integer generation is insufficient.
 - `PassiveCompanionEvent`
-  - stable event ID;
-  - profile ID;
+  - profile-scoped record header;
+  - sensing epoch that authorized its evidence;
   - event type and observed time;
   - internal confidence band and evidence references;
   - presentation eligibility deadline, replacement key, and task cooldown key;
@@ -281,12 +354,14 @@ Add versioned, Codable, Sendable domain types and pure policy engines:
   - an Inbox projection shared by Watch and iPhone.
 - `RuntimeProfile`
   - real profile and isolated Mock profile identifiers for `ProfileState`;
-  - Mock source scenario and profile generation;
-  - companion-sensing generation on passive evidence;
-  - deletion generation that invalidates every earlier profile event;
+  - Mock source scenario and profile epoch;
+  - companion-sensing epoch on passive evidence;
+  - deletion epoch that invalidates every earlier profile event;
   - no device capability or global data-mode selection.
 - `ExperienceSyncEnvelope`
-  - version, profile, event ID, revision, tombstone, and payload.
+  - schema version, event type/ID, profile ID and complete epoch, origin device
+    and sequence, logical revision, non-authoritative times, privacy class,
+    tombstone, source/settlement references, and approved payload.
 - Query projections for Watch Home, Today, Daily Memory, iPhone Today,
   Memories, Collection, and Chat context.
 
@@ -308,8 +383,8 @@ Add versioned, Codable, Sendable domain types and pure policy engines:
 - Turning companion sensing off produces no passive event, task, memory, or
   pending reminder during the disabled interval and never backfills it.
 - Letters converge across read, delete, duplicate, offline, and relaunch paths.
-- Preference and profile generations reject offline evidence, Mock state, or
-  deleted state created under a losing or superseded generation.
+- Preference and profile epochs reject offline evidence, Mock state, or deleted
+  state created under a losing or superseded epoch.
 
 ### Test Gate
 
@@ -335,8 +410,8 @@ Add versioned, Codable, Sendable domain types and pure policy engines:
   ```
 
 - Implement `ProfileState` repositories for real and Mock as separate storage
-  namespaces while keeping `GlobalSyncedPreferences` and local
-  `DeviceCapabilities` separate.
+  namespaces while keeping preferences, consent, device-local state, and social
+  state in their ADR 0003 authority domains.
 - Make reset delete only the selected Mock profile.
 - Persist only necessary derived facts and provenance; never persist a precise
   route by default.
@@ -348,20 +423,23 @@ Add versioned, Codable, Sendable domain types and pure policy engines:
 
 ### Acceptance Gate
 
-- Mock mode does not construct or read production HealthKit/location adapters.
+- Mock mode does not construct or read production HealthKit, location, motion,
+  notification, Chat, narration, connectivity, or social adapters.
 - Switching profiles cannot expose the other profile's tasks, coins, memories,
   letters, conversation, collection state, or event ledger. Global reminder
   preferences remain shared by design; device capabilities remain local.
 - Resetting Mock cannot mutate real state.
-- Switching Mock scenario creates one new seeded Mock generation on both devices;
-  offline conflicting selections converge and losing-generation events are
+- Mock Touch Exchange and conversation cannot publish, relate, notify, or send
+  content through a production service.
+- Switching Mock scenario creates one new seeded Mock epoch on both devices;
+  offline conflicting selections converge and losing-epoch events are
   rejected.
 - Confidence and evidence remain available for diagnostics without appearing as
   a user-facing percentage.
 - Raw GPS tracks and raw HealthKit samples never enter logs, chat context,
   memories, or sync envelopes.
 - Disabling companion sensing while the peer is offline rejects the peer's
-  superseded-generation passive evidence on reconnection.
+  superseded-epoch passive evidence on reconnection.
 - Simulator tests prove deterministic application behavior; physical capability
   claims remain unverified until the device runbook passes.
 
@@ -369,12 +447,16 @@ Add versioned, Codable, Sendable domain types and pure policy engines:
 
 ### Deliverables
 
-- Synchronize `GlobalSyncedPreferences`; observe actual authorization and
-  background capabilities from `DeviceCapabilities` on each device.
+- Synchronize `GlobalSyncedPreferences` and `GlobalConsentState` according to
+  their distinct conflict policies; observe authorization and background
+  capability from `DeviceLocalState` on each device.
 - Add a versioned derived `ExperienceEvent` outbox and merge path separate from
   preference synchronization.
 - Synchronize task issuance/completion, coin transactions, cosmetic purchases,
-  memory records, and approved derived companion events.
+  equip/selection, memory records and deletion, letter delivery/read/deletion,
+  reminder consumption, and approved derived companion events. Conversation
+  stays in the iPhone profile repository; social state and preferences use their
+  separately defined authority channels.
 - Add reminder preferences:
   - `随行感知`;
   - `抬腕提醒`;
@@ -384,6 +466,10 @@ Add versioned, Codable, Sendable domain types and pure policy engines:
   minutes, present once, expire, or be replaced by the newest event.
 - Compose one deterministic sealed daily-memory record and let iPhone own paired
   notification scheduling. Watch never schedules a duplicate notification.
+- Let iPhone alone schedule durable daily-memory and Mori-letter notifications.
+  This Goal schedules no task notification. `抬腕提醒` is one Watch foreground
+  presentation; `轻震提醒` is one best-effort foreground haptic when that
+  presentation occurs, never a guaranteed background vibration.
 - Keep notification opening navigational only; it never settles a reward.
 
 ### Acceptance Gate
@@ -509,11 +595,14 @@ crashing.
 - `Scripts/validate-visual-assets` validates all production assets and becomes a
   required CI gate.
 - Watch Simulator proves correct composition on small and large displays.
-- Physical Watch evidence records frame pacing, memory, thermal behavior,
-  battery impact, and haptic feel.
 - G4 chooses and documents one scalable cosmetic strategy—layered overlays,
   explicitly bounded pre-rendered combinations, or collection-only previews—so
   clothing does not multiply every action asset without limit.
+
+Physical Watch frame pacing, memory, thermal behavior, battery impact, and
+haptic feel are recorded on the separate device axis. Missing equipment keeps
+that axis `DEVICE_UNVERIFIED`; it does not convert asset or Simulator evidence
+into a physical PASS.
 
 ## G5 — Apple Watch Experience
 
@@ -617,7 +706,9 @@ crashing.
   - data mode, Mock scenario, and Mock reset;
   - friend sharing and public-pet-state controls required by Touch Exchange;
   - a destructive `删除所有 Mori 数据` flow covering every real and Mock profile,
-    conversation, memory, coin, outbox, cache, and social state;
+    preference, consent, route, conversation, memory, coin, notification,
+    outbox, cache, and enabled social/remote processor according to
+    `docs/mori-data-deletion-contract.md`;
   - automatic Watch synchronization note without manual sync UI.
 
 ### Architecture
@@ -635,11 +726,12 @@ crashing.
 - Mori Home never becomes a task dashboard.
 - Memories read as shared life, not exercise history.
 - Coin purchase and equip flows are idempotent across offline/retry/relaunch.
-- Full-data deletion increments a durable `profileDeletionGeneration`, rejects
-  every older-generation event, clears the obsolete profile and its old outbox,
-  then enqueues an independently persisted deletion marker that remains until
-  every reachable peer acknowledges it. A previously offline peer cannot restore
-  deleted state after reconnection.
+- Full-data deletion executes `docs/mori-data-deletion-contract.md`. It clears
+  every real and Mock profile, global preference/consent, route, conversation
+  summary, memory index, notification, outbox/cache, and enabled remote/social
+  processor, or reports the corresponding peer/processor as pending behind a
+  durable deletion epoch. System-owned HealthKit records and permissions are
+  explained rather than falsely reported as deleted.
 - Light, dark, high contrast, Dynamic Type AXXXL, VoiceOver, Reduce Motion,
   loading, empty, denied, stale, offline, and error states pass.
 - Updated UI tests avoid implementation hierarchy and use stable semantic
@@ -651,13 +743,16 @@ crashing.
 
 ### Deliverables
 
+- Headless conversation use cases and presentation state consumed by G6; G7
+  does not own the final SwiftUI surface.
 - Local conversation repository with clear-history behavior.
 - Optional use of approved shared memories as context.
 - Keep the existing bounded `/v1/narrations` contract for one-shot memory prose.
   Introduce a separately versioned Chat contract for multi-turn conversation;
   do not silently overload narration responses.
-- A bounded conversation window consisting of recent messages plus a local
-  redacted summary, with explicit retention and deletion policy.
+- A bounded remote conversation window consisting of explicitly sent recent
+  user/assistant messages. A local redacted summary supports local search and
+  fallback but is not sent remotely in this Goal.
 - Provider, timeout, cancellation, rate, and cost budgets defined in
   configuration rather than UI code.
 - Client authentication obtained through the existing secure runtime
@@ -666,6 +761,9 @@ crashing.
 - Prompt-injection handling and an explicit tool whitelist. Chat receives no
   state-mutating tool; a proposed task is parsed into an untrusted candidate and
   revalidated by the rule engine.
+- First-send disclosure for the processor and bounded recent-message window.
+  A best-effort scanner blocks recognized credentials and warns on likely
+  contact/location text without claiming perfect DLP.
 - A local deterministic fallback that can acknowledge the user, show approved
   memories, and explain offline status, but cannot pretend to generate a new
   sensor interpretation.
@@ -686,6 +784,9 @@ crashing.
 - Clearing conversation and deleting a shared memory have distinct, tested
   effects.
 - Disabling shared-memory context prevents it from appearing in future prompts.
+- Deleting a memory removes its excerpt and index from future prompts; clearing
+  conversation removes messages, summaries, drafts, response cache, and context
+  indexes without deleting memories.
 - Rate, timeout, provider-failure, malformed, oversized, cancellation, and
   prompt-injection tests pass.
 - Logs and audit records contain no raw health, precise location, secrets, or
@@ -730,24 +831,28 @@ crashing.
 
 ### Performance Budgets
 
-Measure the current physical-device baseline in G0, then enforce both absolute
-and regression thresholds:
+G0 records whether a physical baseline is available. Until it is, the numeric
+budgets below are provisional implementation targets: Simulator and static
+instrumentation catch regressions, while the separate device axis confirms or
+revises them on hardware.
 
 - foreground Mori motion targets 10 fps; at least 95% of frame intervals remain
   at or below 150 ms and no unexplained stall exceeds 500 ms in the scripted
   motion run;
 - decoded active scene plus character-frame cache remains at or below 24 MiB;
 - compressed production motion assets remain at or below 25 MiB per identity;
-- foreground CPU/energy remains within 15% of the recorded static-scene baseline
-  on the same device and OS, with no thermal-state escalation during the
-  30-minute scripted run;
+- on physical hardware, foreground CPU/energy should remain within 15% of the
+  recorded static-scene baseline on the same device and OS, with no
+  thermal-state escalation during the 30-minute scripted run;
 - inactive and Always On states stop sub-second animation timers and render a
   semantic static frame;
 - exceeding a budget triggers a documented downgrade such as smaller cache,
   reduced cadence, or static key frame before release.
 
-If an initial measured baseline makes a threshold technically invalid, revise
-the budget in an ADR before implementation rather than silently waiving it.
+If an initial measured device baseline makes a threshold technically invalid,
+revise the budget in an ADR rather than silently waiving it. Until that baseline
+exists, G9 may close the implementation axis only with the affected performance
+items explicitly `DEVICE_UNVERIFIED`; the branch is not release-ready.
 
 ### Automated Gate
 
@@ -789,7 +894,7 @@ Simulator visibly:
 - verify loading, empty, denied, stale, offline, invalid Mock, and relaunch
   states;
 - record destination, OS, scenario, revision, expected result, observed result,
-  and evidence path in `docs/validation-status.md`.
+  and evidence path in `docs/mori-rebuild-status.md`.
 
 Shell-built screenshots or passing UI tests do not replace this gate.
 Computer Use proves visible functional journeys. VoiceOver ordering, accessible
@@ -799,7 +904,10 @@ claim them.
 
 ### Physical Device Gate
 
-Follow `docs/device-runbook.md` and keep each result `UNVERIFIED` until observed:
+This section controls the independent device and release axes, not whether G9
+can be committed as an implementation checkpoint when the audited setup is
+unavailable. Follow `docs/device-runbook.md` and keep each result `UNVERIFIED`
+until observed:
 
 - HealthKit real samples and background delivery;
 - location and motion background behavior;
@@ -884,9 +992,17 @@ Track three completion axes:
 - `DEVICE_PARTIAL`: some required hardware journeys pass but at least one is
   unavailable or incomplete.
 - `DEVICE_UNVERIFIED`: no sufficient physical-device evidence exists.
+- `RELEASE_READY`: implementation, Simulator, and every required physical-device
+  gate pass for the same revision, with accurate privacy and store metadata.
+- `NOT_RELEASE_READY`: any required release or device gate remains failed,
+  partial, or unverified.
 
 Missing hardware or test windows do not erase implementation completion and are
 never simulated into a pass.
+
+A Goal's hardware cases must be listed and honestly marked, but do not enter the
+six-state implementation gate when the external capability audit says the
+required setup is unavailable. They only control the device and release axes.
 
 The implementation Goal is complete only when:
 

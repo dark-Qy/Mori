@@ -1,125 +1,203 @@
-# Physical Device Runbook
+# Mori Physical Device Runbook
 
 ## Purpose
 
-Use this runbook to separate verified Apple Watch behavior from simulator, fixture, or design assumptions. Execute only with test accounts and synthetic/non-sensitive notes. Do not commit device logs or health exports.
+Use this runbook only for hardware-dependent evidence that Simulator, Mock,
+XCTest, and Computer Use cannot prove. It controls the independent
+`DEVICE_VALIDATED` and `RELEASE_READY` axes. Missing hardware remains
+`UNVERIFIED` and does not become a simulated PASS.
 
-## Evidence header
+Use dedicated test identities and synthetic or deliberately minimized notes.
+Never commit device logs, health exports, precise routes, messages, tokens,
+serial numbers, or unsanitized notifications.
+
+## Evidence Header
 
 Record for every run:
 
 ```text
-Git revision:
+Git revision and clean/dirty state:
 Build configuration:
 iPhone model / OS:
 Apple Watch model / OS:
-Developer account type:
-Time zone:
-Permission state:
-Fixture or real data:
+Pairing state:
+Signing team class:
+Test identity class:
+Time zone and Focus state:
+App consent revision and opt-ins:
+OS HealthKit / location / motion / notification permission state:
+Real or deterministic Mock profile:
 Tester:
+Sanitized evidence path:
 ```
 
-Redact serial numbers, account identifiers, health values, tokens, and notifications before sharing evidence.
+Every row is `PASS`, `FAIL`, `UNVERIFIED`, or `NOT_APPLICABLE`. Record observed
+timing rather than promising immediate background delivery.
 
-## 1. Installation and connectivity baseline
+## 1. Install, Pair, And Fence Baseline
 
-1. Pair the test Watch with the test iPhone.
-2. Install a clean build through Xcode.
-3. Launch both apps and verify version/schema agreement.
-4. Disable connectivity, perform one Watch action and one iPhone wardrobe action, then reconnect.
-5. Verify queued events settle once, no reward duplicates, and the most recent valid wardrobe revision wins.
+1. Pair the test Watch with the test iPhone and install the same clean revision.
+2. Launch both apps and record schema, profile root epoch, and deletion fence.
+3. Verify onboarding does not request HealthKit, location, motion, notification,
+   Chat, or sharing permission before the corresponding explanation and action.
+4. Switch between real and Debug Mock profiles on both devices and verify
+   profile/epoch agreement.
+5. Confirm a route or open confirmation from an old profile epoch cannot mutate
+   the newly selected profile.
+6. Terminate and relaunch both apps twice; confirm stable state and no duplicate
+   event or notification scheduling.
 
-Pass requires deterministic final state after two repeated runs.
+Pass requires matching schemas/epochs, no implicit permission request, and no
+cross-profile content.
 
-## 2. HealthKit capability spike
+## 2. HealthKit, Location, And Motion
 
-Test each permission state independently:
+Test each available capability independently:
 
 1. not requested;
-2. requested with available types;
-3. partial/empty history;
-4. permission changed in Settings;
-5. multiple compatible data sources;
-6. stale data;
-7. a newly completed supported workout.
+2. available and explicitly requested;
+3. partial or empty history;
+4. denied or revoked in Apple Settings;
+5. multiple compatible HealthKit sources;
+6. stale evidence;
+7. fresh completed sleep, steps, and supported movement evidence;
+8. background opportunity, delayed delivery, and app termination.
 
-Verify source, time zone, freshness, units, deduplication, anchor persistence across relaunch, and neutral no-data UI. Run three cold-start reads. For workouts, run at least three five-minute sessions and confirm that repeated ingestion does not repeat rewards.
+Verify provenance, time zone, freshness, units, deduplication, anchor
+persistence, and neutral missing-data behavior. Mori must not present a global
+health conclusion, activity diagnosis, or user-facing confidence percentage.
 
-Background delivery timing must be recorded as observed, never promised as immediate.
+Raw HealthKit samples, precise fixes/routes, and motion windows remain on device
+and are absent from logs, sync envelopes, memories, notifications, Chat, and
+support evidence. Background timing is recorded as observed and never described
+as continuous or guaranteed.
 
-## 3. Local notification and haptic spike
+## 3. Companion Reminder, Haptic, Focus, And Notification
 
-1. Verify first-request explanation and system prompt.
-2. Schedule a short, non-sensitive local event.
-3. Test delivery with Watch app foreground, background, terminated, and under a Focus mode.
-4. Open the notification and verify the intended route.
-5. Reopen it and verify no duplicate task completion or reward.
-6. Deny permission and verify a usable in-app path without repeated prompting.
-7. Evaluate each haptic on a real Watch; simulator execution is insufficient.
+Use current `GlobalConsentState`, current-device OS authorization, and the
+configured quiet hours.
 
-Pass requires five consecutive notification-route runs without duplicate settlement. Do not promise delivery timing when Focus or system scheduling may intervene.
+1. With `Mori 随行` off, verify adapters stop, pending glance clears, and no
+   passive event/task/memory is created or later backfilled.
+2. With `抬腕提醒`, create one eligible event and observe the next foreground
+   activation. Verify one brief bubble, consumption, two-minute expiry, and
+   replacement by a newer event. Do not claim a wrist-raise callback.
+3. With `轻震提醒`, verify one comfortable haptic only when the eligible glance
+   is actually presented while the Watch runtime can haptically respond.
+   Verify no retroactive or background-haptic claim.
+4. Repeat in quiet hours, Focus, Low Power Mode, app background, and app
+   terminated states. Verify the visual/no-haptic fallback.
+5. Opt in separately to daily-memory and Mori-letter notifications. Verify
+   scheduling requires app consent and OS authorization.
+6. Verify daily memory schedules at most once per local day after 22:00.
+7. Verify letter notification has a six-hour cooldown, at most one per day, and
+   the combined product budget is at most two notifications per day.
+8. Revoke consent, read/delete the letter, switch profile, and execute deletion;
+   verify matching pending requests cancel.
+9. Open and reopen each delivered notification. It may navigate only and cannot
+   create a task, settle a coin, or restore deleted content.
 
-## 4. Smart alarm spike
+Record physical haptic comfort and suppression separately from route success.
 
-This capability is used only for a genuine user-scheduled wake flow.
+## 4. Offline Sync, Profile Isolation, And Global Deletion
 
-1. Schedule the permitted future wake window while the app is active.
-2. Verify cancellation and rescheduling.
-3. First run three short daytime sessions and observe background lifecycle callbacks.
-4. Test motion/heart-rate availability and resource-limit behavior without logging raw values.
-5. Complete at least one real sleep-window test.
-6. Verify the latest-time fallback always fires even when no preferred wake opportunity is selected.
-7. Test app relaunch, Watch restart, missed session, low-power conditions, and denied health access.
+1. Disconnect Watch and iPhone.
+2. On Watch, create an approved derived event; on iPhone, perform a
+   profile-scoped identity/equip action.
+3. Reconnect and verify the complete profile epoch, event ledger, identity, and
+   equip state converge once.
+4. Complete the same task on both devices while disconnected; reconnect and
+   verify one coin settlement.
+5. Change companion consent and Mock scenario concurrently; verify the winning
+   Lamport epoch and most-restrictive consent, with losing-epoch work discarded.
+6. Verify conversation messages/summaries never enter Watch transport.
+7. Start `删除所有 Mori 数据` while Watch or an enabled processor is offline.
+   Verify the iPhone prepares deletion-scoped tickets/fence before clearing
+   content and reports pending peers/processors honestly.
+8. Reconnect and verify the deletion epoch is applied before queued content.
+9. Uninstall/reinstall iPhone, then reconnect an offline pre-deletion Watch.
+   Verify fence-first handshake and no automatic resurrection of old content.
 
-Pass requires three successful short runs, one real sleep run, no resource-limit termination, and a reliable fallback. Until then the shipped behavior is fixed local alarm plus post-wake summary, and the capability is labeled unverified.
+Repeat the disconnect/reconnect sequence twice. No route, outbox, peer snapshot,
+notification, Chat index, social callback, or old epoch may restore deleted or
+cross-profile state.
 
-Do not claim precise real-time sleep-stage detection. Describe the feature as a bounded flexible wake window using available motion and heart-rate context.
+## 5. Mori Motion, Accessibility, And Performance
 
-## 5. Nearby Interaction spike
+Run the black penguin and white polar bear on the smallest and largest supported
+physical Watch:
 
-This test is independent of Phase 1 and requires two compatible physical Apple Watches and two test identities.
+1. Verify semantic parity for every production action and Reduce Motion key
+   frame at actual size.
+2. Exercise tap, long press, visible alternative, VoiceOver action, task
+   success, speaking, walk, brisk move, sit, catch breath, daily reflection, and
+   bedtime transitions.
+3. Confirm no crop, baseline jump, body-scale pop, seam, detached effect,
+   reversed gait, or identity drift.
+4. Verify long press and haptic are never the only access or state cue.
+5. Run the scripted foreground scene for 30 minutes. Record frame intervals,
+   decoded scene/frame-cache memory, CPU/energy, thermal state, crashes, and
+   battery change.
+6. Verify inactive and Always On states stop sub-second animation timers and use
+   the semantic static frame.
 
-1. Both users explicitly enter the proximity flow.
-2. Verify friend sharing is enabled on both paired iPhones, then tap `开始触碰` on both Watches;
-   there is no user-entered pairing code.
-3. Verify the HTTPS discovery service exchanges only temporary discovery tokens before proximity.
-4. Validate expiration, replay protection, cancellation, candidate timeout/retry, and
-   multiple-candidate handling.
-   Confirm delayed requests from an expired candidate are rejected by encounter ID and nonce.
-5. Test approaching, separating, foreground interruption, permission denial, and `nil` distance.
-6. Require a stable threshold for multiple samples, then show a preview.
-7. Require confirmation on both Watches before creating an encounter.
-8. Interrupt a cancel request and verify the Watch reports an unconfirmed cancellation, retries
-   cleanup, and does not start a new session first.
+Compare results with the provisional budgets in the Goal plan. If physical
+evidence invalidates a budget, update an ADR and implement a downgrade before
+claiming device validation.
+
+## 6. Touch Exchange
+
+This requires two compatible physical Apple Watches, paired iPhones, and
+dedicated test identities.
+
+1. Confirm friend sharing on both iPhones; disabled sharing must prevent any
+   production gateway request.
+2. Enter Touch Exchange explicitly on both Watches; there is no pairing code.
+3. Before proximity, exchange only temporary discovery material.
+4. Test token expiry, nonce/replay rejection, multiple candidates, separation,
+   interruption, permission denial, `nil` distance, timeout, and retry.
+5. Require stable proximity evidence before showing the allowlisted public pet
+   card.
+6. Require confirmation on both Watches before creating a relationship.
+7. Interrupt cancellation and verify uncertain cleanup blocks a new session
+   until resolved.
+8. Confirm no health-derived data, memory, free text, conversation, task, coin,
+   or sharing preference is transferred.
 9. Repeat at least twenty times in representative environments.
 
-Target: at least eighteen of twenty sessions identify proximity within ten seconds, with zero incorrect or duplicate friendship creation. Treat this as a product target, not a guarantee of the framework.
+The target is at least eighteen of twenty timely proximity identifications with
+zero incorrect or duplicate relationship creation. This is a product target,
+not a guarantee of Nearby Interaction.
 
-Nearby Interaction supplies proximity context only. It does not discover peers, transfer pet data,
-establish identity, or replace bilateral consent. The app's service performs candidate discovery,
-and the UWB result gates preview and confirmation. If unverified, do not advertise physical
-tap-to-connect reliability.
+## 7. Primary Mori Journeys
 
-## 6. Phase 1 product journey
+On the same recorded revision:
 
-On real devices:
+1. passive evidence -> brief Mori glance -> optional task -> automatic or
+   explicit completion -> one coin -> Collection purchase/equip;
+2. sealed daily memory -> best-effort notification -> Watch scene -> iPhone
+   timeline -> separately consented Chat memory reference/excerpt;
+3. permission denial/revocation -> neutral Mori -> Settings recovery -> product
+   remains usable;
+4. black/white identity switch in Mock, Mock reset, then return to byte-for-byte
+   untouched real profile;
+5. network/Chat provider unavailable -> calm local conversation fallback with
+   identical authoritative state.
 
-1. Clean install and complete only the permissions needed by the current feature.
-2. Load current health context or remain in the neutral state.
-3. Observe one rule-selected recovery/activity action.
-4. Complete it and inspect the explanation and growth result.
-5. Relaunch both apps and confirm persistence.
-6. Record a supported workout and validate one-time ingestion.
-7. Change a cosmetic on iPhone and verify Watch synchronization.
-8. Disable network/AI and repeat the core flow with local narration.
+Repeat the primary loops without duplicate rewards, ghost tasks, rewritten
+sealed memories, missing deletion fences, or raw/private data in evidence.
 
-Repeat the primary loop ten times without inconsistent or duplicate state.
+## Result Classification
 
-## Result classification
+- **PASS:** observed hardware evidence satisfies the criterion on the recorded
+  revision and setup.
+- **FAIL:** evidence contradicts the criterion; record the fallback and issue.
+- **UNVERIFIED:** hardware, identity, pairing, signing, permission, time window,
+  or evidence is insufficient.
+- **NOT_APPLICABLE:** the capability is not configured in the evaluated build;
+  state why.
 
-- **PASS:** observed evidence satisfies every stated criterion on the recorded devices.
-- **FAIL:** observed evidence contradicts a criterion; document fallback and issue.
-- **UNVERIFIED:** required hardware, account capability, time window, or evidence is missing.
-
-Mocks and simulator tests may accompany a device result, but cannot upgrade `UNVERIFIED` to `PASS`.
+Simulator and Mock evidence may accompany a device result but cannot upgrade
+`UNVERIFIED`. `RELEASE_READY` requires all mandatory device rows to PASS on the
+same release candidate; `IMPLEMENTATION_COMPLETE` may coexist with
+`DEVICE_UNVERIFIED` and `NOT_RELEASE_READY`.

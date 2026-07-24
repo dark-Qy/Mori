@@ -63,8 +63,12 @@ without judging health outcomes.
    or confirmed, but sleep, recovery, or other outcomes never cause punishment.
 6. **Local and minimal by default.** Prefer on-device inference and synchronize
    only approved derived experience events, never raw HealthKit payloads or
-   precise GPS tracks. Remote conversation receives approved derived facts and
-   memory references only.
+   precise GPS tracks. A remote conversation necessarily receives the message
+   the person explicitly sends and a bounded recent conversation window.
+   App-added context is limited to separately consented approved derived facts
+   and memory references. When memory context is separately enabled, one
+   explicitly selected excerpt of at most 500 Unicode scalars may accompany its
+   reference and is invalidated by revocation or memory deletion.
 
 ## Accessibility & Inclusion
 

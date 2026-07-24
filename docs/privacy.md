@@ -10,18 +10,23 @@ This document is an engineering policy, not the final public privacy policy. Sto
 
 1. **Purpose limitation:** collect only the types and windows required by an implemented feature.
 2. **On-device first:** normalize, deduplicate, derive baselines, and evaluate rules on device when practical.
-3. **Bounded derived context:** remote narration and Chat receive only approved
-   derived facts, rule results, and memory references. Raw HealthKit samples,
-   precise location, routes, and sensor windows remain on device.
+3. **Bounded remote context:** remote Chat receives the message the person
+   explicitly sends and a bounded recent conversation window. App-added context
+   is limited to separately consented approved derived facts, rule results, and
+   memory references. Raw HealthKit samples, precise location, routes, and
+   sensor windows remain on device.
 4. **No repeated consent theater:** use clear one-time feature explanation and system permissions, then automate within that scope.
 5. **Owner-controlled sharing:** social access is directional and can be revoked independently.
 6. **Neutral absence:** never infer denial or poor health from missing data.
 7. **No secret clients:** third-party provider credentials stay server-side.
 
-Notification consent is also fail-closed. The proactive-message preference defaults off, stores a
-separate consent version when explicitly enabled, and treats older implicit opt-ins as disabled.
-Turning it off cancels pending Mori check-ins. A notification tap may navigate to an optional
-in-app action, but cannot settle a task or reward.
+Notification consent is also fail-closed.
+`GlobalConsentState.proactiveNotificationConsentVersion` and the
+daily-memory/letter opt-ins default off, are expanded only by an explicit iPhone
+flow, and treat older implicit choices as disabled. Turning either opt-in off
+cancels its pending requests. Scheduling also requires current OS authorization
+in `DeviceLocalState`. A notification tap may navigate, but cannot settle a task
+or reward.
 
 ## Data categories
 
@@ -30,10 +35,14 @@ in-app action, but cannot settle a task or reward.
 | Health samples | sleep stages, workouts, heart rate, steps | device | never sent to narration or Chat |
 | Location and motion evidence | precise fixes, routes, motion samples | device | never sent to narration or Chat |
 | Approved derived facts | step total, completed sleep duration, coarse event type, freshness, rule hit | device | limited to the current approved interaction or memory reference |
-| Profile experience state | tasks, coins, collection, memories, letters, conversation | device | derived cross-device sync; remote narration receives only approved fact and memory references |
+| User conversation text | explicit user message and bounded recent user/assistant turns | active real profile on iPhone | sent to the disclosed Chat processor only after explicit send; not inferred consent for other data |
+| Local conversation summary | redacted local search/fallback summary | active profile on iPhone | not sent to remote Chat in this Goal |
+| Optional memory context | stable reference and one selected excerpt of at most 500 Unicode scalars | active profile on iPhone | only while memory-context consent is enabled; deletion/revocation invalidates future use |
+| Profile experience state | tasks, coins, collection, memories, letters, conversation | device | approved derived events synchronize; conversation remains iPhone-local |
 | Global preferences | active data profile, Mock scenario, companion sensing, reminder mode, quiet hours | device | automatic peer preference sync |
-| Device capabilities | HealthKit, location, motion, notification, background availability | current device | never synchronized as if the peer had the same permission |
-| Social state | friendship, sharing scope, shared story | server when social ships | authoritative access-controlled service |
+| Global consent | remote Chat/context, friend sharing, public-pet publication, proactive-notification version/opt-ins, versioned disclosures | device | restrictive peer merge; only disclosed processor receives permitted data |
+| Device-local state | HealthKit, location, motion, notification, background availability, routes, pending UI | current device | never synchronized as if it applied to the peer |
+| Social state | friendship, public pet card, game-only social state | server when social ships | authoritative access-controlled service |
 | Diagnostics | event type, rule ID, error category | device or redacted telemetry | never raw health values or prompts by default |
 
 ## HealthKit access
@@ -70,15 +79,37 @@ an overall upstream deadline, `Cache-Control: no-store`, and server-owned final 
 not production identity: multi-user deployment still requires short-lived session authorization,
 a distributed quota, and reviewed provider retention/data-use terms.
 
-## Social summaries
+## Remote Chat
 
-Friendship does not imply health access. The data owner chooses one directional scope for each friend, with a global default that can be overridden.
+Remote Chat is disabled until the app can disclose the processor, purpose,
+retention/data-use terms, and app-added context controls. Explicitly tapping Send
+authorizes transmission of that message and the disclosed bounded recent
+conversation window; it does not authorize contacts, precise location, raw
+sensor data, or unrelated memory access.
 
-- `gameOnly`: no health-derived output.
-- `careSummary`: vague, actionable, non-medical support signal without source category or value.
-- `limitedHealthSummary`: broad category or trend without precise values by default.
+Before dispatch, a best-effort scanner blocks recognized credential formats and
+warns on likely contact or precise-location text. Because free text cannot be
+perfectly classified, the UI also tells people not to send secrets or sensitive
+details. App-added context uses a separate allowlisted schema and cannot contain
+free-form sensor payloads.
 
-A recipient cannot elevate a scope. Removing the relationship, disabling the feature, or deleting the account revokes future retrieval and notification. Avoid deterministic emission for every health event because timing itself can reveal sensitive information.
+Disabling memory context immediately removes memory references and excerpts from
+future requests. Deleting a memory invalidates its context index. Clearing
+conversation removes messages, local summaries, drafts, caches, and future
+context; global deletion also invokes any configured processor-deletion path
+and reports pending acknowledgement honestly.
+
+## Social sharing
+
+Friendship does not imply health or memory access. The current Goal shares only
+the allowlisted public pet card and game-only social state. It has no
+`careSummary`, `limitedHealthSummary`, health-sharing scope, shared memory, or
+free-text transfer.
+
+Removing the relationship, disabling friend sharing, or deleting Mori data
+revokes future retrieval and publication. Adding any health-derived or
+relationship-history scope requires a new consent, threat model, retention
+contract, and product decision.
 
 ### Touch exchange boundary
 
@@ -97,6 +128,10 @@ but cannot retract a preview that the other person has already seen. Timeout or 
 candidate clears the temporary token and card according to the gateway TTL. The anonymous MVP
 identifier is not production authentication.
 
+Mock profiles use a deterministic isolated social adapter. They cannot call the
+production gateway, publish a real pet card, create a real relationship, or
+change real sharing consent.
+
 ## Retention and deletion
 
 Before remote storage ships, define and test category-specific retention. At minimum:
@@ -107,6 +142,9 @@ Before remote storage ships, define and test category-specific retention. At min
 - local deletion clears caches, queued transfers, and derived state, subject to explicit user confirmation;
 - backups, observability, and tombstone retention are documented honestly;
 - deletion propagates to processors under applicable agreements.
+
+The executable inventory, peer ordering, pending-processor UI, and system-owned
+limitations are frozen in `docs/mori-data-deletion-contract.md`.
 
 The local event ledger is stored atomically in the app-private Application Support directory. It
 is excluded from device backups and, on iOS/watchOS, uses complete-until-first-authentication file

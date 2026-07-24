@@ -4,10 +4,13 @@ Thank you for helping build Watch Companion. Contributions must preserve the pro
 
 ## Before starting
 
-1. Read `docs/product-rules.md`, `docs/architecture.md`, and the relevant ADRs.
+1. Read `PRODUCT.md`, `DESIGN.md`, `docs/mori-rebuild-goal-plan.md`, and the
+   relevant ADRs. `docs/product-rules.md` and `docs/architecture.md` describe
+   the historical prototype and are migration evidence only.
 2. Open or reference an issue that states the user outcome and acceptance criteria.
 3. Keep a change focused enough to review, test, and revert independently.
-4. For health, notification, alarm, social, or AI changes, include failure and permission-denied behavior in the design.
+4. For health, location/motion, notification, social, or AI changes, include
+   failure and permission-denied behavior in the design.
 
 ## Branches and commits
 
@@ -24,7 +27,8 @@ Do not mix unrelated formatting, generated files, or refactors into a feature co
 
 ## Architecture rules
 
-- Keep domain, rule, story, and growth logic independent of SwiftUI and Apple frameworks.
+- Keep domain, evidence, policy, profile, synchronization, and conversation
+  logic independent of SwiftUI and Apple frameworks.
 - Inject time, calendar, randomness, identifiers, storage, health data, notifications, connectivity, and narration.
 - Make reducers deterministic. Random behavior must receive a seeded `RandomSource` in tests.
 - Normalize external data into versioned domain events before applying rules.
@@ -38,7 +42,9 @@ Do not mix unrelated formatting, generated files, or refactors into a feature co
 - Never infer that missing data means poor health or that a user denied permission.
 - Do not log raw health samples, prompts containing health data, access tokens, or user messages by default.
 - Do not add advertising or behavioral profiling based on health data.
-- Keep precise health data out of social output unless the data owner explicitly enables the applicable sharing scope.
+- Keep all health-derived data, memories, and free text out of social output.
+  The current Goal permits only the allowlisted public pet card and game-only
+  social state.
 - Avoid diagnosis, treatment claims, medical labels, and punitive health mechanics.
 - Do not put AI provider credentials in Apple application targets.
 
@@ -60,7 +66,8 @@ A pull request should include:
 - design and privacy implications;
 - tests run with exact destinations;
 - screenshots or recordings for UI work;
-- physical-device evidence for HealthKit, haptics, smart alarm, and proximity claims;
+- physical-device evidence for HealthKit, location/motion, haptics,
+  notifications, and proximity claims;
 - fallback behavior for unavailable capabilities;
 - documentation or ADR updates.
 

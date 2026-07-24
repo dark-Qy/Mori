@@ -1,42 +1,63 @@
 # Watch Companion
 
-Watch Companion is a Watch-first companion game that turns health context, small habits, stories, and trusted social signals into a sustainable relationship with a virtual pet.
+Watch Companion is a Watch-first relationship with Mori, a virtual companion
+that quietly shares real-world movement, rest, tasks, and memories without
+turning health into a score.
 
-The Apple Watch is the primary product surface. A lightweight iPhone companion provides account and privacy management, history, collections, and cosmetic wardrobe controls. Desktop clients, external displays, rings, NFC exchange, and phone-first gameplay are intentionally out of scope.
+Apple Watch is the passive presence surface. iPhone carries conversation,
+Today, shared memories, collection, permissions, privacy, and development data
+controls. Desktop clients, external displays, rings, NFC exchange, and
+phone-first gameplay are intentionally out of scope.
 
-> Project status: early development. Health, alarm, haptic, and proximity behavior must not be considered verified until the corresponding physical-device checks in `docs/device-runbook.md` pass.
+> Project status: early development. HealthKit, location/motion, haptic,
+> notification, connectivity, performance, and proximity behavior must not be
+> considered device-verified until the corresponding checks in
+> `docs/device-runbook.md` pass.
 
 ## Product principles
 
 - The pet is the interface; the Watch home is not a health dashboard.
-- Rules own facts, eligibility, rewards, safety boundaries, and notification budgets.
-- Seeded randomness may choose when an eligible interaction appears.
-- AI may express and dramatize approved state, but it cannot change state or make health diagnoses.
+- Rules own facts, eligibility, rewards, safety boundaries, and notification
+  budgets.
+- Passive inference is on-device first; uncertainty changes Mori's wording or
+  keeps Mori silent rather than showing a confidence percentage.
+- AI may express approved state and converse, but it cannot create facts, change
+  product state, or make health diagnoses.
 - Missing or denied health data is neutral, never a negative health result.
-- Health outcomes are not moral failures. Only explicit, controllable commitments may have recoverable story consequences.
-- Mock data is welcome in development and must always be visibly labeled.
+- Tasks are occasional and concise. Reliable evidence may complete them
+  automatically; otherwise the person confirms explicitly.
+- Health outcomes are not moral failures and never lose coins or block access.
+- Mock data is development-only, visibly labeled, and isolated from real state.
 
-The complete product rules live in [`docs/product-rules.md`](docs/product-rules.md).
+The current product authority is [`PRODUCT.md`](PRODUCT.md). Visual and
+interaction authority is [`DESIGN.md`](DESIGN.md). The executable rebuild
+contract and status live in
+[`docs/mori-rebuild-goal-plan.md`](docs/mori-rebuild-goal-plan.md) and
+[`docs/mori-rebuild-status.md`](docs/mori-rebuild-status.md).
+`docs/product-rules.md` is retained only as a historical prototype contract.
 
 ## Intended architecture
 
 ```text
-HealthKit / mock events / user actions
+HealthKit / motion / coarse location / mock evidence / user actions
                   |
-          normalized event ledger
+     minimized facts and evidence ledger
                   |
-      deterministic rules and reducers
+  confidence policy + deterministic reducers
                   |
-     pet, growth, quest, and story state
+ passive event + optional task + memory eligibility
                   |
-      context builder (bounded windows)
+ profile-scoped task, coin, collection, memory, and letter ledgers
                   |
-   local templates or AI narration provider
+ bounded local context + optional remote conversation/narration
                   |
-        Watch UI + iPhone management UI
+ passive Watch scene + iPhone Mori/Today/Memories/Collection
 ```
 
 Domain rules are designed as a pure Swift package. Framework-specific adapters for HealthKit, notifications, persistence, connectivity, and AI sit outside the domain and are injected behind protocols. See [`docs/architecture.md`](docs/architecture.md).
+
+That architecture document describes the current prototype for migration
+purposes. ADR 0002–0006 and the rebuild Goal plan govern new implementation.
 
 ## Planned repository layout
 
@@ -56,29 +77,12 @@ The selective Phase 2 narration service is documented in
 [`Services/NarrationGateway/README.md`](Services/NarrationGateway/README.md). It is optional: a
 missing provider key produces a deterministic local fallback and never blocks the core Watch loop.
 
-## Development phases
+## Execution Goals
 
-### Phase 0: prove foundations and device capabilities
-
-- Establish deterministic domain state, versioned events, fixtures, and test gates.
-- Validate HealthKit ingestion and permissions on physical devices.
-- Validate smart-alarm scheduling and fallback behavior on a physical Apple Watch.
-- Treat Nearby Interaction as a separate capability spike, not a Phase 1 dependency.
-
-### Phase 1: complete the single-user loop
-
-- Show a living pet, one relevant action, and an explainable data source on Watch.
-- Deliver a seven-day common main story with recovery and activity themes.
-- Support vitality growth, daily habits, a soccer-triggered random side story, local notifications, persistence, and deterministic offline templates.
-- Provide a simple iPhone management and cosmetic wardrobe experience.
-
-### Selected Phase 2 foundations
-
-- Bond growth, explicit commitments, and repairable consequences.
-- Bounded stochastic initiative with quiet hours and notification budgets.
-- A privacy-aware context builder and optional server-side AI narration gateway.
-
-AI and network access are enhancements. The core pet loop must remain functional with local templates and mocks.
+Work is organized by acceptance Goals rather than dates or legacy phases. See
+[`docs/mori-rebuild-goal-plan.md`](docs/mori-rebuild-goal-plan.md). AI and
+network access remain enhancements: the passive companion, tasks, memories, and
+local conversation fallback must remain coherent offline.
 
 ## Secrets and local configuration
 

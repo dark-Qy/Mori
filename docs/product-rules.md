@@ -1,6 +1,11 @@
 # Product Rules
 
-This document is the product contract. Code, content, and AI prompts must conform to it. Material changes require an ADR and updated tests.
+> **Historical prototype contract — non-authoritative.** This file describes
+> the legacy level, vitality, fixed-story, commitment, and trend system that is
+> being removed. New code, UI, content, tests, and AI behavior must follow
+> `PRODUCT.md`, `DESIGN.md`, `docs/mori-rebuild-goal-plan.md`, and the Mori ADRs.
+> This file remains only as migration evidence until the legacy implementation
+> is deleted.
 
 ## Product definition
 
