@@ -16,6 +16,17 @@ completion, memory generation, chat logic, or either app's root navigation.
 The two Mori variants are separate identities. They share motion IDs and behavior metadata, but
 never share recolored, mirrored, warped, or character-substituted production frames.
 
+## Current release scope
+
+The time-boxed G4 handoff ships only the black penguin Mori. Its sixteen product motions, Watch
+assets, iPhone assets, Reduce Motion keyframes, previews, and runtime behavior are release
+candidates. The white polar-bear Mori remains a future catalog-compatible variant and is not
+generated, installed, or claimed as validated in this handoff.
+
+The shared catalog stays in `authoring` state until the polar-bear asset set is independently
+authored and reviewed. Integrators must enable the penguin character explicitly instead of treating
+catalog membership as proof that every listed character is production-ready.
+
 ## Production forms
 
 `unique` motions have a dedicated eight-frame clip for each character unless the catalog explicitly
@@ -89,16 +100,18 @@ never settles tasks, memories, rewards, or health state.
 
 ## Asset acceptance
 
-Each character must independently provide:
+Each enabled character must independently provide:
 
 - every required product clip and its manifest;
-- a black/white semantic parity matrix;
 - per-clip previews and contact sheets;
 - Watch-size previews at the smallest and largest supported layouts;
 - a Reduce Motion keyframe sheet;
 - deterministic transparency, frame count, dimensions, baseline, and asset-catalog checks;
 - independent visual review for identity, intent, cadence, clipping, seams, detached effects,
   apparel occlusion, and interruption safety.
+
+Before the polar-bear variant can be enabled, it must additionally pass a black/white semantic
+parity review. Deferring that variant does not permit recoloring or reusing penguin frames.
 
 The approved hatch-pet v2 atlases are not regenerated merely because the product catalog grows.
 Any v2 repair still follows the full-row repair and blind direction-review rules from the
