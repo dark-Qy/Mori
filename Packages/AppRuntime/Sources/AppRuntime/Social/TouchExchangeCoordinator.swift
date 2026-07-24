@@ -47,7 +47,11 @@ public actor TouchExchangeCoordinator {
   ) async throws -> EncounterState {
     startObservingRangingEventsIfNeeded()
     advanceGeneration()
+    let operationGeneration = candidateGeneration
     await rangingClient.stop()
+    guard operationGeneration == candidateGeneration else {
+      return stateMachine.state
+    }
     credentials = nil
     pendingCreateRequest = nil
     activePeerToken = nil
@@ -56,7 +60,6 @@ public actor TouchExchangeCoordinator {
     cancellationAttempt &+= 1
     cancellationInFlight = false
     stateMachine.startRendezvous(participantID: participantID)
-    let operationGeneration = candidateGeneration
 
     do {
       let localToken = try await rangingClient.prepareLocalToken()
@@ -302,7 +305,12 @@ public actor TouchExchangeCoordinator {
 
     if credentials == nil {
       guard let createRequest = pendingCreateRequest else {
-        throw SocialRendezvousError.missingCredentials
+        // No create request reached the rendezvous service, so there is no
+        // remote session whose cancellation needs confirmation. Treat this
+        // as a successful local cancellation and keep cancel idempotent.
+        remoteCancellationSucceeded = true
+        stateMachine.cancel()
+        return stateMachine.state
       }
       let recoveryGeneration = candidateGeneration
       let snapshot = try await rendezvousClient.createSession(createRequest)

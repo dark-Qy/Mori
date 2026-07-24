@@ -293,6 +293,54 @@ struct TouchExchangeStateMachineTests {
 
 @Suite("Touch exchange coordinator")
 struct TouchExchangeCoordinatorTests {
+  @Test func cancellingBeforeStartIsIdempotentAndDoesNotCallGateway() async throws {
+    let nearby = MockNearbyRangingClient(
+      capability: .unavailable(reason: "Precise ranging is unavailable")
+    )
+    let rendezvous = DeterministicMockSocialRendezvousClient()
+    let coordinator = TouchExchangeCoordinator(
+      rangingClient: nearby,
+      rendezvousClient: rendezvous
+    )
+
+    let firstCancellation = try await coordinator.cancel()
+    let repeatedCancellation = try await coordinator.cancel()
+
+    #expect(firstCancellation.phase == .cancelled)
+    #expect(repeatedCancellation.phase == .cancelled)
+    #expect(await rendezvous.callLog.isEmpty)
+  }
+
+  @Test func cancellationDuringInitialStopPreventsAStaleStart() async throws {
+    let nearby = DelayedInitialStopNearbyRangingClient()
+    let rendezvous = DeterministicMockSocialRendezvousClient()
+    let coordinator = TouchExchangeCoordinator(
+      rangingClient: nearby,
+      rendezvousClient: rendezvous
+    )
+    let startTask = Task {
+      try await coordinator.start(
+        participantID: "local-player-0001",
+        publicCard: PublicPetCardV1(
+          petName: "Local",
+          characterID: "pet.local",
+          socialState: .greeting
+        ),
+        joinRequestID: "join-request-initial-stop-race"
+      )
+    }
+
+    await nearby.waitUntilInitialStopBegins()
+    let cancelled = try await coordinator.cancel()
+    await nearby.releaseInitialStop()
+    let staleStartResult = try await startTask.value
+
+    #expect(cancelled.phase == .cancelled)
+    #expect(staleStartResult.phase == .cancelled)
+    #expect(await coordinator.state.phase == .cancelled)
+    #expect(await rendezvous.callLog.isEmpty)
+  }
+
   @Test func deterministicSimulatorFlowCompletesOnce() async throws {
     let localCard = PublicPetCardV1(
       petName: "Local",
@@ -896,6 +944,55 @@ struct TouchExchangeCoordinatorTests {
       ),
       joinRequestID: "join-request-candidate-conflict"
     )
+  }
+}
+
+private actor DelayedInitialStopNearbyRangingClient: NearbyRangingClient {
+  private var stopCount = 0
+  private var initialStopStarted = false
+  private var initialStopWaiters: [CheckedContinuation<Void, Never>] = []
+  private var initialStopRelease: CheckedContinuation<Void, Never>?
+
+  func capability() -> NearbyCapability { .preciseDistance }
+
+  func prepareLocalToken() -> NearbyDiscoveryToken {
+    NearbyDiscoveryToken(encodedValue: Data([0x01]))
+  }
+
+  func beginRanging(peerToken: NearbyDiscoveryToken) {}
+
+  func latestMeasurement() -> NearbyMeasurement? { nil }
+
+  nonisolated func events() -> AsyncStream<NearbyRangingEvent> {
+    AsyncStream { continuation in
+      continuation.finish()
+    }
+  }
+
+  func stop() async {
+    stopCount += 1
+    guard stopCount == 1 else { return }
+    initialStopStarted = true
+    let waiters = initialStopWaiters
+    initialStopWaiters.removeAll()
+    for waiter in waiters {
+      waiter.resume()
+    }
+    await withCheckedContinuation { continuation in
+      initialStopRelease = continuation
+    }
+  }
+
+  func waitUntilInitialStopBegins() async {
+    guard !initialStopStarted else { return }
+    await withCheckedContinuation { continuation in
+      initialStopWaiters.append(continuation)
+    }
+  }
+
+  func releaseInitialStop() {
+    initialStopRelease?.resume()
+    initialStopRelease = nil
   }
 }
 

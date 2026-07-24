@@ -68,6 +68,7 @@ final class TouchExchangeViewModel: ObservableObject {
   private let demoTransferEventID: String
   private let isLateTransferDemo: Bool
   private let shouldAutoCompleteDemo: Bool
+  private let forcesUnavailableRangingForTesting: Bool
   private let encounterRepository: TouchExchangeEncounterRepository
   private let defaults: UserDefaults
   private var operationTask: Task<Void, Never>?
@@ -122,6 +123,9 @@ final class TouchExchangeViewModel: ObservableObject {
       shouldAutoCompleteDemo =
         isDeterministicDemo
         && arguments.contains("--touch-exchange-auto-complete")
+      forcesUnavailableRangingForTesting =
+        arguments.contains("-UITesting")
+        && arguments.contains("--touch-exchange-capability-unavailable")
       shouldFailNextDemoCancellation =
         isDeterministicDemo
         && arguments.contains("--touch-exchange-cancel-failure")
@@ -135,6 +139,7 @@ final class TouchExchangeViewModel: ObservableObject {
       demoTransferEventID = "0123456789abcdef0123456789abcdef"
       isLateTransferDemo = false
       shouldAutoCompleteDemo = false
+      forcesUnavailableRangingForTesting = false
       self.socialSharingEnabled = socialSharingEnabled
     #endif
     #if DEBUG
@@ -587,7 +592,16 @@ final class TouchExchangeViewModel: ObservableObject {
     self.rangingClient = rangingClient
 
     do {
-      guard await rangingClient.capability() == .preciseDistance else {
+      let rangingCapability: NearbyCapability
+      #if DEBUG
+        rangingCapability =
+          forcesUnavailableRangingForTesting
+          ? .unavailable(reason: "Forced unavailable capability for UI testing")
+          : await rangingClient.capability()
+      #else
+        rangingCapability = await rangingClient.capability()
+      #endif
+      guard rangingCapability == .preciseDistance else {
         await fail(
           with: "这块手表不支持精确近距离测量",
           coordinator: coordinator,

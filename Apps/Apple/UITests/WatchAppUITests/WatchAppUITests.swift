@@ -95,6 +95,40 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertFalse(element("watch.touch-exchange.progress", in: app).exists)
   }
 
+  func testTouchExchangeUnavailableCapabilityDoesNotLoopOnCleanup() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: ["--touch-exchange-capability-unavailable"]
+    )
+
+    openTouchExchange(in: app)
+    let failedState = element("watch.touch-exchange.failed", in: app)
+    XCTAssertTrue(failedState.waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.staticTexts["这块手表不支持精确近距离测量"].waitForExistence(timeout: 2)
+    )
+    XCTAssertFalse(element("watch.touch-exchange.cancel-unconfirmed", in: app).exists)
+
+    let retryButton = app.buttons["watch.touch-exchange.retry"]
+    scrollToElement(retryButton, in: app)
+    retryButton.tap()
+
+    let cancellationLoop = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "exists == true"),
+      object: element("watch.touch-exchange.cancel-unconfirmed", in: app)
+    )
+    cancellationLoop.isInverted = true
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [cancellationLoop], timeout: 1),
+      .completed
+    )
+    XCTAssertTrue(failedState.waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.staticTexts["这块手表不支持精确近距离测量"].waitForExistence(timeout: 2)
+    )
+    XCTAssertFalse(element("watch.touch-exchange.cancel-unconfirmed", in: app).exists)
+  }
+
   func testTouchExchangeDemoAutomaticallyCompletesAfterProximity() {
     let app = launchApp(
       scenario: "activity_high",
@@ -281,6 +315,7 @@ final class WatchAppUITests: XCTestCase {
       additionalArguments: [
         "--touch-exchange-demo",
         "--touch-exchange-cancel-failure",
+        "--touch-exchange-direct",
         "--touch-exchange-manual-confirm",
       ]
     )
@@ -292,6 +327,8 @@ final class WatchAppUITests: XCTestCase {
 
     let cancelButton = app.buttons["watch.touch-exchange.cancel"]
     scrollToElement(cancelButton, in: app)
+    rotateDigitalCrown(delta: 0.2)
+    XCTAssertTrue(cancelButton.waitForExistence(timeout: 2))
     cancelButton.tap()
     XCTAssertTrue(
       element("watch.touch-exchange.cancel-unconfirmed", in: app)
