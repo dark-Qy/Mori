@@ -247,7 +247,11 @@ struct ProfileLedgerTests {
       lifecycle: .sealed(
         SealedMemoryContent(
           facts: [
-            MemoryFactReference(evidenceID: EvidenceID("steps"), kind: .stepSummary)
+            MemoryFactReference(
+              evidenceID: EvidenceID("steps"),
+              kind: .stepSummary,
+              sourceEventID: EventID("walk")
+            )
           ],
           narrative: "今天我们经过了一段很长的路。",
           sceneID: "spring-valley",
@@ -679,7 +683,8 @@ private func factEnvelope(
     observedAt: Date(timeIntervalSince1970: 1_700_000_000),
     freshUntil: Date(timeIntervalSince1970: 1_700_003_600),
     value: .stepTotal(3_250),
-    provenance: .healthSummary
+    provenance: .healthSummary,
+    authorization: .companion(state.currentSensingEpoch)
   )
   return ExperienceSyncEnvelope(
     eventID: ExperienceEventID("experience-fact"),

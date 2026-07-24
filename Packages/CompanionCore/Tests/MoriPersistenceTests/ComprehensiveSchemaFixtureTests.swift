@@ -31,7 +31,11 @@ struct ComprehensiveSchemaFixtureTests {
     #expect(decoded == expected)
     #expect(expectedData == fixtureData)
     #expect(
-      schemaShapeCoverage([decoded]) == ["fact.broadMotion.deterministicMock", "source.mock"])
+      schemaShapeCoverage([decoded]) == [
+        "fact.broadMotion.deterministicMock",
+        "factAuthorization.displayOnly",
+        "source.mock",
+      ])
   }
 
   @Test("Fixed negative fixtures reject future and undeclared schema recursively")
@@ -114,7 +118,8 @@ private func makeComprehensiveLedger() throws -> ProfileLedger {
     observedAt: comprehensiveNow,
     freshUntil: comprehensiveNow.addingTimeInterval(3_600),
     value: .stepTotal(3_250),
-    provenance: .healthSummary
+    provenance: .healthSummary,
+    authorization: .companion(sensingEpoch)
   )
   let sleepFact = DerivedFactRecord(
     header: comprehensiveHeader(EvidenceID("sleep"), profile: profile),
@@ -269,7 +274,11 @@ private func makeComprehensiveLedger() throws -> ProfileLedger {
     lifecycle: .sealed(
       SealedMemoryContent(
         facts: [
-          MemoryFactReference(evidenceID: fact.header.recordID, kind: .stepSummary)
+          MemoryFactReference(
+            evidenceID: fact.header.recordID,
+            kind: .stepSummary,
+            sourceEventID: walk.header.recordID
+          )
         ],
         narrative: "今天我们一起经过了一段很长的路。",
         sceneID: "spring-valley",
@@ -716,6 +725,8 @@ private let expectedSchemaShapeCoverage: Set<String> = [
   "fact.foregroundInteraction.foregroundInteraction",
   "fact.sleepDuration.healthSummary",
   "fact.stepTotal.healthSummary",
+  "factAuthorization.companion",
+  "factAuthorization.displayOnly",
   "source.real",
   "taskCompletion.automatic",
   "taskCompletion.userConfirmed",
@@ -795,6 +806,12 @@ private func schemaShapeCoverage(_ envelopes: [ExperienceSyncEnvelope]) -> Set<S
         case .foregroundInteraction: "foregroundInteraction"
         }
       coverage.insert("fact.\(valueShape).\(fact.provenance.rawValue)")
+      switch fact.authorization {
+      case .displayOnly:
+        coverage.insert("factAuthorization.displayOnly")
+      case .companion:
+        coverage.insert("factAuthorization.companion")
+      }
     case .taskTransition(let transition):
       if case .completed(let method, _) = transition.state {
         coverage.insert("taskCompletion.\(method.rawValue)")

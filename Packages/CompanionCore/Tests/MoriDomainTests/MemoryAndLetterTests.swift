@@ -196,7 +196,7 @@ struct MemoryAndLetterTests {
 
     let fact = MoriTestFixtures.fact(profile: profile)
     #expect(ProfileReducer.apply(.derivedFact(fact), to: &state) == .applied)
-    #expect(ProfileReducer.apply(.memory(memory), to: &state) == .applied)
+    #expect(ProfileReducer.apply(.memory(memory), to: &state) == .rejected(.invalidRecord))
 
     let letter = MoriTestFixtures.letter(profile: profile)
     #expect(ProfileReducer.apply(.letter(letter), to: &state) == .rejected(.invalidRecord))
@@ -206,7 +206,107 @@ struct MemoryAndLetterTests {
       fact: fact
     )
     #expect(ProfileReducer.apply(.passiveEvent(event), to: &state) == .applied)
+    #expect(ProfileReducer.apply(.memory(memory), to: &state) == .applied)
     #expect(ProfileReducer.apply(.letter(letter), to: &state) == .applied)
+  }
+
+  @Test("Memories reject display-only, ineligible, and mismatched event evidence")
+  func rejectsUnauthorizedMemoryEvidence() {
+    let profile = MoriTestFixtures.profile()
+
+    var displayOnlyState = MoriTestFixtures.state(profile: profile)
+    let displayOnlyFact = MoriTestFixtures.fact(
+      profile: profile,
+      authorization: .displayOnly
+    )
+    #expect(
+      ProfileReducer.apply(.derivedFact(displayOnlyFact), to: &displayOnlyState)
+        == .applied
+    )
+    var displayOnlyMemory = MoriTestFixtures.memory(profile: profile)
+    #expect(
+      displayOnlyMemory.apply(
+        MemoryTransition(
+          header: MoriTestFixtures.header(
+            MemoryTransitionID("seal-display-only"),
+            profile: profile
+          ),
+          memoryID: displayOnlyMemory.header.recordID,
+          revision: MoriTestFixtures.revision(71),
+          kind: .seal(MoriTestFixtures.memoryContent())
+        ),
+        in: profile
+      ) == .applied
+    )
+    #expect(
+      ProfileReducer.apply(.memory(displayOnlyMemory), to: &displayOnlyState)
+        == .rejected(.invalidRecord)
+    )
+
+    var ineligibleState = MoriTestFixtures.state(profile: profile)
+    let fact = MoriTestFixtures.fact(profile: profile)
+    let ineligibleEvent = MoriTestFixtures.event(
+      profile: profile,
+      sensingEpoch: ineligibleState.currentSensingEpoch,
+      fact: fact,
+      memoryEligibility: .ineligible
+    )
+    #expect(ProfileReducer.apply(.derivedFact(fact), to: &ineligibleState) == .applied)
+    #expect(
+      ProfileReducer.apply(.passiveEvent(ineligibleEvent), to: &ineligibleState)
+        == .applied
+    )
+    var ineligibleMemory = MoriTestFixtures.memory(profile: profile)
+    #expect(
+      ineligibleMemory.apply(
+        MemoryTransition(
+          header: MoriTestFixtures.header(
+            MemoryTransitionID("seal-ineligible"),
+            profile: profile
+          ),
+          memoryID: ineligibleMemory.header.recordID,
+          revision: MoriTestFixtures.revision(71),
+          kind: .seal(MoriTestFixtures.memoryContent())
+        ),
+        in: profile
+      ) == .applied
+    )
+    #expect(
+      ProfileReducer.apply(.memory(ineligibleMemory), to: &ineligibleState)
+        == .rejected(.invalidRecord)
+    )
+
+    var mismatchState = MoriTestFixtures.state(profile: profile)
+    let mismatchEvent = MoriTestFixtures.event(
+      "other-event",
+      profile: profile,
+      sensingEpoch: mismatchState.currentSensingEpoch,
+      fact: fact
+    )
+    #expect(ProfileReducer.apply(.derivedFact(fact), to: &mismatchState) == .applied)
+    #expect(
+      ProfileReducer.apply(.passiveEvent(mismatchEvent), to: &mismatchState)
+        == .applied
+    )
+    var mismatchedMemory = MoriTestFixtures.memory(profile: profile)
+    #expect(
+      mismatchedMemory.apply(
+        MemoryTransition(
+          header: MoriTestFixtures.header(
+            MemoryTransitionID("seal-mismatched-event"),
+            profile: profile
+          ),
+          memoryID: mismatchedMemory.header.recordID,
+          revision: MoriTestFixtures.revision(71),
+          kind: .seal(MoriTestFixtures.memoryContent())
+        ),
+        in: profile
+      ) == .applied
+    )
+    #expect(
+      ProfileReducer.apply(.memory(mismatchedMemory), to: &mismatchState)
+        == .rejected(.invalidRecord)
+    )
   }
 
   @Test("Delete wins over read for every arrival permutation")

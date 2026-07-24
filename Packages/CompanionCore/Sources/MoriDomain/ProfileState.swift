@@ -85,6 +85,11 @@ public struct ProfileState: Hashable, Codable, Sendable {
       guard factIDs.insert(fact.header.recordID).inserted else {
         return .conflictingDuplicate
       }
+      if case .companion(let sensingEpoch) = fact.authorization {
+        guard sensingEpoch <= currentSensingEpoch else {
+          return .sensingEpochMismatch
+        }
+      }
     }
 
     var passiveEventIDs: Set<EventID> = []
@@ -103,6 +108,7 @@ public struct ProfileState: Hashable, Codable, Sendable {
           derivedFacts.contains {
             $0.header.recordID == reference.id
               && $0.value.kind == reference.kind
+              && $0.authorizesCompanionUse(in: event.sensingEpoch)
               && $0.isUsable(at: event.observedAt, in: runtimeProfile)
           }
         })
@@ -171,9 +177,21 @@ public struct ProfileState: Hashable, Codable, Sendable {
       if case .sealed(let content) = memory.lifecycle {
         guard
           content.facts.allSatisfy({ reference in
-            derivedFacts.contains {
+            guard
+              let event = passiveEvents.first(where: {
+                $0.header.recordID == reference.sourceEventID
+              }),
+              event.memoryEligibility == .eligible,
+              event.evidence.contains(where: {
+                $0.id == reference.evidenceID && $0.kind == reference.kind
+              })
+            else {
+              return false
+            }
+            return derivedFacts.contains {
               $0.header.recordID == reference.evidenceID
                 && $0.value.kind == reference.kind
+                && $0.authorizesCompanionUse(in: event.sensingEpoch)
             }
           })
         else {
@@ -439,6 +457,14 @@ public enum ProfileReducer {
     if let rejection = record.validate(in: state.runtimeProfile) {
       return .rejected(rejection)
     }
+    if case .companion(let sensingEpoch) = record.authorization {
+      guard
+        state.companionSensingEnabled,
+        sensingEpoch == state.currentSensingEpoch
+      else {
+        return .rejected(.sensingEpochMismatch)
+      }
+    }
     if let existing = state.derivedFacts.first(where: {
       $0.header.recordID == record.header.recordID
     }) {
@@ -471,6 +497,7 @@ public enum ProfileReducer {
         state.derivedFacts.contains {
           $0.header.recordID == reference.id
             && $0.value.kind == reference.kind
+            && $0.authorizesCompanionUse(in: event.sensingEpoch)
             && $0.isUsable(at: event.observedAt, in: state.runtimeProfile)
         }
       })
@@ -591,9 +618,21 @@ public enum ProfileReducer {
     if case .sealed(let content) = memory.lifecycle {
       guard
         content.facts.allSatisfy({ reference in
-          state.derivedFacts.contains {
+          guard
+            let event = state.passiveEvents.first(where: {
+              $0.header.recordID == reference.sourceEventID
+            }),
+            event.memoryEligibility == .eligible,
+            event.evidence.contains(where: {
+              $0.id == reference.evidenceID && $0.kind == reference.kind
+            })
+          else {
+            return false
+          }
+          return state.derivedFacts.contains {
             $0.header.recordID == reference.evidenceID
               && $0.value.kind == reference.kind
+              && $0.authorizesCompanionUse(in: event.sensingEpoch)
           }
         })
       else {

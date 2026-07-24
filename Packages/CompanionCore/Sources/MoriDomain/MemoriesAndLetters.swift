@@ -65,10 +65,16 @@ extension StableIdentifier where Tag == MemoryIDTag {
 public struct MemoryFactReference: Hashable, Codable, Sendable {
   public let evidenceID: EvidenceID
   public let kind: EvidenceKind
+  public let sourceEventID: EventID
 
-  public init(evidenceID: EvidenceID, kind: EvidenceKind) {
+  public init(
+    evidenceID: EvidenceID,
+    kind: EvidenceKind,
+    sourceEventID: EventID
+  ) {
     self.evidenceID = evidenceID
     self.kind = kind
+    self.sourceEventID = sourceEventID
   }
 }
 
@@ -95,7 +101,7 @@ public struct SealedMemoryContent: Hashable, Codable, Sendable {
 
   public var isValid: Bool {
     facts.isEmpty == false
-      && facts.allSatisfy { $0.evidenceID.isValid }
+      && facts.allSatisfy { $0.evidenceID.isValid && $0.sourceEventID.isValid }
       && narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
       && sceneID.isEmpty == false
       && moriActionID.isEmpty == false

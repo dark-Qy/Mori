@@ -90,14 +90,17 @@ enum MoriTestFixtures {
     observedAt: Date = now,
     freshUntil: Date? = nil,
     value: DerivedFactValue = .stepTotal(3_250),
-    provenance: EvidenceProvenance? = nil
+    provenance: EvidenceProvenance? = nil,
+    authorization: EvidenceAuthorization? = nil
   ) -> DerivedFactRecord {
     DerivedFactRecord(
       header: header(EvidenceID(id), profile: profile),
       observedAt: observedAt,
       freshUntil: freshUntil ?? observedAt.addingTimeInterval(3_600),
       value: value,
-      provenance: provenance ?? (profile.isMock ? .deterministicMock : .healthSummary)
+      provenance: provenance ?? (profile.isMock ? .deterministicMock : .healthSummary),
+      authorization: authorization
+        ?? .companion(SensingEpoch(revision(30, device: "watch")))
     )
   }
 
@@ -110,6 +113,7 @@ enum MoriTestFixtures {
     observedAt: Date = now,
     deadline: Date? = nil,
     cooldownKey: TaskCooldownKey? = TaskCooldownKey("walk-together"),
+    memoryEligibility: MemoryEligibility = .eligible,
     kind: PassiveEventKind = .sharedWalk
   ) -> PassiveCompanionEvent {
     let evidenceFact = fact ?? self.fact(profile: profile, observedAt: observedAt)
@@ -128,7 +132,7 @@ enum MoriTestFixtures {
       presentationDeadline: deadline ?? observedAt.addingTimeInterval(120),
       replacementKey: "motion",
       taskCooldownKey: cooldownKey,
-      memoryEligibility: .eligible,
+      memoryEligibility: memoryEligibility,
       sceneID: "spring-valley",
       moriActionID: "walk.look-back",
       reminderRevision: revision(40, device: "watch")
@@ -250,7 +254,11 @@ enum MoriTestFixtures {
   ) -> SealedMemoryContent {
     SealedMemoryContent(
       facts: [
-        MemoryFactReference(evidenceID: EvidenceID("steps"), kind: .stepSummary)
+        MemoryFactReference(
+          evidenceID: EvidenceID("steps"),
+          kind: .stepSummary,
+          sourceEventID: EventID("walk")
+        )
       ],
       narrative: narrative,
       sceneID: "spring-valley",

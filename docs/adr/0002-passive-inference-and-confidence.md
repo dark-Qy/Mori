@@ -19,9 +19,14 @@ delivery on the next wrist raise.
 
 The device produces two different kinds of records:
 
-1. `ObservedFact` contains an approved, minimized fact such as a step count,
+1. `DerivedFactRecord` contains an approved, minimized fact such as a step count,
    sleep duration, broad motion transition, or arrival at a user-approved place
-   category. It records provenance and freshness.
+   category. It records provenance, freshness, and one of two explicit
+   authorizations:
+   - `displayOnly` may inform a bounded Watch/iPhone statistic but cannot create
+     a companion event;
+   - `companion(SensingEpoch)` may authorize an event only in that exact active
+     sensing epoch.
 2. `PassiveCompanionEvent` is a local interpretation derived from one or more
    facts. It records an internal confidence band, evidence references, sensing
    epoch, observed time, and policy keys.
@@ -47,10 +52,17 @@ Turning off `Mori 随行` establishes a new sensing epoch, stops local passive
 adapters, clears pending reminders, and prevents new passive tasks or memories.
 Re-enabling does not backfill the disabled interval.
 
+A sealed memory fact is not authorized by the fact alone. Its
+`MemoryFactReference` also names the eligible `PassiveCompanionEvent` that used
+the fact in the same sensing epoch. This keeps daily memories downstream of the
+same accepted reality event instead of rebuilding stories from display data.
+
 ## Invariants
 
 - Raw HealthKit samples and precise GPS tracks are not companion events.
 - Missing, partial, denied, stale, or unavailable data is neutral.
+- `displayOnly` facts cannot authorize an event, task, letter, or memory.
+- A memory fact must be present in its named memory-eligible source event.
 - A low-confidence inference cannot create a task, reward, notification, or
   memory claim.
 - A newer pending event replaces the older event; there is no reminder queue.

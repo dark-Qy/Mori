@@ -40,8 +40,11 @@ envelope contains:
 
 The envelope may contain derived product facts such as step total, sleep
 duration, broad event type, task lifecycle, coin transaction, memory reference,
-or letter state. It never contains raw HealthKit samples, precise coordinates,
-GPS tracks, contact data, secrets, or provider credentials.
+or letter state. Each derived fact carries either `displayOnly` authorization
+or the exact sensing epoch that permits companion use. Each sealed-memory fact
+reference names both its evidence ID and the memory-eligible passive event that
+accepted that evidence. It never contains raw HealthKit samples, precise
+coordinates, GPS tracks, contact data, secrets, or provider credentials.
 
 Reducers sort by canonical logical identity, ignore exact duplicates, and fail
 closed on conflicting reuse of an event ID. Delivery uses a durable outbox and
@@ -89,6 +92,9 @@ App-level consent defaults off and is distinct from OS authorization.
 - Preference disable revisions reject every not-yet-accepted passive event from
   a superseded sensing epoch. `effectiveAt` is not used to authorize an old
   event; ambiguous causal order fails closed.
+- Display-only facts cannot be reclassified into companion facts after
+  re-enable; memory sealing rejects facts without an accepted eligible source
+  event in the same authorized sensing epoch.
 - Coin settlement IDs and task source-event IDs are unique and idempotent.
 - Competing cosmetic purchases converge to one canonical ownership and one
   debit; a loser is a consumed no-op, never a second charge.

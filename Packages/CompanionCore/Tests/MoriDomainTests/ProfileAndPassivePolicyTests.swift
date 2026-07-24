@@ -205,10 +205,52 @@ struct ProfileAndPassivePolicyTests {
       sensingEpoch: nextEpoch,
       fact: nextFact
     )
-    #expect(ProfileReducer.apply(.derivedFact(nextFact), to: &state) == .applied)
+    #expect(
+      ProfileReducer.apply(.derivedFact(nextFact), to: &state)
+        == .rejected(.sensingEpochMismatch)
+    )
+    let displayOnly = MoriTestFixtures.fact(
+      "display-only",
+      profile: profile,
+      authorization: .displayOnly
+    )
+    #expect(ProfileReducer.apply(.derivedFact(displayOnly), to: &state) == .applied)
     #expect(
       ProfileReducer.apply(.passiveEvent(nextEvent), to: &state)
         == .rejected(.sensingEpochMismatch)
     )
+
+    let reenabledEpoch = SensingEpoch(MoriTestFixtures.revision(32, device: "watch"))
+    #expect(
+      state.setCompanionSensing(
+        enabled: true,
+        epoch: reenabledEpoch,
+        effectiveAt: .now
+      ) == .applied
+    )
+    let backfill = MoriTestFixtures.event(
+      "disabled-interval-backfill",
+      profile: profile,
+      sensingEpoch: reenabledEpoch,
+      fact: displayOnly
+    )
+    #expect(
+      ProfileReducer.apply(.passiveEvent(backfill), to: &state)
+        == .rejected(.invalidRecord)
+    )
+
+    let currentFact = MoriTestFixtures.fact(
+      "current",
+      profile: profile,
+      authorization: .companion(reenabledEpoch)
+    )
+    let currentEvent = MoriTestFixtures.event(
+      "current",
+      profile: profile,
+      sensingEpoch: reenabledEpoch,
+      fact: currentFact
+    )
+    #expect(ProfileReducer.apply(.derivedFact(currentFact), to: &state) == .applied)
+    #expect(ProfileReducer.apply(.passiveEvent(currentEvent), to: &state) == .applied)
   }
 }

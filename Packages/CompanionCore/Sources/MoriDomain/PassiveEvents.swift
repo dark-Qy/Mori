@@ -51,25 +51,36 @@ public enum EvidenceProvenance: String, CaseIterable, Hashable, Codable, Sendabl
   case deterministicMock
 }
 
+/// Display facts can keep the Watch face informative while passive
+/// companionship is disabled. Only sensing-epoch-authorized facts may create
+/// passive events and their downstream tasks, letters, or memories.
+public enum EvidenceAuthorization: Hashable, Codable, Sendable {
+  case displayOnly
+  case companion(SensingEpoch)
+}
+
 public struct DerivedFactRecord: Hashable, Codable, Sendable {
   public let header: ProfileScopedRecordHeader<EvidenceID>
   public let observedAt: Date
   public let freshUntil: Date
   public let value: DerivedFactValue
   public let provenance: EvidenceProvenance
+  public let authorization: EvidenceAuthorization
 
   public init(
     header: ProfileScopedRecordHeader<EvidenceID>,
     observedAt: Date,
     freshUntil: Date,
     value: DerivedFactValue,
-    provenance: EvidenceProvenance
+    provenance: EvidenceProvenance,
+    authorization: EvidenceAuthorization = .displayOnly
   ) {
     self.header = header
     self.observedAt = observedAt
     self.freshUntil = freshUntil
     self.value = value
     self.provenance = provenance
+    self.authorization = authorization
   }
 
   public func validate(in profile: RuntimeProfile) -> MoriDomainRejection? {
@@ -107,7 +118,14 @@ public struct DerivedFactRecord: Hashable, Codable, Sendable {
     case .mock:
       guard provenance == .deterministicMock else { return .profileMismatch }
     }
+    if case .companion(let sensingEpoch) = authorization {
+      guard sensingEpoch.isValid else { return .invalidRecord }
+    }
     return nil
+  }
+
+  public func authorizesCompanionUse(in sensingEpoch: SensingEpoch) -> Bool {
+    authorization == .companion(sensingEpoch)
   }
 
   public func isUsable(at date: Date, in profile: RuntimeProfile) -> Bool {

@@ -121,7 +121,8 @@ private func makeFactEnvelope(
     observedAt: regressionNow,
     freshUntil: regressionNow.addingTimeInterval(3_600),
     value: .stepTotal(3_250),
-    provenance: .healthSummary
+    provenance: .healthSummary,
+    authorization: .companion(state.currentSensingEpoch)
   )
   return ExperienceSyncEnvelope(
     eventID: ExperienceEventID("experience-fact"),

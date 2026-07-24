@@ -17,7 +17,6 @@ public struct ExperienceEnvelopeCodec: Sendable {
 
   private static let forbiddenNormalizedKeys: Set<String> = [
     "apikey",
-    "authorization",
     "contacts",
     "conversation",
     "coordinate",
