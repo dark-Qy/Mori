@@ -11,6 +11,8 @@ let package = Package(
   ],
   products: [
     .library(name: "Domain", targets: ["Domain"]),
+    .library(name: "MoriDomain", targets: ["MoriDomain"]),
+    .library(name: "MoriPersistence", targets: ["MoriPersistence"]),
     .library(name: "Rules", targets: ["Rules"]),
     .library(name: "Story", targets: ["Story"]),
     .library(name: "Growth", targets: ["Growth"]),
@@ -21,6 +23,8 @@ let package = Package(
   ],
   targets: [
     .target(name: "Domain"),
+    .target(name: "MoriDomain"),
+    .target(name: "MoriPersistence", dependencies: ["MoriDomain"]),
     .target(name: "Rules", dependencies: ["Domain"]),
     .target(name: "Story", dependencies: ["Domain"]),
     .target(name: "Growth", dependencies: ["Domain", "Rules", "Story"]),
@@ -40,6 +44,15 @@ let package = Package(
         "Domain", "Rules", "Story", "Growth", "Persistence", "Sync", "MockKit",
         "DebugScenarioSupport",
       ]
+    ),
+    .testTarget(
+      name: "MoriDomainTests",
+      dependencies: ["MoriDomain"]
+    ),
+    .testTarget(
+      name: "MoriPersistenceTests",
+      dependencies: ["MoriDomain", "MoriPersistence"],
+      resources: [.process("Fixtures")]
     ),
   ]
 )

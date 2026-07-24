@@ -44,7 +44,7 @@ on the independent device axis: when the audited setup is unavailable it remains
 | Reliable task auto-completes; uncertain task requires explicit confirmation | Unit |
 | Auto and manual completion race settles one reward | Unit, property |
 | Coin tiers are integer `1`, `2`, `4`, and rare `6...10`; no daily cap | Unit |
-| Earn, spend, replay, reversal, and concurrent purchase preserve a non-negative balance | Unit, property |
+| Earn, spend, replay, reversal, and concurrent purchase preserve a non-negative balance; split purchase events are rejected and competing atomic purchases charge once | Unit, property |
 | Memory has deterministic profile/day/time-zone identity and seals once | Unit, property |
 | Low confidence remains silent; missing/denied/stale data is neutral | Unit |
 | Letters converge across read, delete, duplicate, offline, and relaunch | Unit, property |
@@ -59,8 +59,8 @@ Required property baseline: at least 1,000 deterministic timeline seeds.
 | Behavior | Primary evidence |
 | --- | --- |
 | Health, motion, coarse location, activation, and interaction normalize behind protocols | Unit + integration |
-| Turning `Mori 随行` off stops adapters, clears pending reminders, and creates no passive output | Integration + UI |
-| Re-enable never backfills the disabled interval | Unit + integration |
+| Turning `Mori 随行` off stops adapters, clears pending reminders, and creates no passive event, task, letter, or memory eligibility | Integration + UI |
+| Re-enable never backfills the disabled interval into events, tasks, memory facts, or a sealed daily memory | Unit + integration |
 | Offline peer events from a superseded sensing epoch are rejected | Integration |
 | Exact/high/medium/low confidence maps to direct/natural/tentative/silent copy | Unit |
 | Real and Mock never share tasks, coins, memories, letters, conversation, collection, ledger, outbox, or cache | Integration, property |

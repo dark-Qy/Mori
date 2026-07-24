@@ -27,7 +27,8 @@ envelope contains:
 
 - schema version;
 - event ID and event type;
-- profile ID and complete profile epoch;
+- profile ID, complete profile epoch, deletion epoch, and explicit real or Mock
+  profile source;
 - origin device ID and logical origin sequence;
 - logical revision;
 - observed and authored times for grouping and explanation, never authority;
@@ -52,8 +53,8 @@ acknowledgement; transport retries the same bytes.
 | --- | --- | --- | --- |
 | Approved passive event | Device that owns the evidence adapter | Both directions | Carries sensing epoch; never raw evidence |
 | Task issued, completed, expired | Shared reducer on either device | Both directions | Source-event and settlement IDs make replay idempotent |
-| Coin earn, spend, reversal | Shared reducer on either device | Both directions | Transaction ID is authoritative |
-| Selected Mori identity, cosmetic purchase, equip | Shared reducer on either device | Both directions | Profile-scoped selection and purchase/equip tombstones supersede older state |
+| Coin earn and reversal | Shared reducer on either device | Both directions | Transaction ID is authoritative |
+| Selected Mori identity, cosmetic purchase, equip | Shared reducer on either device | Both directions | A purchase is one atomic payload containing its debit and ownership grant; split purchase debit/ownership events are invalid |
 | Daily memory sealed or deleted | iPhone daily-memory authority | iPhone to Watch; deletion acknowledgement returns | One deterministic ID; Watch never persists a competing record |
 | Letter delivered, read, deleted | Originating rule engine; read/delete on either device | Both directions | Stable letter ID and explicit delete tombstone |
 | Reminder presented, expired, replaced | Watch presentation reducer | Watch to iPhone | Does not delete memory eligibility |
@@ -89,6 +90,8 @@ App-level consent defaults off and is distinct from OS authorization.
   a superseded sensing epoch. `effectiveAt` is not used to authorize an old
   event; ambiguous causal order fails closed.
 - Coin settlement IDs and task source-event IDs are unique and idempotent.
+- Competing cosmetic purchases converge to one canonical ownership and one
+  debit; a loser is a consumed no-op, never a second charge.
 - Sealed daily memories are not silently rewritten by late evidence.
 - Unknown schemas, event types, profile IDs, or privacy classes fail closed.
 

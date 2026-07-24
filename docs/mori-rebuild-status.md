@@ -6,10 +6,10 @@
 | --- | --- |
 | Branch | `codex/mori-product-rebuild` |
 | Base revision | `51b9a58` |
-| Current revision | G0 contract checkpoint (this commit) |
-| Active goal | G1 — Authoritative Product Domain |
-| Goal state | Contract ready |
-| Contract | G0 reviewed and committed; G1 implementation next |
+| Current revision | G1 product-authority checkpoint (this commit) |
+| Active goal | G2 — Evidence, Inference, And Profile Runtime |
+| Goal state | G1 reviewed; checkpoint ready |
+| Contract | G0 committed; G1 implementation and corrective review complete; G2 next |
 | Simulator validation | Historical baseline recorded; rebuilt UI not started |
 | Physical-device validation | UNVERIFIED |
 
@@ -17,9 +17,9 @@
 
 | Goal | State | Revision | Evidence | Blocker / next action |
 | --- | --- | --- | --- | --- |
-| G0 Product and baseline contract | Committed | G0 contract checkpoint (this commit) | Product/design authority, ADR 0001–0006, route/state and deletion contracts, test matrix, capability audit, approved Image2 references, Release-boundary fix, fresh package/app/E2E baseline, four-round independent review | Complete; physical capability remains independently UNVERIFIED |
-| G1 Authoritative product domain | Contract ready | — | Types, invariants, migrations, properties, and negative tests assigned | Implement profile-scoped records and pure reducers |
-| G2 Evidence and profile runtime | Pending | — | Test cases assigned | Depends on G1 |
+| G0 Product and baseline contract | Committed | `e601225` | Product/design authority, ADR 0001–0006, route/state and deletion contracts, test matrix, capability audit, approved Image2 references, Release-boundary fix, fresh package/app/E2E baseline, four-round independent review | Complete; physical capability remains independently UNVERIFIED |
+| G1 Authoritative product domain | Committed | G1 product-authority checkpoint (this commit) | `MoriDomain` and `MoriPersistence`; profile/epoch/deletion/source isolation; passive-event, task, cooldown, coin, atomic purchase, memory, letter, collection, conversation, Experience and projection contracts; closed canonical codecs; exactly-once legacy reset; 158 tests in 33 suites; two 1,000-case properties; final independent review PASS with no P0/P1 | Complete; Computer Use not applicable because this checkpoint has no UI |
+| G2 Evidence and profile runtime | Contract ready | — | G1 authority available; deterministic adapter and isolation cases assigned | Implement adapters and prove disabled intervals create no memory eligibility or later backfill |
 | G3 Sync, reminder, daily memory | Pending | — | Test cases assigned | Depends on G2 |
 | G4 Mori motion system | Pending | — | Existing asset baseline and approved semantic catalog contract | Depends on G0 |
 | G5 Watch experience | Pending | — | Route/state and UI journeys assigned | Depends on G2, G3, G4 |
@@ -42,6 +42,10 @@
 | `Scripts/validate-visual-assets --allow-pending` | `e4265fe` plus G0 contract tree | PASS: 10 scenes, 2 characters, 256 runtime frames, 20 solo composites, 10 duo composites |
 | iPhone default Debug profile | `e4265fe` E2E | PASS; launches with Mock 1 and remembers a selected Mock |
 | Watch default Debug profile | `e4265fe` Watch E2E | PASS; launches with Mock 1 and remembers a selected Mock |
+| `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` in `Packages/CompanionCore` | G1 product-authority tree | PASS: 158 tests in 33 suites, including two 1,000-case deterministic property suites |
+| `Scripts/check` and `git diff --check` | G1 product-authority tree | PASS |
+| `Scripts/test` | G1 product-authority tree | PASS: all Swift package suites and iPhone AppSmokeTests |
+| `Scripts/test-release-boundaries` | G1 product-authority tree | PASS: Release ships no fixture resources, test selectors, or Mock fixture identifiers |
 
 ### EXACT BASELINE FAILURES
 
@@ -156,6 +160,14 @@ Non-blocking follow-up for later runtime goals:
 | Second G0 contract review | first corrected tree | FAIL: no P0; 8 residual P1 groups covering identity ownership, social scope, dependency order, memory excerpt privacy, notification consent, deletion retry/fence, sync-family tests, and stale Mock/testing contracts | Corrective pass implemented; re-review required |
 | Third G0 contract review | second corrected tree | FAIL: no P0; one P1 group because SECURITY still allowed raw-HealthKit server exceptions and the active device runbook still required Smart Alarm and legacy growth/story | Security boundary made device-only; runbook rewritten for current Mori; re-review required |
 | Fourth G0 contract review | final G0 tree | PASS; no P0/P1 | Approved for scoped commit |
+| Initial G1 authority review | first G1 tree | FAIL: six P1 groups across derived-fact provenance, recursive lifecycle validation, source isolation, terminal replay, canonical coin/reversal behavior, and schema-shape fixtures | Every counterexample reproduced, fixed, and converted to regression coverage |
+| G1 corrective review | final G1 tree | PASS; P0=0, P1=0 | 158 tests/33 suites, both 1,000-case properties, static checks, canonical fixtures, and adversarial probes passed |
+
+The G1 reviewer recorded one non-blocking G2/G3 follow-up: the inference and
+daily-memory authority must bind memory eligibility to sensing/source-event
+authority so a disabled `Mori 随行` interval cannot create a memory or be
+backfilled after re-enable. G1's generic memory record alone does not prove this
+runtime privacy behavior.
 
 ## Recovery Rule
 

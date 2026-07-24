@@ -361,7 +361,10 @@ Add versioned, Codable, Sendable domain types and pure policy engines:
 - `ExperienceSyncEnvelope`
   - schema version, event type/ID, profile ID and complete epoch, origin device
     and sequence, logical revision, non-authoritative times, privacy class,
-    tombstone, source/settlement references, and approved payload.
+    tombstone, source/settlement references, explicit real or Mock source, and
+    approved payload;
+  - cosmetic purchase is one atomic payload containing the debit and ownership
+    grant; the synchronized schema rejects split purchase records.
 - Query projections for Watch Home, Today, Daily Memory, iPhone Today,
   Memories, Collection, and Chat context.
 
@@ -440,6 +443,10 @@ Add versioned, Codable, Sendable domain types and pure policy engines:
   memories, or sync envelopes.
 - Disabling companion sensing while the peer is offline rejects the peer's
   superseded-epoch passive evidence on reconnection.
+- A disabled sensing interval contributes no memory eligibility, memory fact
+  reference, task, letter, or sealed daily memory. Re-enabling sensing never
+  backfills that interval; this is enforced by source-event and sensing-epoch
+  authority rather than inferred from the generic memory record.
 - Simulator tests prove deterministic application behavior; physical capability
   claims remain unverified until the device runbook passes.
 
