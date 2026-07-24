@@ -70,6 +70,43 @@ struct HealthRuntimeTests {
     #expect(mapped.sources.first?.kind == .appleWatch)
   }
 
+  @Test(
+    "Swimming, badminton, and tennis retain their activity type",
+    arguments: [
+      WorkoutActivity.swimming,
+      WorkoutActivity.badminton,
+      WorkoutActivity.tennis,
+    ]
+  )
+  func newWorkoutActivityMapping(activity: WorkoutActivity) {
+    let adapter = AppleAdapters.HealthSnapshot(
+      capturedAt: now,
+      sleep: HealthReading(availability: .noData, values: []),
+      steps: HealthReading(availability: .noData, values: []),
+      restingHeartRate: HealthReading(availability: .noData, values: []),
+      workouts: HealthReading(
+        availability: .available,
+        values: [
+          WorkoutSample(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000995")!,
+            activity: activity,
+            start: now.addingTimeInterval(-1_800),
+            end: now,
+            durationSeconds: 1_800
+          )
+        ]
+      )
+    )
+
+    let mapped = HealthSnapshotMapper().map(
+      adapter,
+      requestState: .requestCompleted,
+      timeZone: TimeZone(secondsFromGMT: 0)!
+    )
+
+    #expect(mapped.workouts.first?.activity.rawValue == activity.rawValue)
+  }
+
   @Test("No-data snapshot remains neutral")
   func noDataMapping() {
     let empty = emptyAdapterSnapshot

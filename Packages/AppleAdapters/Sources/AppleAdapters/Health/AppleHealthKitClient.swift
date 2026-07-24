@@ -293,6 +293,9 @@
     private static func workoutActivity(for type: HKWorkoutActivityType) -> WorkoutActivity {
       switch type {
       case .soccer: return .soccer
+      case .swimming: return .swimming
+      case .badminton: return .badminton
+      case .tennis: return .tennis
       case .walking: return .walking
       case .running: return .running
       case .cycling: return .cycling

@@ -51,7 +51,7 @@ final class WatchAppUITests: XCTestCase {
     let app = launchApp(scenario: "mock7_rhythm")
 
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
-    XCTAssertTrue(element("watch.mock-badge", in: app).label.contains("7 日 · 节律改善"))
+    XCTAssertTrue(element("watch.mock-badge", in: app).label.contains("35 日 · 节律旅程"))
     let trendLink = app.buttons["watch.open-trends"]
     scrollToElement(trendLink, in: app)
     trendLink.tap()

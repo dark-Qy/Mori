@@ -1,42 +1,369 @@
 {
   "schemaVersion": 1,
   "scenarioID": "mock7_stable",
-  "displayName": "7 日 · 平稳",
-  "clock": { "now": "2026-07-23T20:00:00+08:00", "timeZone": "Asia/Shanghai" },
-  "launchArguments": ["-MockScenario", "mock7_stable"],
+  "displayName": "35 日 · 平稳旅程",
+  "clock": {
+    "now": "2026-07-23T20:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": [
+    "-MockScenario",
+    "mock7_stable"
+  ],
   "state": {
-    "installation": { "hasLaunchedBefore": true },
-    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "installation": {
+      "hasLaunchedBefore": true
+    },
+    "permissions": {
+      "healthRequest": "completed",
+      "notifications": "authorized"
+    },
     "health": {
       "source": "mock",
       "dataState": "available",
       "dailySnapshots": [
-        { "capturedAt": "2026-07-10T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-09T23:00:00+08:00", "sleepWindowEnd": "2026-07-10T06:00:00+08:00", "steps": 6400, "activeMinutes": 28, "restingHeartRate": 60 },
-        { "capturedAt": "2026-07-11T20:00:00+08:00", "sleepMinutes": 425, "sleepWindowStart": "2026-07-10T23:05:00+08:00", "sleepWindowEnd": "2026-07-11T06:10:00+08:00", "steps": 6800, "activeMinutes": 31, "restingHeartRate": 59 },
-        { "capturedAt": "2026-07-12T20:00:00+08:00", "sleepMinutes": 415, "sleepWindowStart": "2026-07-11T22:55:00+08:00", "sleepWindowEnd": "2026-07-12T05:50:00+08:00", "steps": 6200, "activeMinutes": 27, "restingHeartRate": 61 },
-        { "capturedAt": "2026-07-13T20:00:00+08:00", "sleepMinutes": 430, "sleepWindowStart": "2026-07-12T23:10:00+08:00", "sleepWindowEnd": "2026-07-13T06:20:00+08:00", "steps": 7100, "activeMinutes": 33, "restingHeartRate": 58 },
-        { "capturedAt": "2026-07-14T20:00:00+08:00", "sleepMinutes": 410, "sleepWindowStart": "2026-07-13T23:00:00+08:00", "sleepWindowEnd": "2026-07-14T05:50:00+08:00", "steps": 6500, "activeMinutes": 29, "restingHeartRate": 60 },
-        { "capturedAt": "2026-07-15T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-14T23:05:00+08:00", "sleepWindowEnd": "2026-07-15T06:05:00+08:00", "steps": 6900, "activeMinutes": 30, "restingHeartRate": 59 },
-        { "capturedAt": "2026-07-16T20:00:00+08:00", "sleepMinutes": 425, "sleepWindowStart": "2026-07-15T23:00:00+08:00", "sleepWindowEnd": "2026-07-16T06:05:00+08:00", "steps": 6600, "activeMinutes": 30, "restingHeartRate": 60 },
-        { "capturedAt": "2026-07-17T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-16T23:00:00+08:00", "sleepWindowEnd": "2026-07-17T06:00:00+08:00", "steps": 6700, "activeMinutes": 29, "restingHeartRate": 60 },
-        { "capturedAt": "2026-07-18T20:00:00+08:00", "sleepMinutes": 415, "sleepWindowStart": "2026-07-17T23:05:00+08:00", "sleepWindowEnd": "2026-07-18T06:00:00+08:00", "steps": 6500, "activeMinutes": 28, "restingHeartRate": 59 },
-        { "capturedAt": "2026-07-19T20:00:00+08:00", "sleepMinutes": 430, "sleepWindowStart": "2026-07-18T22:55:00+08:00", "sleepWindowEnd": "2026-07-19T06:05:00+08:00", "steps": 7000, "activeMinutes": 32, "restingHeartRate": 60 },
-        { "capturedAt": "2026-07-20T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-19T23:10:00+08:00", "sleepWindowEnd": "2026-07-20T06:10:00+08:00", "steps": 6300, "activeMinutes": 27, "restingHeartRate": 61 },
-        { "capturedAt": "2026-07-21T20:00:00+08:00", "sleepMinutes": 410, "sleepWindowStart": "2026-07-20T23:00:00+08:00", "sleepWindowEnd": "2026-07-21T05:50:00+08:00", "steps": 6800, "activeMinutes": 30, "restingHeartRate": 59 },
-        { "capturedAt": "2026-07-22T20:00:00+08:00", "sleepMinutes": 425, "sleepWindowStart": "2026-07-21T23:05:00+08:00", "sleepWindowEnd": "2026-07-22T06:10:00+08:00", "steps": 6900, "activeMinutes": 31, "restingHeartRate": 58 },
-        { "capturedAt": "2026-07-23T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-22T23:00:00+08:00", "sleepWindowEnd": "2026-07-23T06:00:00+08:00", "steps": 6700, "activeMinutes": 30, "restingHeartRate": 59 }
+        {
+          "capturedAt": "2026-06-19T20:00:00+08:00",
+          "sleepMinutes": 410,
+          "sleepWindowStart": "2026-06-18T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-19T05:50:00+08:00",
+          "steps": 6000,
+          "activeMinutes": 25,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-06-20T20:00:00+08:00",
+          "sleepMinutes": 415,
+          "sleepWindowStart": "2026-06-19T23:05:00+08:00",
+          "sleepWindowEnd": "2026-06-20T06:00:00+08:00",
+          "steps": 6400,
+          "activeMinutes": 28,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-06-21T20:00:00+08:00",
+          "sleepMinutes": 405,
+          "sleepWindowStart": "2026-06-20T22:55:00+08:00",
+          "sleepWindowEnd": "2026-06-21T05:40:00+08:00",
+          "steps": 5900,
+          "activeMinutes": 24,
+          "restingHeartRate": 62
+        },
+        {
+          "capturedAt": "2026-06-22T20:00:00+08:00",
+          "sleepMinutes": 420,
+          "sleepWindowStart": "2026-06-21T23:10:00+08:00",
+          "sleepWindowEnd": "2026-06-22T06:10:00+08:00",
+          "steps": 6600,
+          "activeMinutes": 30,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-06-23T20:00:00+08:00",
+          "sleepMinutes": 400,
+          "sleepWindowStart": "2026-06-22T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-23T05:40:00+08:00",
+          "steps": 6100,
+          "activeMinutes": 26,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-06-24T20:00:00+08:00",
+          "sleepMinutes": 410,
+          "sleepWindowStart": "2026-06-23T23:05:00+08:00",
+          "sleepWindowEnd": "2026-06-24T05:55:00+08:00",
+          "steps": 6400,
+          "activeMinutes": 27,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-06-25T20:00:00+08:00",
+          "sleepMinutes": 415,
+          "sleepWindowStart": "2026-06-24T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-25T05:55:00+08:00",
+          "steps": 6200,
+          "activeMinutes": 27,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-06-26T20:00:00+08:00",
+          "sleepMinutes": 415,
+          "sleepWindowStart": "2026-06-25T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-26T05:55:00+08:00",
+          "steps": 6200,
+          "activeMinutes": 26,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-06-27T20:00:00+08:00",
+          "sleepMinutes": 420,
+          "sleepWindowStart": "2026-06-26T23:05:00+08:00",
+          "sleepWindowEnd": "2026-06-27T06:05:00+08:00",
+          "steps": 6600,
+          "activeMinutes": 29,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-06-28T20:00:00+08:00",
+          "sleepMinutes": 410,
+          "sleepWindowStart": "2026-06-27T22:55:00+08:00",
+          "sleepWindowEnd": "2026-06-28T05:45:00+08:00",
+          "steps": 6100,
+          "activeMinutes": 25,
+          "restingHeartRate": 62
+        },
+        {
+          "capturedAt": "2026-06-29T20:00:00+08:00",
+          "sleepMinutes": 425,
+          "sleepWindowStart": "2026-06-28T23:10:00+08:00",
+          "sleepWindowEnd": "2026-06-29T06:15:00+08:00",
+          "steps": 6800,
+          "activeMinutes": 31,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-06-30T20:00:00+08:00",
+          "sleepMinutes": 405,
+          "sleepWindowStart": "2026-06-29T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-30T05:45:00+08:00",
+          "steps": 6300,
+          "activeMinutes": 27,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-07-01T20:00:00+08:00",
+          "sleepMinutes": 415,
+          "sleepWindowStart": "2026-06-30T23:05:00+08:00",
+          "sleepWindowEnd": "2026-07-01T06:00:00+08:00",
+          "steps": 6600,
+          "activeMinutes": 28,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-02T20:00:00+08:00",
+          "sleepMinutes": 420,
+          "sleepWindowStart": "2026-07-01T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-02T06:00:00+08:00",
+          "steps": 6400,
+          "activeMinutes": 28,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-07-03T20:00:00+08:00",
+          "sleepMinutes": 420,
+          "sleepWindowStart": "2026-07-02T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-03T06:00:00+08:00",
+          "steps": 6350,
+          "activeMinutes": 27,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-04T20:00:00+08:00",
+          "sleepMinutes": 425,
+          "sleepWindowStart": "2026-07-03T23:05:00+08:00",
+          "sleepWindowEnd": "2026-07-04T06:10:00+08:00",
+          "steps": 6750,
+          "activeMinutes": 30,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-05T20:00:00+08:00",
+          "sleepMinutes": 415,
+          "sleepWindowStart": "2026-07-04T22:55:00+08:00",
+          "sleepWindowEnd": "2026-07-05T05:50:00+08:00",
+          "steps": 6250,
+          "activeMinutes": 26,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-07-06T20:00:00+08:00",
+          "sleepMinutes": 430,
+          "sleepWindowStart": "2026-07-05T23:10:00+08:00",
+          "sleepWindowEnd": "2026-07-06T06:20:00+08:00",
+          "steps": 6950,
+          "activeMinutes": 32,
+          "restingHeartRate": 58
+        },
+        {
+          "capturedAt": "2026-07-07T20:00:00+08:00",
+          "sleepMinutes": 410,
+          "sleepWindowStart": "2026-07-06T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-07T05:50:00+08:00",
+          "steps": 6450,
+          "activeMinutes": 28,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-08T20:00:00+08:00",
+          "sleepMinutes": 420,
+          "sleepWindowStart": "2026-07-07T23:05:00+08:00",
+          "sleepWindowEnd": "2026-07-08T06:05:00+08:00",
+          "steps": 6750,
+          "activeMinutes": 29,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-09T20:00:00+08:00",
+          "sleepMinutes": 425,
+          "sleepWindowStart": "2026-07-08T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-09T06:05:00+08:00",
+          "steps": 6550,
+          "activeMinutes": 29,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-10T20:00:00+08:00",
+          "sleepMinutes": 420,
+          "sleepWindowStart": "2026-07-09T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-10T06:00:00+08:00",
+          "steps": 6450,
+          "activeMinutes": 28,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-11T20:00:00+08:00",
+          "sleepMinutes": 425,
+          "sleepWindowStart": "2026-07-10T23:05:00+08:00",
+          "sleepWindowEnd": "2026-07-11T06:10:00+08:00",
+          "steps": 6850,
+          "activeMinutes": 31,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-12T20:00:00+08:00",
+          "sleepMinutes": 415,
+          "sleepWindowStart": "2026-07-11T22:55:00+08:00",
+          "sleepWindowEnd": "2026-07-12T05:50:00+08:00",
+          "steps": 6350,
+          "activeMinutes": 27,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-07-13T20:00:00+08:00",
+          "sleepMinutes": 430,
+          "sleepWindowStart": "2026-07-12T23:10:00+08:00",
+          "sleepWindowEnd": "2026-07-13T06:20:00+08:00",
+          "steps": 7050,
+          "activeMinutes": 33,
+          "restingHeartRate": 58
+        },
+        {
+          "capturedAt": "2026-07-14T20:00:00+08:00",
+          "sleepMinutes": 410,
+          "sleepWindowStart": "2026-07-13T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-14T05:50:00+08:00",
+          "steps": 6550,
+          "activeMinutes": 29,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-15T20:00:00+08:00",
+          "sleepMinutes": 420,
+          "sleepWindowStart": "2026-07-14T23:05:00+08:00",
+          "sleepWindowEnd": "2026-07-15T06:05:00+08:00",
+          "steps": 6850,
+          "activeMinutes": 30,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-16T20:00:00+08:00",
+          "sleepMinutes": 425,
+          "sleepWindowStart": "2026-07-15T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-16T06:05:00+08:00",
+          "steps": 6650,
+          "activeMinutes": 30,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-17T20:00:00+08:00",
+          "sleepMinutes": 420,
+          "sleepWindowStart": "2026-07-16T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-17T06:00:00+08:00",
+          "steps": 6500,
+          "activeMinutes": 28,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-18T20:00:00+08:00",
+          "sleepMinutes": 425,
+          "sleepWindowStart": "2026-07-17T23:05:00+08:00",
+          "sleepWindowEnd": "2026-07-18T06:10:00+08:00",
+          "steps": 6900,
+          "activeMinutes": 31,
+          "restingHeartRate": 58
+        },
+        {
+          "capturedAt": "2026-07-19T20:00:00+08:00",
+          "sleepMinutes": 415,
+          "sleepWindowStart": "2026-07-18T22:55:00+08:00",
+          "sleepWindowEnd": "2026-07-19T05:50:00+08:00",
+          "steps": 6400,
+          "activeMinutes": 27,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-20T20:00:00+08:00",
+          "sleepMinutes": 430,
+          "sleepWindowStart": "2026-07-19T23:10:00+08:00",
+          "sleepWindowEnd": "2026-07-20T06:20:00+08:00",
+          "steps": 7100,
+          "activeMinutes": 33,
+          "restingHeartRate": 57
+        },
+        {
+          "capturedAt": "2026-07-21T20:00:00+08:00",
+          "sleepMinutes": 410,
+          "sleepWindowStart": "2026-07-20T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-21T05:50:00+08:00",
+          "steps": 6600,
+          "activeMinutes": 29,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-22T20:00:00+08:00",
+          "sleepMinutes": 420,
+          "sleepWindowStart": "2026-07-21T23:05:00+08:00",
+          "sleepWindowEnd": "2026-07-22T06:05:00+08:00",
+          "steps": 6900,
+          "activeMinutes": 30,
+          "restingHeartRate": 58
+        },
+        {
+          "capturedAt": "2026-07-23T20:00:00+08:00",
+          "sleepMinutes": 425,
+          "sleepWindowStart": "2026-07-22T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-23T06:05:00+08:00",
+          "steps": 6700,
+          "activeMinutes": 30,
+          "restingHeartRate": 59
+        }
       ]
     },
-    "services": { "ai": "available", "sync": "reachable" },
-    "pet": { "lifecycle": "active", "level": 3, "vitality": 10, "bond": 12, "insight": 9, "lastInteractionAt": "2026-07-22T20:00:00+08:00" },
-    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+    "services": {
+      "ai": "available",
+      "sync": "reachable"
+    },
+    "pet": {
+      "lifecycle": "active",
+      "level": 3,
+      "vitality": 10,
+      "bond": 12,
+      "insight": 9,
+      "lastInteractionAt": "2026-07-22T20:00:00+08:00"
+    },
+    "wardrobe": {
+      "selectedOutfitID": "default",
+      "unlockedOutfitIDs": [
+        "default"
+      ]
+    }
   },
   "expectations": {
     "primaryState": "petHome",
     "mockBadgeVisible": true,
     "trend": {
       "recentDayCount": 7,
-      "usableBaselineDayCount": 14,
+      "usableBaselineDayCount": 30,
       "sleepDuration": "withinPersonalRange",
       "steps": "withinPersonalRange",
       "activeMinutes": "withinPersonalRange",

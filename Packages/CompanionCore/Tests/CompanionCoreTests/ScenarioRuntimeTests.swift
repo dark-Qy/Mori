@@ -21,7 +21,7 @@ struct ScenarioRuntimeTests {
     }
   }
 
-  @Test("Seven-day demos use real daily history and self-check their personal trends")
+  @Test("Thirty-five-day demos use real daily history and self-check their latest trends")
   func sevenDayScenarios() throws {
     let expectedStatuses: [String: [TrendMetric: PersonalTrendStatus]] = [
       "mock7_stable": [
@@ -61,11 +61,11 @@ struct ScenarioRuntimeTests {
       let run = try MockScenarioRun(runtime: runtime)
       let trend = try #require(runtime.personalHealthTrend)
 
-      #expect(runtime.healthSnapshots.count == 14)
-      #expect(Set(runtime.healthSnapshots.map(\.localDay)).count == 14)
-      #expect(run.ledger.events.count == 14)
-      #expect(Set(run.ledger.events.map(\.eventID)).count == 14)
-      #expect(run.state.processedEventIDs.count == 14)
+      #expect(runtime.healthSnapshots.count == 35)
+      #expect(Set(runtime.healthSnapshots.map(\.localDay)).count == 35)
+      #expect(run.ledger.events.count == 35)
+      #expect(Set(run.ledger.events.map(\.eventID)).count == 35)
+      #expect(run.state.processedEventIDs.count == 35)
       #expect(trend.recentDays.count == 7)
       for (metric, expectedStatus) in statuses {
         #expect(
@@ -84,12 +84,31 @@ struct ScenarioRuntimeTests {
     let activeRun = try MockScenarioRun(runtime: active)
     #expect(active.healthSnapshot.steps == 10_800)
     #expect(active.healthSnapshot.workouts.first?.durationMinutes == 45)
+    let activeWorkouts = active.healthSnapshots.flatMap(\.workouts)
+    #expect(
+      activeWorkouts.map(\.activity)
+        == [.walking, .swimming, .badminton, .tennis, .soccer]
+    )
+    #expect(activeWorkouts.map(\.durationMinutes) == [20, 25, 30, 40, 45])
+    let iso8601 = ISO8601DateFormatter()
+    let expectedWorkoutStarts = [
+      "2026-06-22T18:10:00+08:00",
+      "2026-06-29T19:00:00+08:00",
+      "2026-07-06T18:30:00+08:00",
+      "2026-07-13T17:50:00+08:00",
+      "2026-07-23T17:30:00+08:00",
+    ].compactMap(iso8601.date(from:))
+    #expect(expectedWorkoutStarts.count == 5)
+    #expect(
+      activeWorkouts.map(\.startedAt)
+        == expectedWorkoutStarts
+    )
     #expect(active.eligibleRandomStoryID == "lost_ball")
     #expect(!activeRun.state.story.unlockedSideStoryIDs.contains("lost_ball"))
 
     let sparseRuntime = try runtime(named: "mock7_sparse")
     let sparse = try #require(sparseRuntime.personalHealthTrend)
-    #expect(sparse.usableBaselineDayCount == 10)
+    #expect(sparse.usableBaselineDayCount == 20)
     #expect(sparse.recentDays.filter { $0.steps == nil }.count == 2)
   }
 

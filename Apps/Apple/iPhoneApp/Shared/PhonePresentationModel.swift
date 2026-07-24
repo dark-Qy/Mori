@@ -238,7 +238,13 @@ struct PhonePresentationModel {
         now: seed.now,
         timeZone: TimeZone(identifier: seed.timeZoneIdentifier) ?? .current
       )
-      let scenario = PhoneMockScenario(id: seed.id, displayName: seed.displayName)
+      let scenario = PhoneMockScenario(
+        id: seed.id,
+        displayName: seed.displayName,
+        now: seed.now,
+        timeZoneIdentifier: seed.timeZoneIdentifier,
+        healthSnapshots: seed.healthSnapshots
+      )
       let fallbackExplanation =
         seed.narrationState == .localFallback
         ? " AI 服务不可用或响应无效，当前使用经过审核的本地表达；规则结果不变。" : ""
@@ -429,6 +435,9 @@ struct PhonePresentationModel {
 struct PhoneMockScenario: Equatable {
   let id: String
   let displayName: String
+  let now: Date
+  let timeZoneIdentifier: String
+  let healthSnapshots: [HealthSnapshot]
 }
 
 enum PhoneInitialScreen: Equatable {

@@ -29,6 +29,7 @@
     public let primaryState: DebugScenarioPrimaryState
     public let companionState: CompanionState
     public let healthSnapshot: HealthSnapshot
+    public let healthSnapshots: [HealthSnapshot]
     public let personalHealthTrend: PersonalHealthTrend?
     public let petLevel: Int
     public let selectedOutfitID: String?
@@ -47,6 +48,7 @@
       primaryState = DebugScenarioPrimaryState(rawValue: runtime.primaryState.rawValue) ?? .petHome
       companionState = run.state
       healthSnapshot = runtime.healthSnapshot
+      healthSnapshots = runtime.healthSnapshots
       personalHealthTrend = runtime.personalHealthTrend
       petLevel = runtime.petLevel
       selectedOutfitID = runtime.wardrobe.selectedOutfitID

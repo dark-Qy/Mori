@@ -20,7 +20,7 @@ Mocks make deterministic development possible when HealthKit history, physical h
 
 The current debug product build starts with `Mock 1` when no data source has been selected. Both
 iPhone and Watch expose one compact data-source button with `Apple 健康`, the three focused Mock
-demos, and five `7 日` demos. A single tap applies the selection, closes the chooser, remembers only
+demos, and five `35 日` demos. A single tap applies the selection, closes the chooser, remembers only
 the selected label, and projects that label through the existing WatchConnectivity state.
 
 Mock world state remains in memory. Selecting a fixture again or relaunching reconstructs its
@@ -57,10 +57,10 @@ Installation state and executable domain state derive the initial screen. For ex
 progress accidentally.
 
 Multi-day fixtures use `state.health.dailySnapshots`. Each entry becomes one normalized
-`HealthSnapshot` and one `healthSnapshotReceived` event at that entry's `capturedAt` time. The
-presentation shows the most recent seven days, while the included 14-day history gives the real
-personal-trend analyzer enough earlier context to distinguish stable, improving, and declining
-patterns. Missing metrics remain `null`; they are never converted to zero.
+`HealthSnapshot` and one `healthSnapshotReceived` event at that entry's `capturedAt` time. The five
+`mock7_*` scenarios each contain 35 days, which the iPhone presentation divides into five complete
+seven-day memories. The rule engine may still analyze the most recent seven days against its
+30-day baseline. Missing metrics remain `null`; they are never converted to zero.
 
 ```json
 "health": {
@@ -82,6 +82,22 @@ patterns. Missing metrics remain `null`; they are never converted to zero.
 Optional `expectations.trend` values are assertions, not presentation inputs. Loading the fixture
 fails if the analyzer does not produce the declared recent-day count, usable baseline count, or
 metric status.
+
+### Weekly memory presentation
+
+The iPhone `回忆` tab builds five weekly memories locally and deterministically for `mock7_*`
+fixtures. Each report comes directly from that week's raw snapshots and shows concrete totals for
+steps and active minutes plus average sleep when all seven values exist. Workout records provide
+event highlights such as `游泳 · 25 分钟`, `羽毛球 · 30 分钟`, `网球 · 40 分钟`, or
+`足球 · 45 分钟`. The UI does not expose comparison-baseline language,
+missing-value implementation notes, or model/provider labels.
+
+Ten reviewed Codex image2 covers include walking and route scenes, evening rhythm, rest, swimming,
+badminton, tennis, and soccer. Every timeline entry selects a cover that matches its weekly facts;
+the active journey uses five distinct activities and color palettes instead of repeating walking
+scenes.
+Precise dates and numbers remain native text rather than being baked into generated artwork. No
+runtime model or network request participates in this path.
 
 The same rule applies to behavior-triggered stories. `soccer_workout` provides a synthetic workout;
 `SoccerSideStoryRule` derives whether `lost_ball` is eligible from its activity, duration, and
@@ -112,11 +128,11 @@ Dates are interpreted relative to `clock.now` where possible. Fixtures never con
 | `mock1` | Everyday demo | normal sleep and activity |
 | `mock2` | Relationship and care demo | three complete days without interaction plus an explicitly logged stressful State of Mind |
 | `mock3` | High-activity story demo | high activity and an explicit soccer workout eligible for `lost_ball` |
-| `mock7_stable` | Stable seven-day chart | all recent metrics stay within the personal range |
-| `mock7_recovery` | Reduced recent sleep | sleep falls below the personal range and the latest day enters recovery |
-| `mock7_active` | Increased recent activity | steps and active minutes rise; latest soccer workout is eligible for `lost_ball` |
-| `mock7_sparse` | Missing days | recent chart keeps two visible gaps and never substitutes zero |
-| `mock7_rhythm` | More consistent sleep timing | sleep-start consistency improves against the earlier personal baseline |
+| `mock7_stable` | Five-week stable timeline | recent metrics remain steady across 35 days |
+| `mock7_recovery` | Five-week recovery timeline | sleep duration gradually reduces and the latest day enters recovery |
+| `mock7_active` | Five-week activity timeline | walking, swimming, badminton, tennis, then soccer; latest soccer workout is eligible for `lost_ball` |
+| `mock7_sparse` | Five-week partial timeline | each week preserves its known moments without inventing totals |
+| `mock7_rhythm` | Five-week rhythm timeline | sleep-start timing becomes progressively more consistent |
 
 Add explicit scenarios for each bug that depends on time, permission, ordering, or randomness.
 

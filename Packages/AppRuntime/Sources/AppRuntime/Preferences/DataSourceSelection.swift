@@ -20,11 +20,11 @@ public enum CompanionDataSource: String, Codable, CaseIterable, Sendable {
       case .mock1: "Mock 1"
       case .mock2: "Mock 2"
       case .mock3: "Mock 3"
-      case .mock7Active: "7 日 · 活动提升"
-      case .mock7Recovery: "7 日 · 恢复提醒"
-      case .mock7Rhythm: "7 日 · 节律改善"
-      case .mock7Sparse: "7 日 · 数据不全"
-      case .mock7Stable: "7 日 · 平稳"
+      case .mock7Active: "35 日 · 活动旅程"
+      case .mock7Recovery: "35 日 · 恢复旅程"
+      case .mock7Rhythm: "35 日 · 节律旅程"
+      case .mock7Sparse: "35 日 · 片段旅程"
+      case .mock7Stable: "35 日 · 平稳旅程"
     #endif
     }
   }

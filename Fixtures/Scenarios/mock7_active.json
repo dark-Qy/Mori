@@ -1,29 +1,369 @@
 {
   "schemaVersion": 1,
   "scenarioID": "mock7_active",
-  "displayName": "7 日 · 活动提升",
-  "clock": { "now": "2026-07-23T20:00:00+08:00", "timeZone": "Asia/Shanghai" },
-  "launchArguments": ["-MockScenario", "mock7_active"],
+  "displayName": "35 日 · 活动旅程",
+  "clock": {
+    "now": "2026-07-23T20:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": [
+    "-MockScenario",
+    "mock7_active"
+  ],
   "state": {
-    "installation": { "hasLaunchedBefore": true },
-    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "installation": {
+      "hasLaunchedBefore": true
+    },
+    "permissions": {
+      "healthRequest": "completed",
+      "notifications": "authorized"
+    },
     "health": {
       "source": "mock",
       "dataState": "available",
       "dailySnapshots": [
-        { "capturedAt": "2026-07-10T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-09T23:00:00+08:00", "sleepWindowEnd": "2026-07-10T06:30:00+08:00", "steps": 4500, "activeMinutes": 20, "restingHeartRate": 62 },
-        { "capturedAt": "2026-07-11T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-10T23:00:00+08:00", "sleepWindowEnd": "2026-07-11T06:30:00+08:00", "steps": 4400, "activeMinutes": 19, "restingHeartRate": 62 },
-        { "capturedAt": "2026-07-12T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-11T23:00:00+08:00", "sleepWindowEnd": "2026-07-12T06:30:00+08:00", "steps": 4600, "activeMinutes": 21, "restingHeartRate": 61 },
-        { "capturedAt": "2026-07-13T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-12T23:00:00+08:00", "sleepWindowEnd": "2026-07-13T06:30:00+08:00", "steps": 4500, "activeMinutes": 20, "restingHeartRate": 62 },
-        { "capturedAt": "2026-07-14T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-13T23:00:00+08:00", "sleepWindowEnd": "2026-07-14T06:30:00+08:00", "steps": 4300, "activeMinutes": 18, "restingHeartRate": 63 },
-        { "capturedAt": "2026-07-15T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-14T23:00:00+08:00", "sleepWindowEnd": "2026-07-15T06:30:00+08:00", "steps": 4700, "activeMinutes": 22, "restingHeartRate": 61 },
-        { "capturedAt": "2026-07-16T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-15T23:00:00+08:00", "sleepWindowEnd": "2026-07-16T06:30:00+08:00", "steps": 4500, "activeMinutes": 20, "restingHeartRate": 62 },
-        { "capturedAt": "2026-07-17T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-16T23:00:00+08:00", "sleepWindowEnd": "2026-07-17T06:30:00+08:00", "steps": 9800, "activeMinutes": 48, "restingHeartRate": 59 },
-        { "capturedAt": "2026-07-18T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-17T23:00:00+08:00", "sleepWindowEnd": "2026-07-18T06:30:00+08:00", "steps": 10200, "activeMinutes": 51, "restingHeartRate": 58 },
-        { "capturedAt": "2026-07-19T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-18T23:00:00+08:00", "sleepWindowEnd": "2026-07-19T06:30:00+08:00", "steps": 9600, "activeMinutes": 47, "restingHeartRate": 59 },
-        { "capturedAt": "2026-07-20T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-19T23:00:00+08:00", "sleepWindowEnd": "2026-07-20T06:30:00+08:00", "steps": 10500, "activeMinutes": 53, "restingHeartRate": 58 },
-        { "capturedAt": "2026-07-21T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-20T23:00:00+08:00", "sleepWindowEnd": "2026-07-21T06:30:00+08:00", "steps": 9900, "activeMinutes": 49, "restingHeartRate": 59 },
-        { "capturedAt": "2026-07-22T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-21T23:00:00+08:00", "sleepWindowEnd": "2026-07-22T06:30:00+08:00", "steps": 10100, "activeMinutes": 50, "restingHeartRate": 58 },
+        {
+          "capturedAt": "2026-06-19T20:00:00+08:00",
+          "sleepMinutes": 430,
+          "sleepWindowStart": "2026-06-18T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-19T06:10:00+08:00",
+          "steps": 4000,
+          "activeMinutes": 16,
+          "restingHeartRate": 63
+        },
+        {
+          "capturedAt": "2026-06-20T20:00:00+08:00",
+          "sleepMinutes": 435,
+          "sleepWindowStart": "2026-06-19T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-20T06:15:00+08:00",
+          "steps": 4300,
+          "activeMinutes": 19,
+          "restingHeartRate": 62
+        },
+        {
+          "capturedAt": "2026-06-21T20:00:00+08:00",
+          "sleepMinutes": 425,
+          "sleepWindowStart": "2026-06-20T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-21T06:05:00+08:00",
+          "steps": 4100,
+          "activeMinutes": 17,
+          "restingHeartRate": 63
+        },
+        {
+          "capturedAt": "2026-06-22T20:00:00+08:00",
+          "sleepMinutes": 440,
+          "sleepWindowStart": "2026-06-21T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-22T06:20:00+08:00",
+          "steps": 4500,
+          "activeMinutes": 21,
+          "restingHeartRate": 61,
+          "workouts": [
+            {
+              "id": "mock7-active-walking",
+              "activityType": "walking",
+              "startedAt": "2026-06-22T18:10:00+08:00",
+              "durationMinutes": 20,
+              "activeEnergyKilocalories": 115
+            }
+          ]
+        },
+        {
+          "capturedAt": "2026-06-23T20:00:00+08:00",
+          "sleepMinutes": 430,
+          "sleepWindowStart": "2026-06-22T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-23T06:10:00+08:00",
+          "steps": 4200,
+          "activeMinutes": 18,
+          "restingHeartRate": 62
+        },
+        {
+          "capturedAt": "2026-06-24T20:00:00+08:00",
+          "sleepMinutes": 435,
+          "sleepWindowStart": "2026-06-23T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-24T06:15:00+08:00",
+          "steps": 4400,
+          "activeMinutes": 20,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-06-25T20:00:00+08:00",
+          "sleepMinutes": 425,
+          "sleepWindowStart": "2026-06-24T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-25T06:05:00+08:00",
+          "steps": 4050,
+          "activeMinutes": 16,
+          "restingHeartRate": 63
+        },
+        {
+          "capturedAt": "2026-06-26T20:00:00+08:00",
+          "sleepMinutes": 435,
+          "sleepWindowStart": "2026-06-25T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-26T06:15:00+08:00",
+          "steps": 5000,
+          "activeMinutes": 23,
+          "restingHeartRate": 62
+        },
+        {
+          "capturedAt": "2026-06-27T20:00:00+08:00",
+          "sleepMinutes": 440,
+          "sleepWindowStart": "2026-06-26T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-27T06:20:00+08:00",
+          "steps": 5300,
+          "activeMinutes": 25,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-06-28T20:00:00+08:00",
+          "sleepMinutes": 430,
+          "sleepWindowStart": "2026-06-27T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-28T06:10:00+08:00",
+          "steps": 4900,
+          "activeMinutes": 22,
+          "restingHeartRate": 62
+        },
+        {
+          "capturedAt": "2026-06-29T20:00:00+08:00",
+          "sleepMinutes": 445,
+          "sleepWindowStart": "2026-06-28T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-29T06:25:00+08:00",
+          "steps": 5500,
+          "activeMinutes": 27,
+          "restingHeartRate": 60,
+          "workouts": [
+            {
+              "id": "mock7-active-swimming",
+              "activityType": "swimming",
+              "startedAt": "2026-06-29T19:00:00+08:00",
+              "durationMinutes": 25,
+              "activeEnergyKilocalories": 220
+            }
+          ]
+        },
+        {
+          "capturedAt": "2026-06-30T20:00:00+08:00",
+          "sleepMinutes": 438,
+          "sleepWindowStart": "2026-06-29T23:00:00+08:00",
+          "sleepWindowEnd": "2026-06-30T06:18:00+08:00",
+          "steps": 5100,
+          "activeMinutes": 24,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-07-01T20:00:00+08:00",
+          "sleepMinutes": 442,
+          "sleepWindowStart": "2026-06-30T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-01T06:22:00+08:00",
+          "steps": 5400,
+          "activeMinutes": 26,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-02T20:00:00+08:00",
+          "sleepMinutes": 435,
+          "sleepWindowStart": "2026-07-01T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-02T06:15:00+08:00",
+          "steps": 5200,
+          "activeMinutes": 24,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-07-03T20:00:00+08:00",
+          "sleepMinutes": 440,
+          "sleepWindowStart": "2026-07-02T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-03T06:20:00+08:00",
+          "steps": 6100,
+          "activeMinutes": 29,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-07-04T20:00:00+08:00",
+          "sleepMinutes": 445,
+          "sleepWindowStart": "2026-07-03T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-04T06:25:00+08:00",
+          "steps": 6500,
+          "activeMinutes": 32,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-05T20:00:00+08:00",
+          "sleepMinutes": 435,
+          "sleepWindowStart": "2026-07-04T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-05T06:15:00+08:00",
+          "steps": 6000,
+          "activeMinutes": 28,
+          "restingHeartRate": 61
+        },
+        {
+          "capturedAt": "2026-07-06T20:00:00+08:00",
+          "sleepMinutes": 450,
+          "sleepWindowStart": "2026-07-05T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-06T06:30:00+08:00",
+          "steps": 6800,
+          "activeMinutes": 34,
+          "restingHeartRate": 59,
+          "workouts": [
+            {
+              "id": "mock7-active-badminton",
+              "activityType": "badminton",
+              "startedAt": "2026-07-06T18:30:00+08:00",
+              "durationMinutes": 30,
+              "activeEnergyKilocalories": 260
+            }
+          ]
+        },
+        {
+          "capturedAt": "2026-07-07T20:00:00+08:00",
+          "sleepMinutes": 442,
+          "sleepWindowStart": "2026-07-06T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-07T06:22:00+08:00",
+          "steps": 6300,
+          "activeMinutes": 31,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-08T20:00:00+08:00",
+          "sleepMinutes": 448,
+          "sleepWindowStart": "2026-07-07T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-08T06:28:00+08:00",
+          "steps": 6600,
+          "activeMinutes": 33,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-09T20:00:00+08:00",
+          "sleepMinutes": 440,
+          "sleepWindowStart": "2026-07-08T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-09T06:20:00+08:00",
+          "steps": 6200,
+          "activeMinutes": 30,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-10T20:00:00+08:00",
+          "sleepMinutes": 445,
+          "sleepWindowStart": "2026-07-09T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-10T06:25:00+08:00",
+          "steps": 7300,
+          "activeMinutes": 36,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-11T20:00:00+08:00",
+          "sleepMinutes": 450,
+          "sleepWindowStart": "2026-07-10T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-11T06:30:00+08:00",
+          "steps": 7800,
+          "activeMinutes": 39,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-12T20:00:00+08:00",
+          "sleepMinutes": 440,
+          "sleepWindowStart": "2026-07-11T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-12T06:20:00+08:00",
+          "steps": 7200,
+          "activeMinutes": 35,
+          "restingHeartRate": 60
+        },
+        {
+          "capturedAt": "2026-07-13T20:00:00+08:00",
+          "sleepMinutes": 455,
+          "sleepWindowStart": "2026-07-12T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-13T06:35:00+08:00",
+          "steps": 8100,
+          "activeMinutes": 41,
+          "restingHeartRate": 58,
+          "workouts": [
+            {
+              "id": "mock7-active-tennis",
+              "activityType": "tennis",
+              "startedAt": "2026-07-13T17:50:00+08:00",
+              "durationMinutes": 40,
+              "activeEnergyKilocalories": 340
+            }
+          ]
+        },
+        {
+          "capturedAt": "2026-07-14T20:00:00+08:00",
+          "sleepMinutes": 448,
+          "sleepWindowStart": "2026-07-13T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-14T06:28:00+08:00",
+          "steps": 7500,
+          "activeMinutes": 37,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-15T20:00:00+08:00",
+          "sleepMinutes": 452,
+          "sleepWindowStart": "2026-07-14T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-15T06:32:00+08:00",
+          "steps": 7900,
+          "activeMinutes": 40,
+          "restingHeartRate": 58
+        },
+        {
+          "capturedAt": "2026-07-16T20:00:00+08:00",
+          "sleepMinutes": 445,
+          "sleepWindowStart": "2026-07-15T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-16T06:25:00+08:00",
+          "steps": 7600,
+          "activeMinutes": 38,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-17T20:00:00+08:00",
+          "sleepMinutes": 450,
+          "sleepWindowStart": "2026-07-16T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-17T06:30:00+08:00",
+          "steps": 9800,
+          "activeMinutes": 48,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-18T20:00:00+08:00",
+          "sleepMinutes": 450,
+          "sleepWindowStart": "2026-07-17T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-18T06:30:00+08:00",
+          "steps": 10200,
+          "activeMinutes": 51,
+          "restingHeartRate": 58
+        },
+        {
+          "capturedAt": "2026-07-19T20:00:00+08:00",
+          "sleepMinutes": 450,
+          "sleepWindowStart": "2026-07-18T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-19T06:30:00+08:00",
+          "steps": 9600,
+          "activeMinutes": 47,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-20T20:00:00+08:00",
+          "sleepMinutes": 450,
+          "sleepWindowStart": "2026-07-19T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-20T06:30:00+08:00",
+          "steps": 10500,
+          "activeMinutes": 53,
+          "restingHeartRate": 58
+        },
+        {
+          "capturedAt": "2026-07-21T20:00:00+08:00",
+          "sleepMinutes": 450,
+          "sleepWindowStart": "2026-07-20T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-21T06:30:00+08:00",
+          "steps": 9900,
+          "activeMinutes": 49,
+          "restingHeartRate": 59
+        },
+        {
+          "capturedAt": "2026-07-22T20:00:00+08:00",
+          "sleepMinutes": 450,
+          "sleepWindowStart": "2026-07-21T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-22T06:30:00+08:00",
+          "steps": 10100,
+          "activeMinutes": 50,
+          "restingHeartRate": 58
+        },
         {
           "capturedAt": "2026-07-23T20:00:00+08:00",
           "sleepMinutes": 450,
@@ -33,14 +373,35 @@
           "activeMinutes": 55,
           "restingHeartRate": 57,
           "workouts": [
-            { "id": "mock7-active-soccer", "activityType": "soccer", "startedAt": "2026-07-23T17:30:00+08:00", "durationMinutes": 45, "activeEnergyKilocalories": 410 }
+            {
+              "id": "mock7-active-soccer",
+              "activityType": "soccer",
+              "startedAt": "2026-07-23T17:30:00+08:00",
+              "durationMinutes": 45,
+              "activeEnergyKilocalories": 410
+            }
           ]
         }
       ]
     },
-    "services": { "ai": "available", "sync": "reachable" },
-    "pet": { "lifecycle": "active", "level": 3, "vitality": 10, "bond": 12, "insight": 9, "lastInteractionAt": "2026-07-22T20:00:00+08:00" },
-    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+    "services": {
+      "ai": "available",
+      "sync": "reachable"
+    },
+    "pet": {
+      "lifecycle": "active",
+      "level": 3,
+      "vitality": 10,
+      "bond": 12,
+      "insight": 9,
+      "lastInteractionAt": "2026-07-22T20:00:00+08:00"
+    },
+    "wardrobe": {
+      "selectedOutfitID": "default",
+      "unlockedOutfitIDs": [
+        "default"
+      ]
+    }
   },
   "expectations": {
     "primaryState": "petHome",
@@ -48,7 +409,7 @@
     "eligibleRandomStory": "lost_ball",
     "trend": {
       "recentDayCount": 7,
-      "usableBaselineDayCount": 14,
+      "usableBaselineDayCount": 30,
       "sleepDuration": "withinPersonalRange",
       "steps": "abovePersonalRange",
       "activeMinutes": "abovePersonalRange",

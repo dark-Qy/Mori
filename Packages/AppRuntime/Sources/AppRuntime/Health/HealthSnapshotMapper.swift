@@ -195,6 +195,9 @@ public struct HealthSnapshotMapper: Sendable {
   private func map(_ activity: WorkoutActivity) -> WorkoutSummary.Activity {
     switch activity {
     case .soccer: .soccer
+    case .swimming: .swimming
+    case .badminton: .badminton
+    case .tennis: .tennis
     case .walking: .walking
     case .running: .running
     case .cycling: .cycling

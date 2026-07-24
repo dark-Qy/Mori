@@ -86,6 +86,9 @@ public struct TimedQuantity: Codable, Equatable, Sendable {
 
 public enum WorkoutActivity: String, Codable, Equatable, Sendable {
   case soccer
+  case swimming
+  case badminton
+  case tennis
   case walking
   case running
   case cycling

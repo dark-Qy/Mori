@@ -44,6 +44,9 @@ public struct HealthSource: Codable, Equatable, Hashable, Sendable {
 public struct WorkoutSummary: Codable, Equatable, Hashable, Sendable {
   public enum Activity: String, Codable, Sendable {
     case soccer
+    case swimming
+    case badminton
+    case tennis
     case walking
     case running
     case cycling

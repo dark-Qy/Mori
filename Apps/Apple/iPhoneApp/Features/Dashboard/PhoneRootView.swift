@@ -41,10 +41,10 @@ struct PhoneRootView: View {
       .tag(PhoneTab.overview)
 
       NavigationStack {
-        HistoryView(model: store.model)
+        HistoryView(store: store)
       }
       .tabItem {
-        Label("历史", systemImage: "chart.bar.xaxis")
+        Label("回忆", systemImage: "book.closed.fill")
       }
       .accessibilityIdentifier("phone.tab.history")
       .tag(PhoneTab.history)

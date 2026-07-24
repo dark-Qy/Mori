@@ -14,10 +14,17 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["点亮营地的第一盏灯"].exists)
     XCTAssertTrue(element("phone.pet-overview", in: app).exists)
 
-    app.tabBars.buttons["历史"].tap()
+    app.tabBars.buttons["回忆"].tap()
     XCTAssertTrue(element("phone.history", in: app).waitForExistence(timeout: 5))
-    XCTAssertTrue(element("phone.history-empty", in: app).exists)
-    XCTAssertTrue(app.staticTexts["至少保留两天已知数据后再开始比较；缺失日不会按零计算。"].exists)
+    XCTAssertFalse(element("phone.weekly-memory.hero", in: app).exists)
+    XCTAssertTrue(element("phone.weekly-memory.empty", in: app).exists)
+    XCTAssertFalse(app.staticTexts["个人近期"].exists)
+    XCTAssertFalse(app.staticTexts["缺失指标未按零计算"].exists)
+    app.buttons["phone.weekly-memory.manage"].tap()
+    XCTAssertTrue(element("phone.weekly-memory.manager", in: app).waitForExistence(timeout: 5))
+    XCTAssertFalse(app.switches["phone.weekly-memory.ai-toggle"].exists)
+    XCTAssertTrue(app.staticTexts["还没有回忆"].exists)
+    app.buttons["完成"].tap()
 
     app.tabBars.buttons["衣橱"].tap()
     XCTAssertTrue(element("phone.wardrobe", in: app).waitForExistence(timeout: 5))
@@ -69,17 +76,36 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(healthSharingUnavailable.waitForExistence(timeout: 5))
   }
 
-  func testSevenDayScenarioRendersHistoryInsteadOfEmptyState() {
+  func testThirtyFiveDayScenarioRendersWeeklyTimeline() {
     let app = launchApp(scenario: "mock7_active")
 
     XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
-    XCTAssertTrue(element("phone.mock-badge", in: app).label.contains("7 日 · 活动提升"))
-    app.tabBars.buttons["历史"].tap()
+    XCTAssertTrue(element("phone.mock-badge", in: app).label.contains("35 日 · 活动旅程"))
+    app.tabBars.buttons["回忆"].tap()
     XCTAssertTrue(element("phone.history", in: app).waitForExistence(timeout: 5))
-    XCTAssertTrue(element("phone.history-chart", in: app).exists)
-    XCTAssertFalse(element("phone.history-empty", in: app).exists)
-    XCTAssertTrue(app.staticTexts["来自模拟健康数据"].exists)
-    XCTAssertFalse(app.staticTexts["来自 HealthKit"].exists)
+    XCTAssertTrue(element("phone.weekly-memory.cover", in: app).waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["把足球踢向海风的那一周"].exists)
+    XCTAssertTrue(element("phone.weekly-memory.cover", in: app).label.contains("足球 · 45 分钟"))
+    let earlierHighlights = [
+      1: "海边散步 · 20 分钟",
+      2: "游泳 · 25 分钟",
+      3: "羽毛球 · 30 分钟",
+      4: "网球 · 40 分钟",
+    ]
+    for (week, highlight) in earlierHighlights {
+      let cover = element("phone.weekly-memory.cover.\(week)", in: app)
+      XCTAssertTrue(cover.exists)
+      XCTAssertTrue(cover.label.contains(highlight))
+    }
+    XCTAssertTrue(element("phone.weekly-memory.metric.steps.5", in: app).label.contains("70,900 步"))
+    XCTAssertTrue(element("phone.weekly-memory.metric.active.5", in: app).label.contains("353 分钟"))
+    XCTAssertTrue(
+      element("phone.weekly-memory.metric.sleep.5", in: app).label.contains("7 小时 30 分")
+    )
+    XCTAssertFalse(element("phone.history-chart", in: app).exists)
+    for forbidden in ["个人近期", "医学结论", "缺失指标", "Codex image2", "Mock 图示"] {
+      XCTAssertFalse(app.staticTexts[forbidden].exists)
+    }
   }
 
   func testCharacterAndSharedBackgroundSelectionUpdateThePreview() {
@@ -251,7 +277,7 @@ final class PhoneAppUITests: XCTestCase {
     try auditCurrentScreen(app)
 
     for (tab, identifier) in [
-      ("历史", "phone.history"),
+      ("回忆", "phone.history"),
       ("衣橱", "phone.wardrobe"),
       ("隐私", "phone.privacy"),
     ] {

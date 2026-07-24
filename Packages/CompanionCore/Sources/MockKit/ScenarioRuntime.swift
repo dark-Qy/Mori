@@ -259,7 +259,7 @@
           )
         ]
       }
-      guard !dailyValues.isEmpty, dailyValues.count <= 30 else {
+      guard !dailyValues.isEmpty, dailyValues.count <= 60 else {
         throw MockScenarioError.invalidValue("state.health.dailySnapshots")
       }
       guard health["samples"]?.arrayValue?.isEmpty != false else {

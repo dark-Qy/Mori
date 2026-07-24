@@ -54,8 +54,8 @@ struct DataSourceSelectionTests {
       ])
     #expect(
       CompanionDataSource.allCases.map(\.displayName) == [
-        "Apple 健康", "Mock 1", "Mock 2", "Mock 3", "7 日 · 活动提升", "7 日 · 恢复提醒",
-        "7 日 · 节律改善", "7 日 · 数据不全", "7 日 · 平稳",
+        "Apple 健康", "Mock 1", "Mock 2", "Mock 3", "35 日 · 活动旅程", "35 日 · 恢复旅程",
+        "35 日 · 节律旅程", "35 日 · 片段旅程", "35 日 · 平稳旅程",
       ])
     #expect(
       CompanionDataSource.allCases.map(\.fixtureID) == [

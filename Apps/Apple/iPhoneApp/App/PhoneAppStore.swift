@@ -22,6 +22,9 @@ final class PhoneAppStore: ObservableObject {
   @Published private(set) var statusMessage: String?
   @Published private(set) var notificationStatus = "尚未请求"
   @Published private(set) var selectedDataSource: CompanionDataSource
+  @Published private(set) var weeklyMemories: [PhoneWeeklyMemory] = []
+  @Published private(set) var isPreparingWeeklyMemory = false
+  @Published private(set) var weeklyMemoryStatus: String?
   @Published var selectedTab: PhoneTab = .overview
   @Published var notificationDestination: RuntimeNotificationDestination? = nil
 
@@ -33,6 +36,7 @@ final class PhoneAppStore: ObservableObject {
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private let usesE2EOfflineRuntime: Bool
   private let hasLaunchScenarioOverride: Bool
+  private let weeklyMemoryArchive: WeeklyMemoryArchiveStore
   private var hasStarted = false
   private var latestHealth: HealthSnapshot?
   private var preferenceSaveTask: Task<Void, Never>?
@@ -41,6 +45,7 @@ final class PhoneAppStore: ObservableObject {
   private var peerSyncRetryTask: Task<Void, Never>?
   private var peerUpdateTask: Task<Void, Never>?
   private var mockCareTask: Task<Void, Never>?
+  private var deletedWeeklyMemoryIDs: Set<String> = []
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
     let initialModel = PhonePresentationModel.initial(arguments: arguments)
@@ -59,12 +64,25 @@ final class PhoneAppStore: ObservableObject {
       hasLaunchScenarioOverride
       ? (initialModel.initialScreen == .onboarding ? .onboarding : .ready)
       : .loading
-    selectedTab = initialModel.initialScreen == .wardrobe ? .wardrobe : .overview
+    #if DEBUG
+      if arguments.contains("-UITesting"),
+        arguments.contains("--initial-tab=history")
+      {
+        selectedTab = .history
+      } else {
+        selectedTab = initialModel.initialScreen == .wardrobe ? .wardrobe : .overview
+      }
+    #else
+      selectedTab = initialModel.initialScreen == .wardrobe ? .wardrobe : .overview
+    #endif
     #if DEBUG
       let runtimeConfiguration = Self.runtimeConfiguration(arguments: arguments)
     #else
       let runtimeConfiguration = Self.productionRuntimeConfiguration()
     #endif
+    // Weekly memories are a Mock-only presentation in this phase. Keep their
+    // management state isolated from live runtime storage.
+    weeklyMemoryArchive = WeeklyMemoryArchiveStore(storageDirectory: nil)
     runtime = AppleCompanionRuntime(
       source: .phone,
       storageDirectory: runtimeConfiguration.storageDirectory,
@@ -81,6 +99,111 @@ final class PhoneAppStore: ObservableObject {
       launchNotificationRoute = nil
     #endif
     usesE2EOfflineRuntime = !runtimeConfiguration.peerSyncEnabled
+  }
+
+  var visibleWeeklyMemories: [PhoneWeeklyMemory] {
+    weeklyMemories.filter { !$0.record.isHidden }
+  }
+
+  var hiddenWeeklyMemories: [PhoneWeeklyMemory] {
+    weeklyMemories.filter(\.record.isHidden)
+  }
+
+  func prepareWeeklyMemory(force: Bool = false) async {
+    guard phase == .ready, !isPreparingWeeklyMemory else { return }
+    isPreparingWeeklyMemory = true
+    defer { isPreparingWeeklyMemory = false }
+    do {
+      let archivedMemories = try await weeklyMemoryArchive.load()
+      guard
+        let scenario = model.mockScenario,
+        scenario.id.hasPrefix("mock7_")
+      else {
+        weeklyMemories = []
+        weeklyMemoryStatus = nil
+        return
+      }
+      let records = WeeklyMemoryPresentationFactory().makeTimeline(model: model)
+      guard !records.isEmpty else {
+        weeklyMemories = []
+        weeklyMemoryStatus = nil
+        return
+      }
+      weeklyMemories = Self.weeklyMemories(
+        archivedMemories,
+        forScenarioID: scenario.id
+      )
+      if force {
+        for record in records {
+          deletedWeeklyMemoryIDs.remove(record.weekID)
+        }
+      }
+
+      for record in records where !deletedWeeklyMemoryIDs.contains(record.weekID) {
+        let isCurrent = weeklyMemories.contains {
+          $0.record.weekID == record.weekID
+            && $0.record.sourceHash == record.sourceHash
+        }
+        guard force || !isCurrent else { continue }
+        _ = try await weeklyMemoryArchive.upsert(record)
+      }
+      weeklyMemories = Self.weeklyMemories(
+        try await weeklyMemoryArchive.load(),
+        forScenarioID: scenario.id
+      )
+      weeklyMemoryStatus = nil
+    } catch {
+      weeklyMemories = Self.weeklyMemories(
+        (try? await weeklyMemoryArchive.load()) ?? weeklyMemories,
+        forScenarioID: model.mockScenario?.id
+      )
+      weeklyMemoryStatus = "暂时没能整理 Mock 周报，请再试一次"
+    }
+  }
+
+  func setWeeklyMemoryFavorite(_ memory: PhoneWeeklyMemory, value: Bool) async {
+    do {
+      weeklyMemories = Self.weeklyMemories(
+        try await weeklyMemoryArchive.setFavorite(value, weekID: memory.record.weekID),
+        forScenarioID: model.mockScenario?.id
+      )
+      weeklyMemoryStatus = value ? "已收藏这段回忆" : "已取消收藏"
+    } catch {
+      weeklyMemoryStatus = "暂时没能更新收藏状态"
+    }
+  }
+
+  func setWeeklyMemoryHidden(_ memory: PhoneWeeklyMemory, value: Bool) async {
+    do {
+      weeklyMemories = Self.weeklyMemories(
+        try await weeklyMemoryArchive.setHidden(value, weekID: memory.record.weekID),
+        forScenarioID: model.mockScenario?.id
+      )
+      weeklyMemoryStatus = value ? "已从回忆册隐藏" : "这段回忆已回到回忆册"
+    } catch {
+      weeklyMemoryStatus = "暂时没能更新回忆状态"
+    }
+  }
+
+  func deleteWeeklyMemory(_ memory: PhoneWeeklyMemory) async {
+    do {
+      weeklyMemories = Self.weeklyMemories(
+        try await weeklyMemoryArchive.delete(weekID: memory.record.weekID),
+        forScenarioID: model.mockScenario?.id
+      )
+      deletedWeeklyMemoryIDs.insert(memory.record.weekID)
+      weeklyMemoryStatus = "这段回忆记录已从本次 Mock 演示删除"
+    } catch {
+      weeklyMemoryStatus = "暂时没能删除这段回忆"
+    }
+  }
+
+  static func weeklyMemories(
+    _ memories: [PhoneWeeklyMemory],
+    forScenarioID scenarioID: String?
+  ) -> [PhoneWeeklyMemory] {
+    guard let scenarioID, scenarioID.hasPrefix("mock7_") else { return [] }
+    return memories.filter { $0.record.weekID.hasPrefix("\(scenarioID)-") }
   }
 
   func start() async {

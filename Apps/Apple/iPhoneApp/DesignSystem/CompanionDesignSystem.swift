@@ -47,6 +47,18 @@ enum CompanionPalette {
     highContrastLight: UIColor(red: 0.52, green: 0.02, blue: 0.17, alpha: 1),
     highContrastDark: UIColor(red: 1.00, green: 0.66, blue: 0.74, alpha: 1)
   )
+  static let memoryPaper = adaptive(
+    light: UIColor(red: 0.98, green: 0.95, blue: 0.88, alpha: 1),
+    dark: UIColor(red: 0.16, green: 0.14, blue: 0.12, alpha: 1),
+    highContrastLight: UIColor(red: 1.00, green: 0.97, blue: 0.90, alpha: 1),
+    highContrastDark: UIColor(red: 0.12, green: 0.10, blue: 0.08, alpha: 1)
+  )
+  static let memoryLine = adaptive(
+    light: UIColor(red: 0.42, green: 0.31, blue: 0.19, alpha: 1),
+    dark: UIColor(red: 0.88, green: 0.72, blue: 0.48, alpha: 1),
+    highContrastLight: UIColor(red: 0.28, green: 0.18, blue: 0.08, alpha: 1),
+    highContrastDark: UIColor(red: 1.00, green: 0.86, blue: 0.62, alpha: 1)
+  )
 
   private static func adaptive(
     light: UIColor,
