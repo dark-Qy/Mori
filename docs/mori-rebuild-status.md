@@ -6,11 +6,11 @@
 | --- | --- |
 | Branch | `codex/mori-product-rebuild` |
 | Base revision | `51b9a58` |
-| Current revision | G3 Mock-first experience runtime through `c6c1b89` |
-| Active goal | G5 — Watch Experience Foundation; G4 motion merge remains deferred |
-| Goal state | G3 independently reviewed and committed; P0=0, P1=0 |
-| Contract | G0–G3 committed; black G4 handoff ready but not merged; white Mori deferred |
-| Simulator validation | G3 iPhone and Watch Debug/Release builds pass; rebuilt UI not started |
+| Current revision | G5 Mock-first Watch experience checkpoint |
+| Active goal | G6 — iPhone Experience; G4 motion merge remains deferred |
+| Goal state | G5 automated, visually verified, and independently reviewed; P0=0, P1=0 |
+| Contract | G0–G3 and G5 committed; black G4 handoff ready but not merged; white Mori deferred |
+| Simulator validation | Watch Debug/Release builds, 23/23 full UI tests on 46 mm, 40 mm core journeys, and Computer Use on both sizes pass |
 | Physical-device validation | UNVERIFIED |
 
 ## Goal Ledger
@@ -22,7 +22,7 @@
 | G2 Evidence and profile runtime | Committed | `92e5486`, `867af19` | Profile-aware `MoriRuntime`; seven deterministic Mock scenarios; normalized bounded evidence; passive inference; global/profile sensing intent fences; isolated real/Mock storage and reset; lazy production adapters and serialized mode switching; Debug 136/136, Release 130/130, CompanionCore 164/164; iPhone/Watch Debug and Release builds; independent review PASS | Complete for Mock-first runtime; physical sensors, background behavior, paired timing, haptics, power, and thermal behavior remain `DEVICE_UNVERIFIED` |
 | G3 Sync, reminder, daily memory | Committed | `dba02bd`, `344ff55`, `fe55606`, `c6c1b89` | Durable at-most-once glance fence; deterministic iPhone-owned 22:00 memory sealing; independent GSP/GCS peer sync; automatic experience transfer and Debug paired Mock link; dual-consent notification policy with durable FIFO OS outbox and delivered-state revocation; exact canonical bounded persistence; Debug 214/214, Release 206/206; four app builds; independent final review PASS | Real WatchConnectivity, app-lifecycle and notification-center adapters are deferred to G5/G6 composition; add authority-revocation integration race and long-term fence/outbox compaction |
 | G4 Mori motion system | External handoff ready; merge deferred | `codex/mori-motion-g4` / `ef80865` | Black `penguin`: 16 actions, 256 installed assets, Reduce Motion, deterministic priority/interruption/cooldown/recovery/fallback/haptic policy; validator 7/7 and runtime 24/24; independent code/visual review has no blocker | Per current scope, do not merge while establishing the UI; when integrating, remove three legacy placeholder mappings. White `polar_bear` is explicitly deferred and disabled; physical Watch playback remains unverified |
-| G5 Watch experience | Pending | — | Route/state and UI journeys assigned | Depends on G2, G3, G4 |
+| G5 Watch experience | Committed | This checkpoint | Cardless full-scene home; tap/long-press hierarchy; native companion/settings/letters; one recommended Today task; exact-fact daily memory; isolated durable Mock glance/task receipts; GSP-backed local preferences; real mode fails closed as waiting; AppRuntime 217/217; Watch UI 23/23 on 46 mm; 40 mm layout/a11y journeys; Debug/Release, strict checks, Release boundary, Computer Use, and independent review PASS | Complete for the approved Mock-first scope without G4 motion; physical haptics/background behavior remain `DEVICE_UNVERIFIED`; continue G6 |
 | G6 iPhone experience | Pending | — | Route/state and UI journeys assigned | Depends on G2, G3, G4, G7 |
 | G7 Mori conversation | Pending | — | Authority and privacy ADR plus adversarial cases assigned | Depends on G2, G3 |
 | G8 End-to-end product loops | Pending | — | Cross-device cases assigned | Depends on G5, G6, G7 |
@@ -57,6 +57,13 @@
 | `Scripts/check` and `git diff --cached --check` | G3 final runtime tree | PASS: strict Swift/Python lint, credential scan, and whitespace |
 | `Scripts/test-release-boundaries` | G3 final runtime tree | PASS: Release ships no fixture resources, test selectors, or fixture identifiers |
 | iPhone and Watch app scheme builds, Debug and Release Simulator | G3 final runtime tree | PASS |
+| `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --package-path Packages/AppRuntime` | G5 Watch tree | PASS: 217 tests in 32 suites |
+| Watch Debug and Release generic builds | G5 Watch tree | PASS |
+| `WatchAppUITests` on Apple Watch Series 11 46 mm | G5 Watch tree | PASS: 23/23, including primary/secondary accessibility, durable preferences, terminal glance replacement/expiry, one-time Mock reward, real/Mock availability, Today, memory, letters, long-press menu, and Touch Exchange |
+| Watch core journeys on Apple Watch SE 3 40 mm | G5 Watch tree | PASS: home, companion settings, daily memory, and primary accessibility audit |
+| `Scripts/check`, `Scripts/test-release-boundaries`, and `git diff --check` | G5 Watch tree | PASS; Release contains no fixture resources, selectors, or Mock identifiers |
+| Computer Use visual review | G5 Watch tree | PASS on 46 mm home/settings/memory and 40 mm home; no clipping or Mori/text overlap observed |
+| Independent G5 review | G5 Watch tree | PASS; P0=0, P1=0 |
 
 ### EXACT BASELINE FAILURES
 
@@ -86,7 +93,7 @@ Failed tests:
 
 The combined script stopped before Watch because the iPhone suite failed.
 
-#### Apple Watch UI
+#### Apple Watch UI — superseded by G5
 
 - Command: standalone `xcodebuild test`, scheme `WatchCompanion-Watch`,
   `-only-testing:WatchAppUITests`
@@ -113,15 +120,18 @@ Both Xcode test runs emitted a diagnostics-collection error because a spawned
 could not find `simctl`. The `.xcresult` summaries above are still complete.
 The external audit records the host configuration separately.
 
+The G5 replacement suite now passes 23/23 on a 46 mm Watch and its core
+journeys pass on 40 mm. The three failures above remain historical baseline
+evidence only; the removed legacy main-story and habit assertions are not
+current product behavior.
+
 ### NOT RUN
 
 - Dedicated `Scripts/test-accessibility`; contrast failures are already present
   in both platform E2E suites, but this command still needs a fresh result.
 - Computer Use visual review of the rebuilt iPhone UI.
-- Computer Use visual review of the rebuilt Watch UI.
 
-Computer Use becomes a mandatory G5/G6 gate after the new surfaces exist. The
-current historical interface is not accepted as a visual target.
+Computer Use remains a mandatory G6 gate for the rebuilt iPhone surfaces.
 
 ### UNVERIFIED EXTERNAL CAPABILITIES
 
@@ -184,6 +194,9 @@ Non-blocking follow-up for later runtime goals:
 | Initial G3 cross-module review | first complete G3 tree | FAIL: P0=0, P1=3 across delivered-notification cancellation, glance relaunch at-most-once, and independent GSP revoke convergence | Durable delivered state, presentation fence, and per-register conservative merge implemented with regression coverage |
 | G3 notification corrective reviews | corrected notification tree | Initial FIFO, orphaned pending, late delivered callback, and 128-entry history-rollover failures; final PASS with P0=0, P1=0 | Typed FIFO head only; exact pending/delivered history; delivered revocation; schema v2; 130-day rollover test |
 | G3 final cross-module review | final tree through `c6c1b89` | PASS; P0=0, P1=0 | Debug targeted 63/63, Release targeted 61/61; all original P1 findings and exact canonical/size boundaries closed |
+| Initial G5 Watch UI review | first rebuilt Watch tree | FAIL: P0=0, P1=6 | Closed persistence/availability, evidence-grounded memory, reward authority, haptic duplication, permission wording, and quiet-hour validity; added durable restart coverage |
+| G5 boundary re-review | corrected Watch tree | FAIL: P0=0, P1=2 | Bound availability to Mock profiles; atomically terminalized presented, replaced, expired, disabled, and invalid glance candidates |
+| G5 final review | final Watch tree | PASS; P0=0, P1=0 | 217 runtime tests, 23 Watch UI tests, 40 mm coverage, Debug/Release, strict checks, Release boundary, Computer Use, and exact Mock/real fail-closed behavior passed |
 
 The G1 reviewer recorded one non-blocking G2/G3 follow-up: the inference and
 daily-memory authority must bind memory eligibility to sensing/source-event

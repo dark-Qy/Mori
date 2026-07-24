@@ -15,20 +15,20 @@ struct WatchOnboardingView: View {
           .frame(maxWidth: .infinity)
           .accessibilityHidden(true)
 
-        Text(isPetIntroduction ? "你好，我是 Mori" : "一起照顾今天的状态")
+        Text(isPetIntroduction ? "你好，我是 Mori" : "让 Mori 安静地陪着你")
           .font(.headline)
           .fixedSize(horizontal: false, vertical: true)
 
         Text(
           isPetIntroduction
-            ? "我会陪你完成主线、记录小习惯，也会在合适的时候主动来找你。"
-            : "健康数据可以帮助 Mori 理解你的节奏，但不是通关门槛；没有数据也不会受罚。"
+            ? "我会和你一起经过日常的小路，也会记住那些值得留下的时刻。"
+            : "Mori 会把本机处理后的移动和休息线索变成陪伴。没有数据时，它也只会安静待在这里。"
         )
         .font(.caption)
         .foregroundStyle(.secondary)
         .fixedSize(horizontal: false, vertical: true)
 
-        Label("不会自动请求 HealthKit 或通知权限", systemImage: "hand.raised.fill")
+        Label("不会自动请求健康、定位或通知权限", systemImage: "hand.raised.fill")
           .font(.caption2)
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
@@ -42,8 +42,8 @@ struct WatchOnboardingView: View {
         } label: {
           Label(
             store.isSavingPreferences
-              ? "保存中…" : (isPetIntroduction ? "和 Mori 打招呼" : "开始陪伴"),
-            systemImage: "sparkles"
+              ? "保存中…" : (isPetIntroduction ? "和 Mori 打招呼" : "开始"),
+            systemImage: "heart.fill"
           )
           .frame(maxWidth: .infinity)
         }

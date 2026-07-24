@@ -5,41 +5,269 @@ final class WatchAppUITests: XCTestCase {
     continueAfterFailure = false
   }
 
-  func testMockPetHomeAndInteraction() {
-    let app = launchApp(scenario: "activity_high")
+  func testHomeIsAnImmersiveCompanionSurface() {
+    let app = launchApp(scenario: "mock1")
 
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
-    XCTAssertTrue(element("watch.mock-badge", in: app).exists)
-    XCTAssertTrue(app.staticTexts["Mori · Lv.3"].exists)
-    XCTAssertTrue(app.buttons["watch.interact"].waitForExistence(timeout: 5))
-    let scene = app.buttons["watch.companion-scene"]
-    XCTAssertTrue(scene.exists)
-    XCTAssertEqual(scene.value as? String, "企鹅伙伴，冰海白昼")
-    scene.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
-    XCTAssertTrue(app.staticTexts["Mori 开心地眨了眨眼"].waitForExistence(timeout: 5))
+    XCTAssertTrue(element("watch.home.sleep", in: app).label.contains("7小时30分"))
+    XCTAssertTrue(element("watch.home.steps", in: app).label.contains("3,250步"))
+    XCTAssertTrue(app.buttons["watch.open-companion-settings"].exists)
+    XCTAssertFalse(
+      app.staticTexts.matching(
+        NSPredicate(format: "label CONTAINS %@", "Lv.")
+      ).firstMatch.exists)
+    XCTAssertFalse(element("watch.today.recommendation", in: app).exists)
 
-    app.buttons["watch.interact"].tap()
-    XCTAssertTrue(app.staticTexts["watch.interaction-response"].waitForExistence(timeout: 5))
+    let scene = app.buttons["watch.pet-home"]
+    XCTAssertTrue(scene.exists)
+    XCTAssertEqual(scene.value as? String, "企鹅伙伴，春日花溪")
+    scene.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    XCTAssertTrue(element("watch.event-bubble", in: app).waitForExistence(timeout: 2))
   }
 
-  func testTrendAndMessageNavigation() {
-    let app = launchApp(scenario: "health_normal")
+  func testNewestFreshGlanceReplacesOlderEventAndExpiredEventStaysQuiet() {
+    let app = launchApp(
+      scenario: "mock1",
+      additionalArguments: ["--mock-glance=shared-walk,paused"]
+    )
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    let bubble = element("watch.event-bubble", in: app)
+    XCTAssertTrue(bubble.waitForExistence(timeout: 3))
+    XCTAssertTrue(bubble.label.contains("我也坐了一会儿"))
+    XCTAssertFalse(bubble.label.contains("3,250"))
+    app.terminate()
 
-    let trendLink = app.buttons["watch.open-trends"]
-    scrollToElement(trendLink, in: app)
-    XCTAssertTrue(trendLink.exists)
-    trendLink.tap()
-    XCTAssertTrue(element("watch.trends", in: app).waitForExistence(timeout: 5))
-    XCTAssertTrue(element("watch.trend-empty", in: app).exists)
+    let expired = launchApp(
+      scenario: "mock1",
+      additionalArguments: [
+        "--mock-glance=fast-pace",
+        "--mock-glance-age=121",
+      ]
+    )
+    XCTAssertTrue(element("watch.pet-home", in: expired).waitForExistence(timeout: 8))
+    XCTAssertFalse(element("watch.event-bubble", in: expired).waitForExistence(timeout: 1))
+  }
 
-    app.navigationBars.buttons.firstMatch.tap()
+  func testMockGlanceIsPresentedAtMostOnceAcrossRelaunch() {
+    let storageID = "glance-once-\(UUID().uuidString)"
+    let arguments = [
+      "--mock-scenario=mock1",
+      "--mock-glance=shared-walk",
+    ]
+    let first = launchDefaultApp(
+      storageID: storageID,
+      reset: true,
+      additionalArguments: arguments
+    )
+    XCTAssertTrue(element("watch.pet-home", in: first).waitForExistence(timeout: 8))
+    XCTAssertTrue(
+      element("watch.event-bubble", in: first).waitForExistence(timeout: 3)
+    )
+    first.terminate()
 
-    let messageLink = app.buttons["watch.open-messages"]
-    scrollToElement(messageLink, in: app)
-    XCTAssertTrue(messageLink.exists)
-    messageLink.tap()
-    XCTAssertTrue(element("watch.messages", in: app).waitForExistence(timeout: 5))
-    XCTAssertTrue(element("watch.message.live-activity", in: app).exists)
+    let relaunched = launchDefaultApp(
+      storageID: storageID,
+      reset: false,
+      additionalArguments: arguments
+    )
+    XCTAssertTrue(
+      element("watch.pet-home", in: relaunched).waitForExistence(timeout: 8)
+    )
+    XCTAssertFalse(
+      element("watch.event-bubble", in: relaunched).waitForExistence(timeout: 1)
+    )
+  }
+
+  func testReplacedAndExpiredMockGlancesStayTerminalAcrossRelaunch() {
+    let replacedStorageID = "glance-replaced-\(UUID().uuidString)"
+    let replaced = launchDefaultApp(
+      storageID: replacedStorageID,
+      reset: true,
+      additionalArguments: [
+        "--mock-scenario=mock1",
+        "--mock-glance=shared-walk,paused",
+      ]
+    )
+    XCTAssertTrue(element("watch.event-bubble", in: replaced).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("watch.event-bubble", in: replaced).label.contains("坐了一会儿"))
+    replaced.terminate()
+
+    let oldEvent = launchDefaultApp(
+      storageID: replacedStorageID,
+      reset: false,
+      additionalArguments: [
+        "--mock-scenario=mock1",
+        "--mock-glance=shared-walk",
+      ]
+    )
+    XCTAssertTrue(element("watch.pet-home", in: oldEvent).waitForExistence(timeout: 8))
+    XCTAssertFalse(element("watch.event-bubble", in: oldEvent).waitForExistence(timeout: 1))
+    oldEvent.terminate()
+
+    let expiredStorageID = "glance-expired-\(UUID().uuidString)"
+    let expired = launchDefaultApp(
+      storageID: expiredStorageID,
+      reset: true,
+      additionalArguments: [
+        "--mock-scenario=mock1",
+        "--mock-glance=fast-pace",
+        "--mock-glance-age=121",
+      ]
+    )
+    XCTAssertTrue(element("watch.pet-home", in: expired).waitForExistence(timeout: 8))
+    XCTAssertFalse(element("watch.event-bubble", in: expired).waitForExistence(timeout: 1))
+    expired.terminate()
+
+    let revived = launchDefaultApp(
+      storageID: expiredStorageID,
+      reset: false,
+      additionalArguments: [
+        "--mock-scenario=mock1",
+        "--mock-glance=fast-pace",
+      ]
+    )
+    XCTAssertTrue(element("watch.pet-home", in: revived).waitForExistence(timeout: 8))
+    XCTAssertFalse(element("watch.event-bubble", in: revived).waitForExistence(timeout: 1))
+  }
+
+  func testRealModeDoesNotClaimCompanionRuntimeIsAvailable() {
+    let app = launchLiveApp(
+      storageID: "real-companion-boundary-\(UUID().uuidString)",
+      reset: true
+    )
+    XCTAssertTrue(element("watch.onboarding", in: app).waitForExistence(timeout: 8))
+    let complete = app.buttons["watch.onboarding.complete"]
+    scrollToElement(complete, in: app)
+    complete.tap()
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(
+      app.buttons["watch.open-companion-settings"].label.contains("待连接")
+    )
+    app.buttons["watch.open-companion-settings"].tap()
+    XCTAssertTrue(
+      element("watch.companion-settings", in: app).waitForExistence(timeout: 5)
+    )
+    XCTAssertTrue(app.staticTexts["真实随行感知尚未连接"].exists)
+    XCTAssertFalse(element("watch.companion.sensing", in: app).exists)
+  }
+
+  func testCompanionSettingsExplainReminderBehavior() {
+    let app = launchApp(scenario: "mock1")
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    app.buttons["watch.open-companion-settings"].tap()
+
+    XCTAssertTrue(
+      element("watch.companion-settings", in: app).waitForExistence(timeout: 5)
+    )
+    XCTAssertTrue(element("watch.companion.sensing", in: app).exists)
+    XCTAssertTrue(element("watch.companion.reminder.wristRaise", in: app).exists)
+    let gentleHaptic = element("watch.companion.reminder.gentleHaptic", in: app)
+    scrollToElement(gentleHaptic, in: app)
+    XCTAssertTrue(gentleHaptic.exists)
+    gentleHaptic.tap()
+    XCTAssertTrue(
+      gentleHaptic.isSelected
+    )
+  }
+
+  func testCompanionPreferencesPersistAcrossRelaunch() {
+    let storageID = "companion-preferences-\(UUID().uuidString)"
+    let first = launchDefaultApp(storageID: storageID, reset: true)
+    XCTAssertTrue(element("watch.onboarding", in: first).waitForExistence(timeout: 8))
+    let onboarding = first.buttons["watch.onboarding.complete"]
+    scrollToElement(onboarding, in: first)
+    onboarding.tap()
+    XCTAssertTrue(element("watch.pet-home", in: first).waitForExistence(timeout: 8))
+    first.buttons["watch.open-companion-settings"].tap()
+
+    let sensing = element("watch.companion.sensing", in: first)
+    XCTAssertTrue(sensing.waitForExistence(timeout: 5))
+    sensing.tap()
+    let gentle = element("watch.companion.reminder.gentleHaptic", in: first)
+    scrollToElement(gentle, in: first)
+    gentle.tap()
+    XCTAssertTrue(
+      waitForValue(
+        "已保存",
+        on: element("watch.companion-settings", in: first),
+        timeout: 3
+      )
+    )
+    first.terminate()
+
+    let relaunched = launchDefaultApp(storageID: storageID, reset: false)
+    XCTAssertTrue(
+      element("watch.pet-home", in: relaunched).waitForExistence(timeout: 8)
+    )
+    XCTAssertTrue(
+      relaunched.buttons["watch.open-companion-settings"].label.contains("已关闭")
+    )
+    relaunched.buttons["watch.open-companion-settings"].tap()
+    let persistedGentle = element(
+      "watch.companion.reminder.gentleHaptic",
+      in: relaunched
+    )
+    scrollToElement(persistedGentle, in: relaunched)
+    XCTAssertTrue(persistedGentle.isSelected)
+  }
+
+  func testTodayHighlightsOneControllableRecommendationWithoutRewardingHealth() {
+    let app = launchApp(
+      scenario: "activity_high",
+      additionalArguments: ["--watch-route=today"]
+    )
+    XCTAssertTrue(element("watch.today", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("watch.today.recommendation", in: app).exists)
+    XCTAssertEqual(element("watch.today.reward", in: app).label, "奖励 1 枚金币")
+    XCTAssertFalse(
+      element("watch.today.detected-walk", in: app).label.contains("奖励")
+    )
+    let complete = app.buttons["watch.today.complete-recommendation"]
+    XCTAssertTrue(complete.exists)
+    complete.tap()
+    XCTAssertTrue(waitForLabel("已经记下", on: complete, timeout: 3))
+  }
+
+  func testMockTaskRewardSettlesOnceAcrossRelaunch() {
+    let storageID = "task-once-\(UUID().uuidString)"
+    let arguments = [
+      "--mock-scenario=activity_high",
+      "--watch-route=today",
+    ]
+    let first = launchDefaultApp(
+      storageID: storageID,
+      reset: true,
+      additionalArguments: arguments
+    )
+    let complete = first.buttons["watch.today.complete-recommendation"]
+    XCTAssertTrue(complete.waitForExistence(timeout: 8))
+    complete.tap()
+    XCTAssertTrue(waitForLabel("已经记下", on: complete, timeout: 3))
+    first.terminate()
+
+    let relaunched = launchDefaultApp(
+      storageID: storageID,
+      reset: false,
+      additionalArguments: arguments
+    )
+    let settled = relaunched.buttons["watch.today.complete-recommendation"]
+    XCTAssertTrue(settled.waitForExistence(timeout: 8))
+    XCTAssertEqual(settled.label, "已经记下")
+    XCTAssertFalse(settled.isEnabled)
+  }
+
+  func testDailyMemoryUsesStoryCopyAndKnownFacts() {
+    let app = launchApp(
+      scenario: "mock1",
+      additionalArguments: ["--watch-route=dailyMemory"]
+    )
+    XCTAssertTrue(element("watch.daily-memory", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(app.staticTexts["今天，我们一起……"].exists)
+    XCTAssertTrue(app.staticTexts["Mock 回忆预览"].exists)
+    XCTAssertTrue(
+      app.staticTexts.matching(
+        NSPredicate(format: "label CONTAINS %@", "3,250步")
+      ).firstMatch.exists)
   }
 
   func testTouchExchangeRequiresFriendSharingBeforeStarting() {
@@ -290,55 +518,6 @@ final class WatchAppUITests: XCTestCase {
     try auditCurrentScreen(peerFirstApp)
   }
 
-  func testPartialHealthAndExplanationUseKnownValuesOnly() {
-    let app = launchApp(scenario: "health_partial")
-
-    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
-    XCTAssertTrue(element("watch.metric.recovery", in: app).label.contains("尚无可用睡眠"))
-    XCTAssertTrue(element("watch.metric.activity", in: app).label.contains("2180 步"))
-    XCTAssertTrue(element("watch.metric.rhythm", in: app).label.contains("需要更多睡眠记录"))
-
-    let explanationLink = app.buttons["watch.open-explanation"]
-    scrollToElement(explanationLink, in: app)
-    explanationLink.tap()
-    XCTAssertTrue(element("watch.explanation", in: app).waitForExistence(timeout: 5))
-    let explanation = element("watch.explanation.detail", in: app)
-    scrollToElement(explanation, in: app)
-    XCTAssertTrue(explanation.label.contains("仅使用场景中已知的指标"))
-  }
-
-  func testSoccerWorkoutCreatesEligibilityWithoutForcingTheRandomStory() {
-    let app = launchApp(scenario: "soccer_workout")
-
-    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
-    let eligibility = element("watch.side-story", in: app)
-    scrollToElement(eligibility, in: app)
-    XCTAssertEqual(eligibility.label, "已满足足球随机支线资格；本次不保证出现")
-    XCTAssertFalse(app.staticTexts["随机支线：失踪的足球"].exists)
-  }
-
-  func testAIFailuresUseTheSameLocalFallbackWithoutChangingAuthoritativeState() {
-    var fingerprints: [[String]] = []
-
-    for scenario in ["ai_offline", "ai_malformed"] {
-      let app = launchApp(scenario: scenario)
-      XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
-      fingerprints.append(authoritativeFingerprint(in: app))
-
-      let explanationLink = app.buttons["watch.open-explanation"]
-      scrollToElement(explanationLink, in: app)
-      explanationLink.tap()
-      XCTAssertTrue(element("watch.explanation", in: app).waitForExistence(timeout: 5))
-      let explanation = element("watch.explanation.detail", in: app)
-      scrollToElement(explanation, in: app)
-      XCTAssertTrue(explanation.label.contains("当前使用本地表达；规则结果不变"))
-      app.terminate()
-    }
-
-    XCTAssertEqual(fingerprints.count, 2)
-    XCTAssertEqual(fingerprints[0], fingerprints[1])
-  }
-
   func testDefaultLaunchStartsWithMock1AndRemembersDemoSelection() {
     let storageID = "watch-default-demo"
     let app = launchDefaultApp(storageID: storageID, reset: true)
@@ -350,20 +529,23 @@ final class WatchAppUITests: XCTestCase {
     scrollToElement(onboardingButton, in: app)
     onboardingButton.tap()
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
-    let connectButton = app.buttons["watch.connect-health"]
-    scrollToElement(connectButton, in: app)
-    connectButton.tap()
-    XCTAssertTrue(element("watch.data-source-picker", in: app).waitForExistence(timeout: 5))
-    app.buttons["watch.data-source.option.mock2"].tap()
-    XCTAssertTrue(
-      element("watch.mock-badge", in: app).waitForExistence(timeout: 5)
-        && element("watch.mock-badge", in: app).label.contains("Mock 2")
-    )
+    openSettings(in: app)
+    let dataMode = app.buttons["watch.settings.open-data-mode"]
+    scrollToElement(dataMode, in: app)
+    dataMode.tap()
+    XCTAssertTrue(element("watch.data-mode", in: app).waitForExistence(timeout: 5))
+    app.buttons["watch.data-mode.mock2"].tap()
+    XCTAssertTrue(app.buttons["watch.data-mode.mock2"].isSelected)
     app.terminate()
 
     let relaunched = launchDefaultApp(storageID: storageID, reset: false)
     XCTAssertTrue(element("watch.pet-home", in: relaunched).waitForExistence(timeout: 8))
-    XCTAssertTrue(element("watch.mock-badge", in: relaunched).label.contains("Mock 2"))
+    openSettings(in: relaunched)
+    let relaunchedDataMode = relaunched.buttons["watch.settings.open-data-mode"]
+    scrollToElement(relaunchedDataMode, in: relaunched)
+    relaunchedDataMode.tap()
+    XCTAssertTrue(element("watch.data-mode", in: relaunched).waitForExistence(timeout: 5))
+    XCTAssertTrue(relaunched.buttons["watch.data-mode.mock2"].isSelected)
   }
 
   func testFreshInstallAndPetIntroductionFixturesUseExplicitOneTapEntry() {
@@ -389,18 +571,14 @@ final class WatchAppUITests: XCTestCase {
     let app = launchApp(scenario: "not_allowlisted")
 
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
-    XCTAssertTrue(element("watch.invalid-mock-badge", in: app).exists)
-    XCTAssertFalse(element("watch.mock-badge", in: app).exists)
-    XCTAssertFalse(element("watch.live-badge", in: app).exists)
-
-    let interaction = app.buttons["watch.interact"]
-    scrollToElement(interaction, in: app)
-    XCTAssertTrue(interaction.exists)
-    XCTAssertFalse(interaction.isEnabled)
-    XCTAssertFalse(app.buttons["watch.connect-health"].exists)
+    XCTAssertEqual(element("watch.home.sleep", in: app).label, "睡眠待记录")
+    XCTAssertEqual(element("watch.home.steps", in: app).label, "步数待记录")
+    let scene = app.buttons["watch.pet-home"]
+    scene.tap()
+    XCTAssertTrue(element("watch.event-bubble", in: app).label.contains("Mock 场景无效"))
   }
 
-  func testNotificationRouteNavigatesWithoutSettlingStoryOrHabit() {
+  func testNotificationRouteOpensAQuietMessageAndReturnsHome() {
     let app = launchLiveApp(
       storageID: "notification-nonsettling",
       reset: true,
@@ -419,93 +597,52 @@ final class WatchAppUITests: XCTestCase {
     scrollToElement(dismissButton, in: app)
     dismissButton.tap()
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 5))
-
-    let storyButton = app.buttons["watch.advance-story"]
-    scrollToElement(storyButton, in: app)
-    storyButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-    let storyStatus = element("watch.status-message", in: app)
-    scrollToElement(storyStatus, in: app)
-    XCTAssertTrue(
-      waitForLabel("今日主线已推进，获得 10 点世界经验", on: storyStatus, timeout: 5)
-    )
-
-    let habitButton = app.buttons["watch.interact"]
-    scrollToElement(habitButton, in: app)
-    XCTAssertTrue(habitButton.isEnabled)
-    habitButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-    let habitStatus = element("watch.status-message", in: app)
-    scrollToElement(habitStatus, in: app)
-    XCTAssertTrue(
-      waitForLabel("今天的小行动已记下；奖励只结算一次", on: habitStatus, timeout: 5)
-    )
-  }
-
-  func testLiveMainStoryAndHabitPersistWithoutHealthData() {
-    let storageID = "phase-one-progression"
-    let app = launchLiveApp(storageID: storageID, reset: true)
-
-    XCTAssertTrue(element("watch.onboarding", in: app).waitForExistence(timeout: 8))
-    let onboardingButton = app.buttons["watch.onboarding.complete"]
-    scrollToElement(onboardingButton, in: app)
-    onboardingButton.tap()
-    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
-    XCTAssertTrue(element("watch.status-message", in: app).waitForExistence(timeout: 8))
-    let storyButton = app.buttons["watch.advance-story"]
-    scrollToElement(storyButton, in: app)
-    XCTAssertTrue(storyButton.exists)
-    storyButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-    let storyStatus = element("watch.status-message", in: app)
-    scrollToElement(storyStatus, in: app)
-    XCTAssertTrue(
-      waitForLabel("今日主线已推进，获得 10 点世界经验", on: storyStatus, timeout: 5))
-
-    let habitButton = app.buttons["watch.interact"]
-    scrollToElement(habitButton, in: app)
-    XCTAssertTrue(habitButton.exists)
-    XCTAssertTrue(habitButton.isEnabled)
-    habitButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-    let habitStatus = element("watch.status-message", in: app)
-    scrollToElement(habitStatus, in: app)
-    XCTAssertTrue(
-      waitForLabel("今天的小行动已记下；奖励只结算一次", on: habitStatus, timeout: 5))
-    app.terminate()
-
-    let relaunched = launchLiveApp(storageID: storageID, reset: false)
-    XCTAssertTrue(element("watch.pet-home", in: relaunched).waitForExistence(timeout: 8))
-    XCTAssertTrue(element("watch.status-message", in: relaunched).waitForExistence(timeout: 8))
-    let repeatedStoryButton = relaunched.buttons["watch.advance-story"]
-    scrollToElement(repeatedStoryButton, in: relaunched)
-    repeatedStoryButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-    let repeatedStoryStatus = element("watch.status-message", in: relaunched)
-    scrollToElement(repeatedStoryStatus, in: relaunched)
-    XCTAssertTrue(
-      waitForLabel("今天的主线已经完成，明天继续", on: repeatedStoryStatus, timeout: 5))
-
-    let repeatedHabitButton = relaunched.buttons["watch.interact"]
-    scrollToElement(repeatedHabitButton, in: relaunched)
-    XCTAssertTrue(repeatedHabitButton.exists)
-    XCTAssertFalse(repeatedHabitButton.isEnabled)
   }
 
   func testAccessibilityAuditAcrossPrimarySurfaces() throws {
-    let app = launchApp(scenario: "health_partial")
+    let app = launchApp(scenario: "mock1")
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
     try auditCurrentScreen(app)
 
-    for (buttonID, screenID) in [
-      ("watch.open-trends", "watch.trends"),
-      ("watch.open-messages", "watch.messages"),
-      ("watch.open-explanation", "watch.explanation"),
-    ] {
-      let button = app.buttons[buttonID]
-      scrollToElement(button, in: app)
-      XCTAssertTrue(button.exists)
-      button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-      XCTAssertTrue(element(screenID, in: app).waitForExistence(timeout: 5))
+    app.buttons["watch.open-companion-settings"].tap()
+    XCTAssertTrue(
+      element("watch.companion-settings", in: app).waitForExistence(timeout: 5)
+    )
+    try auditCurrentScreen(app)
+    app.navigationBars.buttons.firstMatch.tap()
+
+    let memory = launchApp(
+      scenario: "mock1",
+      additionalArguments: ["--watch-route=dailyMemory"]
+    )
+    XCTAssertTrue(element("watch.daily-memory", in: memory).waitForExistence(timeout: 8))
+    try auditCurrentScreen(memory)
+  }
+
+  func testAccessibilityAuditAcrossTodaySettingsLettersAndLongPressMenu() throws {
+    let destinations: [(route: String, identifier: String)] = [
+      ("today", "watch.today"),
+      ("settings", "watch.settings"),
+      ("letters", "watch.messages"),
+    ]
+    for destination in destinations {
+      let app = launchApp(
+        scenario: "mock1",
+        additionalArguments: ["--watch-route=\(destination.route)"]
+      )
+      XCTAssertTrue(
+        element(destination.identifier, in: app).waitForExistence(timeout: 8)
+      )
       try auditCurrentScreen(app)
-      app.navigationBars.buttons.firstMatch.tap()
-      XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 5))
+      app.terminate()
     }
+
+    let menu = launchApp(scenario: "mock1")
+    let scene = menu.buttons["watch.pet-home"]
+    XCTAssertTrue(scene.waitForExistence(timeout: 8))
+    scene.press(forDuration: 0.8)
+    XCTAssertTrue(menu.buttons["今天"].waitForExistence(timeout: 3))
+    try auditCurrentScreen(menu)
   }
 
   private func launchApp(
@@ -513,18 +650,39 @@ final class WatchAppUITests: XCTestCase {
     additionalArguments: [String] = []
   ) -> XCUIApplication {
     let app = XCUIApplication()
-    app.launchArguments = ["-UITesting", "--mock-scenario=\(scenario)"] + additionalArguments
+    let storageID = "fixture-\(UUID().uuidString)"
+    app.launchArguments =
+      [
+        "-UITesting",
+        "--mock-scenario=\(scenario)",
+        "--e2e-storage-id=\(storageID)",
+        "--e2e-offline-runtime",
+        "--reset-e2e-storage",
+      ] + additionalArguments
     app.launch()
     return app
   }
 
   private func openTouchExchange(in app: XCUIApplication) {
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
-    let exchangeLink = app.buttons["watch.open-touch-exchange"]
-    scrollToElement(exchangeLink, in: app)
-    XCTAssertTrue(exchangeLink.exists)
+    let scene = app.buttons["watch.pet-home"]
+    XCTAssertTrue(scene.exists)
+    scene.press(forDuration: 0.8)
+    let exchangeLink = app.buttons["碰一碰"]
+    XCTAssertTrue(exchangeLink.waitForExistence(timeout: 3))
     exchangeLink.tap()
     XCTAssertTrue(element("watch.touch-exchange", in: app).waitForExistence(timeout: 5))
+  }
+
+  private func openSettings(in app: XCUIApplication) {
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    let scene = app.buttons["watch.pet-home"]
+    XCTAssertTrue(scene.exists)
+    scene.press(forDuration: 0.8)
+    let settings = app.buttons["设置"]
+    XCTAssertTrue(settings.waitForExistence(timeout: 3))
+    settings.tap()
+    XCTAssertTrue(element("watch.settings", in: app).waitForExistence(timeout: 5))
   }
 
   private func launchLiveApp(
@@ -602,16 +760,18 @@ final class WatchAppUITests: XCTestCase {
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
-  private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
-    app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+  private func waitForValue(
+    _ expectedValue: String,
+    on element: XCUIElement,
+    timeout: TimeInterval
+  ) -> Bool {
+    let predicate = NSPredicate(format: "value == %@", expectedValue)
+    let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
-  private func authoritativeFingerprint(in app: XCUIApplication) -> [String] {
-    let level = element("watch.pet-level", in: app)
-    let vitality = element("watch.vitality-progress", in: app)
-    let quest = element("watch.quest-title", in: app)
-    scrollToElement(level, in: app)
-    return [level.label, String(describing: vitality.value), quest.label]
+  private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
+    app.descendants(matching: .any).matching(identifier: identifier).firstMatch
   }
 
   private func auditCurrentScreen(_ app: XCUIApplication) throws {

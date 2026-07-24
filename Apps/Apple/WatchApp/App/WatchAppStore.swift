@@ -2,6 +2,7 @@ import AppRuntime
 import Combine
 import Domain
 import Foundation
+import MoriRuntime
 import SwiftUI
 
 enum WatchAppPhase: Equatable {
@@ -13,6 +14,12 @@ enum WatchAppPhase: Equatable {
 
 @MainActor
 final class WatchAppStore: ObservableObject {
+  private struct MockGlanceCandidate {
+    let presentation: WatchGlancePresentation
+    let age: TimeInterval
+    let supersededIDs: [String]
+  }
+
   @Published private(set) var model: WatchPresentationModel
   @Published private(set) var preferences = AppPreferences()
   @Published private(set) var phase: WatchAppPhase
@@ -21,13 +28,37 @@ final class WatchAppStore: ObservableObject {
   @Published private(set) var statusMessage: String?
   @Published private(set) var isCompletingAction = false
   @Published private(set) var actionCompleted = false
-  @Published private(set) var isAdvancingStory = false
   @Published private(set) var selectedDataSource: CompanionDataSource
   @Published private(set) var notificationDestination: RuntimeNotificationDestination? = nil
+  @Published private(set) var companionSensingEnabled = true
+  @Published private(set) var reminderMode: CompanionReminderMode = .wristRaise
+  @Published private(set) var quietHours = CompanionQuietHours(
+    startMinute: 22 * 60,
+    endMinute: 7 * 60
+  )
+  @Published private(set) var isSavingCompanionPreferences = false
+  @Published private(set) var activeGlance: WatchGlancePresentation?
+  @Published private(set) var launchProductRoute: WatchProductRoute?
 
   var dataMode: WatchDataMode { model.dataMode }
   var dataSourceSelectionAvailable: Bool { !hasLaunchScenarioOverride }
+  var companionExperienceAvailable: Bool {
+    #if DEBUG
+      selectedDataSource.isMock && model.allowsInteraction
+    #else
+      false
+    #endif
+  }
+  var isQuietHoursActive: Bool {
+    let calendar = Calendar.current
+    let minute =
+      calendar.component(.hour, from: Date()) * 60
+      + calendar.component(.minute, from: Date())
+    return quietHours.contains(minuteOfDay: minute)
+  }
+
   private let runtime: AppleCompanionRuntime?
+  private let globalPreferenceRuntime: MoriGlobalPreferenceRuntime?
   private let notificationRouteObserver: RuntimeNotificationRouteObserver?
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private let usesE2EOfflineRuntime: Bool
@@ -40,6 +71,13 @@ final class WatchAppStore: ObservableObject {
   private var notificationRouteTask: Task<Void, Never>?
   private var peerSyncRetryTask: Task<Void, Never>?
   private var mockCareTask: Task<Void, Never>?
+  private let mockGlanceCandidate: MockGlanceCandidate?
+  private var hasConsumedMockGlance = false
+  private var companionPreferenceWritesInFlight = 0
+  private var authoritativeProfileSource: MoriGlobalProfileSource?
+  #if DEBUG
+    private let mockExperienceRepository: WatchMockExperienceRepository
+  #endif
 
   var touchExchangeLocalCard: TouchExchangeLocalCard {
     TouchExchangeLocalCard(
@@ -74,11 +112,24 @@ final class WatchAppStore: ObservableObject {
     #endif
     model = initialModel
     #if DEBUG
-      selectedDataSource =
+      let initialDataSource =
         initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) }
+        ?? Self.e2eDataSource(arguments: arguments)
         ?? .defaultSelection
     #else
-      selectedDataSource = .defaultSelection
+      let initialDataSource = CompanionDataSource.defaultSelection
+    #endif
+    selectedDataSource = initialDataSource
+    #if DEBUG
+      let initialGlobalProfileSource =
+        initialModel.mockScenario.map {
+          MoriGlobalProfileSource.mock(scenarioID: $0.id)
+        }
+        ?? (initialDataSource.isMock
+          ? .mock(scenarioID: initialDataSource.rawValue)
+          : .real)
+    #else
+      let initialGlobalProfileSource = MoriGlobalProfileSource.real
     #endif
     preferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
@@ -101,8 +152,12 @@ final class WatchAppStore: ObservableObject {
     }
     #if DEBUG
       let runtimeConfiguration = Self.runtimeConfiguration(arguments: arguments)
+      mockGlanceCandidate = Self.mockGlanceCandidate(from: arguments)
+      launchProductRoute = Self.productRoute(from: arguments)
     #else
       let runtimeConfiguration = Self.productionRuntimeConfiguration()
+      mockGlanceCandidate = nil
+      launchProductRoute = nil
     #endif
     runtime = AppleCompanionRuntime(
       source: .watch,
@@ -111,6 +166,18 @@ final class WatchAppStore: ObservableObject {
       dataSourceKey: runtimeConfiguration.dataSourceKey,
       peerSyncEnabled: runtimeConfiguration.peerSyncEnabled
     )
+    globalPreferenceRuntime = try? MoriGlobalPreferenceRuntime(
+      storageURL: runtimeConfiguration.storageDirectory
+        .appendingPathComponent("mori-global-authority-v1.json"),
+      originDeviceID: "watch",
+      initialProfileSource: initialGlobalProfileSource
+    )
+    #if DEBUG
+      mockExperienceRepository = WatchMockExperienceRepository(
+        fileURL: runtimeConfiguration.storageDirectory
+          .appendingPathComponent("mock-experience-preview-v1.json")
+      )
+    #endif
     notificationRouteObserver =
       hasLaunchScenarioOverride ? nil : RuntimeNotificationRouteObserver()
     #if DEBUG
@@ -125,6 +192,8 @@ final class WatchAppStore: ObservableObject {
   func start() async {
     guard !hasStarted else { return }
     hasStarted = true
+    await loadGlobalPreferences()
+    await loadMockTaskReceipt()
     guard !hasLaunchScenarioOverride else { return }
     observeNotificationRoutes()
     if let launchNotificationRoute {
@@ -133,7 +202,13 @@ final class WatchAppStore: ObservableObject {
     guard let runtime else { return }
     do {
       preferences = try await runtime.loadPreferences()
-      selectedDataSource = await runtime.loadDataSourceSelection()
+      let legacyDataSource = await runtime.loadDataSourceSelection()
+      selectedDataSource =
+        authoritativeProfileSource.flatMap(Self.dataSource(from:))
+        ?? legacyDataSource
+      if selectedDataSource != legacyDataSource {
+        _ = await runtime.saveDataSourceSelection(selectedDataSource)
+      }
       latestPeerValues = Self.peerValues(from: preferences)
       guard preferences.hasCompletedOnboarding else {
         #if DEBUG
@@ -153,6 +228,185 @@ final class WatchAppStore: ObservableObject {
     } catch {
       phase = .ready
       statusMessage = "载入失败，请稍后重试"
+    }
+  }
+
+  func handleForegroundActivation() async {
+    guard
+      !hasConsumedMockGlance,
+      let candidate = mockGlanceCandidate
+    else {
+      return
+    }
+    #if DEBUG
+      guard
+        let shouldPresent = try? await mockExperienceRepository.consumeGlanceBatch(
+          supersededIDs: candidate.supersededIDs.map {
+            "\(mockProfileKey):glance:\($0)"
+          },
+          candidateID: "\(mockProfileKey):glance:\(candidate.presentation.id)",
+          candidateIsEligible: companionSensingEnabled
+            && model.allowsInteraction
+            && candidate.age <= 2 * 60
+        )
+      else {
+        return
+      }
+      hasConsumedMockGlance = true
+      if shouldPresent {
+        activeGlance = candidate.presentation
+      }
+    #else
+      hasConsumedMockGlance = true
+    #endif
+  }
+
+  func dismissActiveGlance() {
+    activeGlance = nil
+  }
+
+  func consumeLaunchProductRoute() -> WatchProductRoute? {
+    defer { launchProductRoute = nil }
+    return launchProductRoute
+  }
+
+  func setCompanionSensingEnabled(_ enabled: Bool) {
+    let previous = companionSensingEnabled
+    companionSensingEnabled = enabled
+    beginCompanionPreferenceWrite()
+    if !enabled {
+      activeGlance = nil
+    }
+    Task { [weak self] in
+      guard let self else { return }
+      defer { endCompanionPreferenceWrite() }
+      guard let globalPreferenceRuntime else {
+        companionSensingEnabled = previous
+        statusMessage = "随行设置暂时没能保存"
+        return
+      }
+      do {
+        let projection = try await globalPreferenceRuntime.setCompanionSensing(
+          enabled: enabled
+        )
+        apply(projection)
+      } catch {
+        companionSensingEnabled = previous
+        statusMessage = "随行设置暂时没能保存"
+      }
+    }
+  }
+
+  func setReminderMode(_ mode: CompanionReminderMode) {
+    let previous = reminderMode
+    reminderMode = mode
+    beginCompanionPreferenceWrite()
+    Task { [weak self] in
+      guard let self else { return }
+      defer { endCompanionPreferenceWrite() }
+      guard let globalPreferenceRuntime else {
+        reminderMode = previous
+        statusMessage = "提醒方式暂时没能保存"
+        return
+      }
+      do {
+        apply(try await globalPreferenceRuntime.setReminderMode(mode))
+      } catch {
+        reminderMode = previous
+        statusMessage = "提醒方式暂时没能保存"
+      }
+    }
+  }
+
+  func setQuietHours(startMinute: Int? = nil, endMinute: Int? = nil) {
+    let candidate = CompanionQuietHours(
+      startMinute: startMinute.map { max(0, min(1_439, $0)) }
+        ?? quietHours.startMinute,
+      endMinute: endMinute.map { max(0, min(1_439, $0)) }
+        ?? quietHours.endMinute
+    )
+    guard candidate.isValid else {
+      statusMessage = "开始和结束时间不能相同"
+      return
+    }
+    let previous = quietHours
+    quietHours = candidate
+    beginCompanionPreferenceWrite()
+    Task { [weak self] in
+      guard let self else { return }
+      defer { endCompanionPreferenceWrite() }
+      guard let globalPreferenceRuntime else {
+        quietHours = previous
+        statusMessage = "安静时段暂时没能保存"
+        return
+      }
+      do {
+        apply(try await globalPreferenceRuntime.setQuietHours(candidate))
+      } catch {
+        quietHours = previous
+        statusMessage = "安静时段暂时没能保存"
+      }
+    }
+  }
+
+  private func beginCompanionPreferenceWrite() {
+    companionPreferenceWritesInFlight += 1
+    isSavingCompanionPreferences = true
+  }
+
+  private func endCompanionPreferenceWrite() {
+    companionPreferenceWritesInFlight = max(
+      0,
+      companionPreferenceWritesInFlight - 1
+    )
+    isSavingCompanionPreferences = companionPreferenceWritesInFlight > 0
+  }
+
+  private func loadGlobalPreferences() async {
+    guard let globalPreferenceRuntime else {
+      statusMessage = "随行设置暂时无法载入"
+      return
+    }
+    do {
+      apply(try await globalPreferenceRuntime.current())
+    } catch {
+      statusMessage = "随行设置暂时无法载入"
+    }
+  }
+
+  private func apply(_ projection: MoriGlobalPreferenceProjection) {
+    authoritativeProfileSource = projection.profileSource
+    companionSensingEnabled = projection.companionSensingEnabled
+    reminderMode = projection.reminderMode
+    quietHours = projection.quietHours
+  }
+
+  private func selectGlobalProfile(
+    for source: CompanionDataSource
+  ) async throws {
+    guard let globalPreferenceRuntime else {
+      throw MoriGlobalPreferenceRuntimeError.rejectedPreference
+    }
+    let projection = try await globalPreferenceRuntime.selectProfile(
+      source.isMock
+        ? .mock(scenarioID: source.rawValue)
+        : .real
+    )
+    apply(projection)
+  }
+
+  private static func dataSource(
+    from source: MoriGlobalProfileSource
+  ) -> CompanionDataSource? {
+    switch source {
+    case .real:
+      .healthKit
+    case .mock(let scenarioID):
+      #if DEBUG
+        CompanionDataSource(rawValue: scenarioID)
+      #else
+        nil
+      #endif
     }
   }
 
@@ -204,6 +458,12 @@ final class WatchAppStore: ObservableObject {
 
   func selectDataSource(_ source: CompanionDataSource) async {
     guard !hasLaunchScenarioOverride else { return }
+    do {
+      try await selectGlobalProfile(for: source)
+    } catch {
+      statusMessage = "数据模式暂时没能保存"
+      return
+    }
     mockCareTask?.cancel()
     stopPeerUpdates()
     selectedDataSource = source
@@ -214,6 +474,18 @@ final class WatchAppStore: ObservableObject {
       }
     }
     await applySelectedDataSource(requestAccessIfNeeded: source == .healthKit)
+  }
+
+  func resetCurrentMockState() async {
+    guard selectedDataSource.isMock, dataSourceSelectionAvailable else { return }
+    do {
+      try await selectGlobalProfile(for: selectedDataSource)
+    } catch {
+      statusMessage = "Mock 状态暂时没能重置"
+      return
+    }
+    await resetMockExperiencePreview()
+    await applySelectedDataSource(requestAccessIfNeeded: false)
   }
 
   func completeOnboarding() async {
@@ -267,15 +539,12 @@ final class WatchAppStore: ObservableObject {
       )
       guard selectedDataSource == .healthKit else { return }
       latestHealth = refresh.health
-      let trend = try await runtime.personalHealthTrend()
-      guard selectedDataSource == .healthKit else { return }
       model = .live(
         companion: refresh.companion,
         health: refresh.health,
-        trend: trend,
         peerValues: latestPeerValues
       )
-      statusMessage = refresh.health.hasAnyMetric ? "健康数据已更新" : "没有可用数据，不会扣除成长值"
+      statusMessage = refresh.health.hasAnyMetric ? "健康数据已更新" : "当前没有可用健康记录"
     } catch {
       guard selectedDataSource == .healthKit else { return }
       statusMessage = "健康数据暂时不可用"
@@ -284,33 +553,74 @@ final class WatchAppStore: ObservableObject {
 
   @discardableResult
   func completeSuggestedAction() async -> Bool {
-    guard selectedDataSource == .healthKit, let runtime, !isCompletingAction else {
+    guard
+      !isCompletingAction,
+      model.allowsInteraction,
+      !model.isLive
+    else {
       return false
     }
-    isCompletingAction = true
-    defer { isCompletingAction = false }
-    do {
-      let outcome = try await runtime.completeSuggestedHabit()
-      let trend = try await runtime.personalHealthTrend()
-      model = .live(
-        companion: outcome.state,
-        health: latestHealth,
-        trend: trend,
-        peerValues: latestPeerValues
-      )
-      switch outcome {
-      case .completed:
+    #if DEBUG
+      isCompletingAction = true
+      defer { isCompletingAction = false }
+      do {
+        let receipt = try await mockExperienceRepository.settleTask(
+          id: mockTaskID,
+          reward: model.mockTaskCoinReward
+        )
         actionCompleted = true
-        statusMessage = "今天的小行动已记下；奖励只结算一次"
-      case .alreadyCompletedToday:
-        actionCompleted = true
-        statusMessage = "今天已经完成过一个小行动，继续休息也很好"
+        statusMessage =
+          receipt.wasAlreadySettled
+          ? "这件 Mock 小事已经记下，金币不会重复增加"
+          : "Mock 小事已经记下，预览余额 \(receipt.balance) 枚金币"
+        return true
+      } catch {
+        statusMessage = "Mock 小事暂时没能保存"
+        return false
       }
-      return true
-    } catch {
-      statusMessage = "互动暂时没能保存"
+    #else
       return false
-    }
+    #endif
+  }
+
+  private var mockTaskID: String {
+    #if DEBUG
+      return "\(mockProfileKey):task:today"
+    #else
+      return "unavailable"
+    #endif
+  }
+
+  private var mockProfileKey: String {
+    #if DEBUG
+      model.mockScenario?.id ?? selectedDataSource.rawValue
+    #else
+      "unavailable"
+    #endif
+  }
+
+  private func loadMockTaskReceipt() async {
+    #if DEBUG
+      guard !model.isLive else {
+        actionCompleted = false
+        return
+      }
+      actionCompleted =
+        (try? await mockExperienceRepository.isTaskCompleted(id: mockTaskID))
+        ?? false
+    #endif
+  }
+
+  private func resetMockExperiencePreview() async {
+    #if DEBUG
+      do {
+        try await mockExperienceRepository.reset(profileKey: mockProfileKey)
+        actionCompleted = false
+        hasConsumedMockGlance = false
+      } catch {
+        statusMessage = "Mock 状态暂时没能重置"
+      }
+    #endif
   }
 
   func interact(with animation: WatchCharacterAnimation) async {
@@ -327,47 +637,14 @@ final class WatchAppStore: ObservableObject {
     guard let runtime else { return }
     do {
       let state = try await runtime.recordPetInteraction(kind: animation.rawValue)
-      let trend = try await runtime.personalHealthTrend()
       model = .live(
         companion: state,
         health: latestHealth,
-        trend: trend,
         peerValues: latestPeerValues
       )
       statusMessage = animation == .touchHead ? "Mori 开心地眨了眨眼" : "Mori 转过身回应了你"
     } catch {
       statusMessage = "这次互动没能保存，但 Mori 已经看见你了"
-    }
-  }
-
-  @discardableResult
-  func advanceMainStory() async -> Bool {
-    guard selectedDataSource == .healthKit, let runtime, !isAdvancingStory else {
-      return false
-    }
-    isAdvancingStory = true
-    defer { isAdvancingStory = false }
-    do {
-      let outcome = try await runtime.completeTodayMainStory()
-      let trend = try await runtime.personalHealthTrend()
-      model = .live(
-        companion: outcome.state,
-        health: latestHealth,
-        trend: trend,
-        peerValues: latestPeerValues
-      )
-      switch outcome {
-      case .completed:
-        statusMessage = "今日主线已推进，获得 10 点世界经验"
-      case .alreadyCompletedToday:
-        statusMessage = "今天的主线已经完成，明天继续"
-      case .storyComplete:
-        statusMessage = "七日主线已完成，可以自由探索支线"
-      }
-      return true
-    } catch {
-      statusMessage = "主线进度暂时没能保存"
-      return false
     }
   }
 
@@ -379,11 +656,9 @@ final class WatchAppStore: ObservableObject {
       actionCompleted = state.completedHabitDays.contains(
         LocalDay.containing(Date(), in: .current)
       )
-      let trend = try await runtime.personalHealthTrend()
       model = .live(
         companion: state,
         health: latestHealth,
-        trend: trend,
         peerValues: latestPeerValues
       )
     } catch {
@@ -397,11 +672,9 @@ final class WatchAppStore: ObservableObject {
     actionCompleted = state.completedHabitDays.contains(
       LocalDay.containing(Date(), in: .current)
     )
-    let trend = try await runtime.personalHealthTrend()
     model = .live(
       companion: state,
       health: latestHealth,
-      trend: trend,
       peerValues: latestPeerValues
     )
   }
@@ -412,6 +685,7 @@ final class WatchAppStore: ObservableObject {
     if selectedDataSource.isMock {
       #if DEBUG
         model = WatchPresentationModel.demo(selectedDataSource)
+        await loadMockTaskReceipt()
         phase = .ready
         statusMessage = "\(selectedDataSource.displayName) 已载入"
         scheduleMockCareIfNeeded()
@@ -542,6 +816,67 @@ final class WatchAppStore: ObservableObject {
   }
 
   #if DEBUG
+    private static func productRoute(from arguments: [String]) -> WatchProductRoute? {
+      arguments.first(where: { $0.hasPrefix("--watch-route=") })
+        .map {
+          $0.replacingOccurrences(of: "--watch-route=", with: "")
+        }
+        .flatMap(WatchProductRoute.init(rawValue:))
+    }
+
+    private static func mockGlanceCandidate(
+      from arguments: [String]
+    ) -> MockGlanceCandidate? {
+      guard arguments.contains("-UITesting") else { return nil }
+      let eventValues =
+        arguments.first(where: { $0.hasPrefix("--mock-glance=") })?
+        .replacingOccurrences(of: "--mock-glance=", with: "")
+        .split(separator: ",")
+        .map(String.init) ?? []
+      guard let newest = eventValues.last else { return nil }
+      let age =
+        arguments.first(where: { $0.hasPrefix("--mock-glance-age=") })
+        .flatMap {
+          TimeInterval(
+            $0.replacingOccurrences(of: "--mock-glance-age=", with: "")
+          )
+        } ?? 0
+      let presentation = mockGlancePresentation(for: newest)
+      let supersededIDs = eventValues.dropLast().map {
+        mockGlancePresentation(for: $0).id
+      }
+      return MockGlanceCandidate(
+        presentation: presentation,
+        age: max(0, age),
+        supersededIDs: supersededIDs
+      )
+    }
+
+    private static func mockGlancePresentation(
+      for value: String
+    ) -> WatchGlancePresentation {
+      switch value {
+      case "shared-walk":
+        WatchGlancePresentation(
+          id: value,
+          message: "我们已经一起走了 3,250 步。",
+          reaction: .idleLively
+        )
+      case "paused":
+        WatchGlancePresentation(
+          id: value,
+          message: "你停下来的时候，我也坐了一会儿。",
+          reaction: .idleResting
+        )
+      default:
+        WatchGlancePresentation(
+          id: "fast-pace",
+          message: "刚才那段路走得好快，我差点跟不上。",
+          reaction: .idleCurious
+        )
+      }
+    }
+
     private static func notificationRoute(from arguments: [String]) -> RuntimeNotificationRoute? {
       guard
         let value = arguments.first(where: { $0.hasPrefix("--notification-route=") })?

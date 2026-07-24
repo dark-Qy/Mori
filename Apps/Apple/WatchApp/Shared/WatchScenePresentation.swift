@@ -182,6 +182,26 @@ struct WatchScenePresentation {
     )
   }
 
+  func applying(backgroundID requestedID: String) -> Self {
+    let backgroundID = CompanionVisualCatalog.normalizedBackgroundID(requestedID)
+    let sceneDefinition = Self.definition(for: backgroundID)
+    return WatchScenePresentation(
+      backgroundID: backgroundID,
+      backgroundDisplayName: sceneDefinition.displayName,
+      accessibilityDescription: sceneDefinition.accessibilityDescription,
+      foregroundAssetName: sceneDefinition.foregroundAssetName,
+      slots: slots.map { slot in
+        WatchCharacterSlotPresentation(
+          id: slot.id,
+          characterID: slot.characterID,
+          placement: slot.placement,
+          layout: sceneDefinition.slotOverrides[slot.placement] ?? slot.placement.defaultLayout,
+          idleAnimation: slot.idleAnimation
+        )
+      }
+    )
+  }
+
   private static func idleAnimation(for mood: PetMood) -> WatchCharacterAnimation {
     switch mood {
     case .neutral: .idleNeutral

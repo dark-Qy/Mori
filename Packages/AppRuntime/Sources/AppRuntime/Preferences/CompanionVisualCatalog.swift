@@ -6,7 +6,7 @@ import Foundation
 /// two ordered character slots so a future duo home does not require a storage migration.
 public enum CompanionVisualCatalog {
   public static let defaultCharacterID = "penguin"
-  public static let defaultBackgroundID = "ice_ocean_day"
+  public static let defaultBackgroundID = "spring_meadow_stream"
   public static let maximumCharacterCount = 2
 
   public static let characterIDs = [

@@ -38,7 +38,7 @@ struct TouchExchangeView: View {
       guard phase == .completed else { return }
       WKInterfaceDevice.current().play(.success)
       guard !reduceMotion else { return }
-      withAnimation(.bouncy(duration: 0.55)) {
+      withAnimation(.smooth(duration: 0.3)) {
         successPulse.toggle()
       }
     }
@@ -53,7 +53,7 @@ struct TouchExchangeView: View {
   @ViewBuilder private var phaseContent: some View {
     switch exchange.phase {
     case .idle:
-      explanationCard
+      explanation
       Text(
         exchange.socialSharingEnabled
           ? "请让对方也打开这个页面，然后把两块手表靠近，系统会自动发现。"
@@ -125,7 +125,7 @@ struct TouchExchangeView: View {
       )
 
     case .completed:
-      AdventureCard {
+      VStack(alignment: .leading, spacing: 5) {
         Label("遇见卡交换成功", systemImage: "checkmark.seal.fill")
           .font(.headline)
           .foregroundStyle(AdventurePalette.mint)
@@ -144,7 +144,7 @@ struct TouchExchangeView: View {
       .accessibilityIdentifier("watch.touch-exchange.completed")
 
     case .failed:
-      AdventureCard {
+      VStack(alignment: .leading, spacing: 5) {
         Label("这次没有交换", systemImage: "exclamationmark.triangle.fill")
           .font(.headline)
           .foregroundStyle(AdventurePalette.rose)
@@ -161,7 +161,7 @@ struct TouchExchangeView: View {
       .accessibilityIdentifier("watch.touch-exchange.retry")
 
     case .cancellationUnconfirmed:
-      AdventureCard {
+      VStack(alignment: .leading, spacing: 5) {
         Label("取消状态未确认", systemImage: "wifi.exclamationmark")
           .font(.headline)
           .foregroundStyle(AdventurePalette.rose)
@@ -178,7 +178,7 @@ struct TouchExchangeView: View {
       .accessibilityIdentifier("watch.touch-exchange.retry")
 
     case .cancelled:
-      AdventureCard {
+      VStack(alignment: .leading, spacing: 5) {
         Label("已取消", systemImage: "xmark.circle.fill")
           .font(.headline)
         Text(exchange.statusText)
@@ -217,8 +217,8 @@ struct TouchExchangeView: View {
     .accessibilityHidden(true)
   }
 
-  private var explanationCard: some View {
-    AdventureCard {
+  private var explanation: some View {
+    VStack(alignment: .leading, spacing: 5) {
       Label("只交换公开的宠物状态", systemImage: "lock.shield.fill")
         .font(.subheadline.weight(.semibold))
         .foregroundStyle(AdventurePalette.blue)
@@ -236,7 +236,7 @@ struct TouchExchangeView: View {
   }
 
   private func progressCard(title: String, detail: String) -> some View {
-    AdventureCard {
+    VStack(alignment: .leading, spacing: 5) {
       HStack(spacing: AdventureSpacing.small) {
         ProgressView()
         Text(title)
@@ -252,7 +252,7 @@ struct TouchExchangeView: View {
   }
 
   private func peerCard(_ peer: TouchExchangePeerCard) -> some View {
-    AdventureCard {
+    VStack(alignment: .leading, spacing: 5) {
       Label(peer.displayName, systemImage: "pawprint.circle.fill")
         .font(.headline)
         .foregroundStyle(AdventurePalette.gold)
@@ -263,6 +263,10 @@ struct TouchExchangeView: View {
         .font(.caption2)
         .foregroundStyle(.secondary)
         .padding(.top, 4)
+    }
+    .padding(.vertical, 7)
+    .overlay(alignment: .bottom) {
+      Divider()
     }
     .accessibilityElement(children: .combine)
     .accessibilityIdentifier("watch.touch-exchange.peer-card")

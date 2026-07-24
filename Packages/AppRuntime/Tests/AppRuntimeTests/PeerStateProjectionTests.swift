@@ -74,7 +74,7 @@ struct PeerStateProjectionTests {
 
     #expect(state.values["outfit"] == "default")
     #expect(state.values["characters"] == "penguin")
-    #expect(state.values["background"] == "ice_ocean_day")
+    #expect(state.values["background"] == "spring_meadow_stream")
     #expect(state.values["socialSharingEnabled"] == "false")
     #expect(state.values["publicPetSocialState"] == "greeting")
   }
