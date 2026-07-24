@@ -29,6 +29,7 @@
     public let primaryState: DebugScenarioPrimaryState
     public let companionState: CompanionState
     public let healthSnapshot: HealthSnapshot
+    public let personalHealthTrend: PersonalHealthTrend?
     public let petLevel: Int
     public let selectedOutfitID: String?
     public let unlockedOutfitIDs: Set<String>
@@ -46,6 +47,7 @@
       primaryState = DebugScenarioPrimaryState(rawValue: runtime.primaryState.rawValue) ?? .petHome
       companionState = run.state
       healthSnapshot = runtime.healthSnapshot
+      personalHealthTrend = runtime.personalHealthTrend
       petLevel = runtime.petLevel
       selectedOutfitID = runtime.wardrobe.selectedOutfitID
       unlockedOutfitIDs = runtime.wardrobe.unlockedOutfitIDs
@@ -78,6 +80,11 @@
       "mock1",
       "mock2",
       "mock3",
+      "mock7_active",
+      "mock7_recovery",
+      "mock7_rhythm",
+      "mock7_sparse",
+      "mock7_stable",
       "notification_denied",
       "outfit_locked",
       "outfit_unlocked",

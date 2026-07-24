@@ -69,6 +69,19 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(healthSharingUnavailable.waitForExistence(timeout: 5))
   }
 
+  func testSevenDayScenarioRendersHistoryInsteadOfEmptyState() {
+    let app = launchApp(scenario: "mock7_active")
+
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("phone.mock-badge", in: app).label.contains("7 日 · 活动提升"))
+    app.tabBars.buttons["历史"].tap()
+    XCTAssertTrue(element("phone.history", in: app).waitForExistence(timeout: 5))
+    XCTAssertTrue(element("phone.history-chart", in: app).exists)
+    XCTAssertFalse(element("phone.history-empty", in: app).exists)
+    XCTAssertTrue(app.staticTexts["来自模拟健康数据"].exists)
+    XCTAssertFalse(app.staticTexts["来自 HealthKit"].exists)
+  }
+
   func testCharacterAndSharedBackgroundSelectionUpdateThePreview() {
     let app = launchApp(scenario: "health_normal")
 

@@ -10,7 +10,7 @@ struct PeerStateProjection: Sendable {
   func makeValues(
     companion: CompanionState,
     preferences: AppPreferences?,
-    dataSource: CompanionDataSource = .mock1,
+    dataSource: CompanionDataSource = .healthKit,
     dataSourceSelectionToken: String? = nil,
     includePhoneOwnedSocialSettings: Bool = true
   ) -> [String: String] {
@@ -51,7 +51,7 @@ struct PeerStateProjection: Sendable {
   func makeState(
     companion: CompanionState,
     preferences: AppPreferences?,
-    dataSource: CompanionDataSource = .mock1,
+    dataSource: CompanionDataSource = .healthKit,
     dataSourceSelectionToken: String? = nil,
     includePhoneOwnedSocialSettings: Bool = true,
     revision: UInt64,

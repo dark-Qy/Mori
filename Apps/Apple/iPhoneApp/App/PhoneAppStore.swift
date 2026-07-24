@@ -46,7 +46,8 @@ final class PhoneAppStore: ObservableObject {
     let initialModel = PhonePresentationModel.initial(arguments: arguments)
     model = initialModel
     selectedDataSource =
-      initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) } ?? .mock1
+      initialModel.mockScenario.flatMap { CompanionDataSource(rawValue: $0.id) }
+      ?? .defaultSelection
     preferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
       selectedOutfitID: initialModel.wardrobe.selectedOutfitID
@@ -201,7 +202,7 @@ final class PhoneAppStore: ObservableObject {
 
   func companionInteraction() async {
     if selectedDataSource.isMock || hasLaunchScenarioOverride {
-      if model.mockScenario?.id == CompanionDataSource.mock2.fixtureID {
+      if CompanionDataSource.isPeerExchangeFixtureID(model.mockScenario?.id) {
         model = model.resolvingMockRelationship()
       }
       statusMessage = "Mori 靠近了一点，安静地陪着你"
@@ -413,10 +414,12 @@ final class PhoneAppStore: ObservableObject {
   }
 
   private func scheduleMockCareIfNeeded() {
-    guard selectedDataSource == .mock2 else { return }
+    guard selectedDataSource.simulatesPeerExchange else { return }
     mockCareTask = Task { [weak self] in
       try? await Task.sleep(for: .seconds(60))
-      guard !Task.isCancelled, let self, self.selectedDataSource == .mock2 else { return }
+      guard !Task.isCancelled, let self, self.selectedDataSource.simulatesPeerExchange else {
+        return
+      }
       self.model = self.model.addingMockCareMessage()
       self.statusMessage = "Mori 给你留了一封轻轻的来信"
     }

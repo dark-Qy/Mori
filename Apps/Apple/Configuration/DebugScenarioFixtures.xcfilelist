@@ -8,6 +8,11 @@ $(SRCROOT)/../../Fixtures/Scenarios/health_partial.json
 $(SRCROOT)/../../Fixtures/Scenarios/mock1.json
 $(SRCROOT)/../../Fixtures/Scenarios/mock2.json
 $(SRCROOT)/../../Fixtures/Scenarios/mock3.json
+$(SRCROOT)/../../Fixtures/Scenarios/mock7_active.json
+$(SRCROOT)/../../Fixtures/Scenarios/mock7_recovery.json
+$(SRCROOT)/../../Fixtures/Scenarios/mock7_rhythm.json
+$(SRCROOT)/../../Fixtures/Scenarios/mock7_sparse.json
+$(SRCROOT)/../../Fixtures/Scenarios/mock7_stable.json
 $(SRCROOT)/../../Fixtures/Scenarios/notification_denied.json
 $(SRCROOT)/../../Fixtures/Scenarios/outfit_locked.json
 $(SRCROOT)/../../Fixtures/Scenarios/outfit_unlocked.json

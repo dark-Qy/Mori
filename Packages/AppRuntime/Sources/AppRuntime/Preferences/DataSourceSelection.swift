@@ -2,30 +2,75 @@ import Foundation
 
 public enum CompanionDataSource: String, Codable, CaseIterable, Sendable {
   case healthKit
-  case mock1
-  case mock2
-  case mock3
+  #if DEBUG
+    case mock1
+    case mock2
+    case mock3
+    case mock7Active = "mock7_active"
+    case mock7Recovery = "mock7_recovery"
+    case mock7Rhythm = "mock7_rhythm"
+    case mock7Sparse = "mock7_sparse"
+    case mock7Stable = "mock7_stable"
+  #endif
 
   public var displayName: String {
     switch self {
     case .healthKit: "Apple 健康"
-    case .mock1: "Mock 1"
-    case .mock2: "Mock 2"
-    case .mock3: "Mock 3"
+    #if DEBUG
+      case .mock1: "Mock 1"
+      case .mock2: "Mock 2"
+      case .mock3: "Mock 3"
+      case .mock7Active: "7 日 · 活动提升"
+      case .mock7Recovery: "7 日 · 恢复提醒"
+      case .mock7Rhythm: "7 日 · 节律改善"
+      case .mock7Sparse: "7 日 · 数据不全"
+      case .mock7Stable: "7 日 · 平稳"
+    #endif
     }
   }
 
   public var fixtureID: String? {
     switch self {
     case .healthKit: nil
-    case .mock1: "mock1"
-    case .mock2: "mock2"
-    case .mock3: "mock3"
+    #if DEBUG
+      case .mock1: "mock1"
+      case .mock2: "mock2"
+      case .mock3: "mock3"
+      case .mock7Active: "mock7_active"
+      case .mock7Recovery: "mock7_recovery"
+      case .mock7Rhythm: "mock7_rhythm"
+      case .mock7Sparse: "mock7_sparse"
+      case .mock7Stable: "mock7_stable"
+    #endif
     }
   }
 
   public var isMock: Bool {
     self != .healthKit
+  }
+
+  public static var defaultSelection: Self {
+    #if DEBUG
+      .mock1
+    #else
+      .healthKit
+    #endif
+  }
+
+  public static func isPeerExchangeFixtureID(_ id: String?) -> Bool {
+    #if DEBUG
+      id == CompanionDataSource.mock2.fixtureID
+    #else
+      false
+    #endif
+  }
+
+  public var simulatesPeerExchange: Bool {
+    #if DEBUG
+      self == .mock2
+    #else
+      false
+    #endif
   }
 }
 
@@ -48,7 +93,7 @@ public actor DataSourceSelectionRepository {
       let storedValue = defaults.string(forKey: key),
       let selection = CompanionDataSource(rawValue: storedValue)
     else {
-      return .mock1
+      return .defaultSelection
     }
     return selection
   }

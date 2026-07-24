@@ -38,6 +38,11 @@ required_scenarios=(
   mock1
   mock2
   mock3
+  mock7_active
+  mock7_recovery
+  mock7_rhythm
+  mock7_sparse
+  mock7_stable
 )
 
 for scenario in "${required_scenarios[@]}"; do

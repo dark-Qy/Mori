@@ -47,19 +47,27 @@ struct DataSourceSelectionTests {
 
   @Test("All data sources expose stable product metadata")
   func casesAndMetadata() {
-    #expect(CompanionDataSource.allCases == [.healthKit, .mock1, .mock2, .mock3])
+    #expect(
+      CompanionDataSource.allCases == [
+        .healthKit, .mock1, .mock2, .mock3, .mock7Active, .mock7Recovery, .mock7Rhythm,
+        .mock7Sparse, .mock7Stable,
+      ])
     #expect(
       CompanionDataSource.allCases.map(\.displayName) == [
-        "Apple 健康", "Mock 1", "Mock 2", "Mock 3",
+        "Apple 健康", "Mock 1", "Mock 2", "Mock 3", "7 日 · 活动提升", "7 日 · 恢复提醒",
+        "7 日 · 节律改善", "7 日 · 数据不全", "7 日 · 平稳",
       ])
     #expect(
       CompanionDataSource.allCases.map(\.fixtureID) == [
-        nil, "mock1", "mock2", "mock3",
+        nil, "mock1", "mock2", "mock3", "mock7_active", "mock7_recovery", "mock7_rhythm",
+        "mock7_sparse", "mock7_stable",
       ])
     #expect(
       CompanionDataSource.allCases.map(\.isMock) == [
-        false, true, true, true,
+        false, true, true, true, true, true, true, true, true,
       ])
+    #expect(CompanionDataSource.isPeerExchangeFixtureID("mock2"))
+    #expect(!CompanionDataSource.isPeerExchangeFixtureID(nil))
   }
 
   private func makeRepository(

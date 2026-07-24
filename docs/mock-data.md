@@ -19,9 +19,9 @@ Mocks make deterministic development possible when HealthKit history, physical h
 ## Interactive demo selector
 
 The current debug product build starts with `Mock 1` when no data source has been selected. Both
-iPhone and Watch expose one compact data-source button with `Apple 健康`, `Mock 1`, `Mock 2`, and
-`Mock 3`. A single tap applies the selection, closes the chooser, remembers only the selected
-label, and projects that label through the existing WatchConnectivity state.
+iPhone and Watch expose one compact data-source button with `Apple 健康`, the three focused Mock
+demos, and five `7 日` demos. A single tap applies the selection, closes the chooser, remembers only
+the selected label, and projects that label through the existing WatchConnectivity state.
 
 Mock world state remains in memory. Selecting a fixture again or relaunching reconstructs its
 canonical initial state instead of persisting interactions into the next demonstration.
@@ -56,6 +56,33 @@ Installation state and executable domain state derive the initial screen. For ex
 `fresh_install` begins with a truly empty event ledger, so onboarding cannot inherit synthetic
 progress accidentally.
 
+Multi-day fixtures use `state.health.dailySnapshots`. Each entry becomes one normalized
+`HealthSnapshot` and one `healthSnapshotReceived` event at that entry's `capturedAt` time. The
+presentation shows the most recent seven days, while the included 14-day history gives the real
+personal-trend analyzer enough earlier context to distinguish stable, improving, and declining
+patterns. Missing metrics remain `null`; they are never converted to zero.
+
+```json
+"health": {
+  "source": "mock",
+  "dataState": "available",
+  "dailySnapshots": [
+    {
+      "capturedAt": "2026-07-23T20:00:00+08:00",
+      "sleepMinutes": 420,
+      "sleepWindowStart": "2026-07-22T23:00:00+08:00",
+      "sleepWindowEnd": "2026-07-23T06:00:00+08:00",
+      "steps": 6700,
+      "activeMinutes": 30
+    }
+  ]
+}
+```
+
+Optional `expectations.trend` values are assertions, not presentation inputs. Loading the fixture
+fails if the analyzer does not produce the declared recent-day count, usable baseline count, or
+metric status.
+
 The same rule applies to behavior-triggered stories. `soccer_workout` provides a synthetic workout;
 `SoccerSideStoryRule` derives whether `lost_ball` is eligible from its activity, duration, and
 freshness. `expectations.eligibleRandomStory` only validates that derived result and never grants the
@@ -85,6 +112,11 @@ Dates are interpreted relative to `clock.now` where possible. Fixtures never con
 | `mock1` | Everyday demo | normal sleep and activity |
 | `mock2` | Relationship and care demo | three complete days without interaction plus an explicitly logged stressful State of Mind |
 | `mock3` | High-activity story demo | high activity and an explicit soccer workout eligible for `lost_ball` |
+| `mock7_stable` | Stable seven-day chart | all recent metrics stay within the personal range |
+| `mock7_recovery` | Reduced recent sleep | sleep falls below the personal range and the latest day enters recovery |
+| `mock7_active` | Increased recent activity | steps and active minutes rise; latest soccer workout is eligible for `lost_ball` |
+| `mock7_sparse` | Missing days | recent chart keeps two visible gaps and never substitutes zero |
+| `mock7_rhythm` | More consistent sleep timing | sleep-start consistency improves against the earlier personal baseline |
 
 Add explicit scenarios for each bug that depends on time, permission, ordering, or randomness.
 

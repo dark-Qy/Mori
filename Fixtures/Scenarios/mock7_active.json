@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "mock7_active",
+  "displayName": "7 日 · 活动提升",
+  "clock": { "now": "2026-07-23T20:00:00+08:00", "timeZone": "Asia/Shanghai" },
+  "launchArguments": ["-MockScenario", "mock7_active"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": {
+      "source": "mock",
+      "dataState": "available",
+      "dailySnapshots": [
+        { "capturedAt": "2026-07-10T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-09T23:00:00+08:00", "sleepWindowEnd": "2026-07-10T06:30:00+08:00", "steps": 4500, "activeMinutes": 20, "restingHeartRate": 62 },
+        { "capturedAt": "2026-07-11T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-10T23:00:00+08:00", "sleepWindowEnd": "2026-07-11T06:30:00+08:00", "steps": 4400, "activeMinutes": 19, "restingHeartRate": 62 },
+        { "capturedAt": "2026-07-12T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-11T23:00:00+08:00", "sleepWindowEnd": "2026-07-12T06:30:00+08:00", "steps": 4600, "activeMinutes": 21, "restingHeartRate": 61 },
+        { "capturedAt": "2026-07-13T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-12T23:00:00+08:00", "sleepWindowEnd": "2026-07-13T06:30:00+08:00", "steps": 4500, "activeMinutes": 20, "restingHeartRate": 62 },
+        { "capturedAt": "2026-07-14T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-13T23:00:00+08:00", "sleepWindowEnd": "2026-07-14T06:30:00+08:00", "steps": 4300, "activeMinutes": 18, "restingHeartRate": 63 },
+        { "capturedAt": "2026-07-15T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-14T23:00:00+08:00", "sleepWindowEnd": "2026-07-15T06:30:00+08:00", "steps": 4700, "activeMinutes": 22, "restingHeartRate": 61 },
+        { "capturedAt": "2026-07-16T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-15T23:00:00+08:00", "sleepWindowEnd": "2026-07-16T06:30:00+08:00", "steps": 4500, "activeMinutes": 20, "restingHeartRate": 62 },
+        { "capturedAt": "2026-07-17T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-16T23:00:00+08:00", "sleepWindowEnd": "2026-07-17T06:30:00+08:00", "steps": 9800, "activeMinutes": 48, "restingHeartRate": 59 },
+        { "capturedAt": "2026-07-18T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-17T23:00:00+08:00", "sleepWindowEnd": "2026-07-18T06:30:00+08:00", "steps": 10200, "activeMinutes": 51, "restingHeartRate": 58 },
+        { "capturedAt": "2026-07-19T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-18T23:00:00+08:00", "sleepWindowEnd": "2026-07-19T06:30:00+08:00", "steps": 9600, "activeMinutes": 47, "restingHeartRate": 59 },
+        { "capturedAt": "2026-07-20T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-19T23:00:00+08:00", "sleepWindowEnd": "2026-07-20T06:30:00+08:00", "steps": 10500, "activeMinutes": 53, "restingHeartRate": 58 },
+        { "capturedAt": "2026-07-21T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-20T23:00:00+08:00", "sleepWindowEnd": "2026-07-21T06:30:00+08:00", "steps": 9900, "activeMinutes": 49, "restingHeartRate": 59 },
+        { "capturedAt": "2026-07-22T20:00:00+08:00", "sleepMinutes": 450, "sleepWindowStart": "2026-07-21T23:00:00+08:00", "sleepWindowEnd": "2026-07-22T06:30:00+08:00", "steps": 10100, "activeMinutes": 50, "restingHeartRate": 58 },
+        {
+          "capturedAt": "2026-07-23T20:00:00+08:00",
+          "sleepMinutes": 450,
+          "sleepWindowStart": "2026-07-22T23:00:00+08:00",
+          "sleepWindowEnd": "2026-07-23T06:30:00+08:00",
+          "steps": 10800,
+          "activeMinutes": 55,
+          "restingHeartRate": 57,
+          "workouts": [
+            { "id": "mock7-active-soccer", "activityType": "soccer", "startedAt": "2026-07-23T17:30:00+08:00", "durationMinutes": 45, "activeEnergyKilocalories": 410 }
+          ]
+        }
+      ]
+    },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": { "lifecycle": "active", "level": 3, "vitality": 10, "bond": 12, "insight": 9, "lastInteractionAt": "2026-07-22T20:00:00+08:00" },
+    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "eligibleRandomStory": "lost_ball",
+    "trend": {
+      "recentDayCount": 7,
+      "usableBaselineDayCount": 14,
+      "sleepDuration": "withinPersonalRange",
+      "steps": "abovePersonalRange",
+      "activeMinutes": "abovePersonalRange",
+      "sleepTiming": "withinPersonalRange"
+    }
+  }
+}

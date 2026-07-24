@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "mock7_sparse",
+  "displayName": "7 日 · 数据不全",
+  "clock": { "now": "2026-07-23T20:00:00+08:00", "timeZone": "Asia/Shanghai" },
+  "launchArguments": ["-MockScenario", "mock7_sparse"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": {
+      "source": "mock",
+      "dataState": "available",
+      "dailySnapshots": [
+        { "capturedAt": "2026-07-10T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-09T23:00:00+08:00", "sleepWindowEnd": "2026-07-10T06:00:00+08:00", "steps": 6500, "activeMinutes": 30 },
+        { "capturedAt": "2026-07-11T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-10T23:00:00+08:00", "sleepWindowEnd": "2026-07-11T06:00:00+08:00", "steps": 6500, "activeMinutes": 30 },
+        { "capturedAt": "2026-07-12T20:00:00+08:00", "dataState": "noData" },
+        { "capturedAt": "2026-07-13T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-12T23:00:00+08:00", "sleepWindowEnd": "2026-07-13T06:00:00+08:00", "steps": 6500, "activeMinutes": 30 },
+        { "capturedAt": "2026-07-14T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-13T23:00:00+08:00", "sleepWindowEnd": "2026-07-14T06:00:00+08:00", "steps": 6500, "activeMinutes": 30 },
+        { "capturedAt": "2026-07-15T20:00:00+08:00", "dataState": "noData" },
+        { "capturedAt": "2026-07-16T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-15T23:00:00+08:00", "sleepWindowEnd": "2026-07-16T06:00:00+08:00", "steps": 6500, "activeMinutes": 30 },
+        { "capturedAt": "2026-07-17T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-16T23:00:00+08:00", "sleepWindowEnd": "2026-07-17T06:00:00+08:00", "steps": 6500, "activeMinutes": 30 },
+        { "capturedAt": "2026-07-18T20:00:00+08:00", "dataState": "noData" },
+        { "capturedAt": "2026-07-19T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-18T23:00:00+08:00", "sleepWindowEnd": "2026-07-19T06:00:00+08:00", "steps": 6500, "activeMinutes": 30 },
+        { "capturedAt": "2026-07-20T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-19T23:00:00+08:00", "sleepWindowEnd": "2026-07-20T06:00:00+08:00", "steps": 6500, "activeMinutes": 30 },
+        { "capturedAt": "2026-07-21T20:00:00+08:00", "dataState": "noData" },
+        { "capturedAt": "2026-07-22T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-21T23:00:00+08:00", "sleepWindowEnd": "2026-07-22T06:00:00+08:00", "steps": 6500, "activeMinutes": 30 },
+        { "capturedAt": "2026-07-23T20:00:00+08:00", "sleepMinutes": 420, "sleepWindowStart": "2026-07-22T23:00:00+08:00", "sleepWindowEnd": "2026-07-23T06:00:00+08:00", "steps": 6500, "activeMinutes": 30 }
+      ]
+    },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": { "lifecycle": "active", "level": 3, "vitality": 10, "bond": 12, "insight": 9, "lastInteractionAt": "2026-07-22T20:00:00+08:00" },
+    "wardrobe": { "selectedOutfitID": "default", "unlockedOutfitIDs": ["default"] }
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "trend": {
+      "recentDayCount": 7,
+      "usableBaselineDayCount": 10,
+      "sleepDuration": "withinPersonalRange",
+      "steps": "withinPersonalRange",
+      "activeMinutes": "withinPersonalRange",
+      "sleepTiming": "withinPersonalRange"
+    }
+  }
+}

@@ -64,7 +64,9 @@
     public let primaryState: MockPrimaryState
     public let healthRequestState: HealthRequestState
     public let notificationAuthorization: MockNotificationAuthorization
+    public let healthSnapshots: [HealthSnapshot]
     public let healthSnapshot: HealthSnapshot
+    public let personalHealthTrend: PersonalHealthTrend?
     public let petLifecycle: MockPetLifecycle
     public let petLevel: Int
     public let wardrobe: MockWardrobeState
@@ -104,12 +106,21 @@
       notificationAuthorization = notifications
 
       let health = try Self.requiredObject(state, path: "health")
-      healthSnapshot = try Self.makeHealthSnapshot(
+      let snapshots = try Self.makeHealthSnapshots(
         from: health,
         requestState: healthRequestState,
         now: fixture.clock.now,
         timeZoneIdentifier: fixture.clock.timeZone
       )
+      healthSnapshots = snapshots
+      healthSnapshot = snapshots[snapshots.count - 1]
+      if snapshots.count > 1 {
+        let trend = PersonalTrendAnalyzer().analyze(snapshots, at: fixture.clock.now)
+        try Self.validateTrendExpectation(expectations["trend"]?.objectValue, against: trend)
+        personalHealthTrend = trend
+      } else {
+        personalHealthTrend = nil
+      }
 
       let pet = try Self.requiredObject(state, path: "pet")
       let lifecycleValue = try Self.requiredString(pet, path: "lifecycle")
@@ -177,21 +188,24 @@
         growth: growth
       )
       if hasCompletedOnboarding {
-        let event = EventEnvelope(
-          eventID: Self.healthEventID,
-          occurredAt: fixture.clock.now,
-          source: .mock,
-          payload: .healthSnapshotReceived(healthSnapshot)
-        )
-        initialLedger = try EventLedger(events: [event])
+        let events = healthSnapshots.enumerated().map { index, snapshot in
+          EventEnvelope(
+            eventID: Self.healthEventID(for: index),
+            occurredAt: snapshot.capturedAt,
+            source: .mock,
+            payload: .healthSnapshotReceived(snapshot)
+          )
+        }
+        initialLedger = try EventLedger(events: events)
       } else {
         initialLedger = try EventLedger()
       }
     }
 
-    private static let healthEventID = UUID(
-      uuidString: "00000000-0000-0000-0000-00000000A001"
-    )!
+    private static func healthEventID(for index: Int) -> UUID {
+      let suffix = String(format: "%012llX", UInt64(0xA001 + index))
+      return UUID(uuidString: "00000000-0000-0000-0000-\(suffix)")!
+    }
 
     private static func requiredObject(
       _ object: [String: JSONValue],
@@ -229,6 +243,55 @@
       return result
     }
 
+    private static func makeHealthSnapshots(
+      from health: [String: JSONValue],
+      requestState: HealthRequestState,
+      now: Date,
+      timeZoneIdentifier: String
+    ) throws -> [HealthSnapshot] {
+      guard let dailyValues = health["dailySnapshots"]?.arrayValue else {
+        return [
+          try makeHealthSnapshot(
+            from: health,
+            requestState: requestState,
+            now: now,
+            timeZoneIdentifier: timeZoneIdentifier
+          )
+        ]
+      }
+      guard !dailyValues.isEmpty, dailyValues.count <= 30 else {
+        throw MockScenarioError.invalidValue("state.health.dailySnapshots")
+      }
+      guard health["samples"]?.arrayValue?.isEmpty != false else {
+        throw MockScenarioError.invalidValue("state.health.dailySnapshots cannot accompany samples")
+      }
+
+      let defaultDataState = try requiredString(health, path: "dataState")
+      var snapshots: [HealthSnapshot] = []
+      for (index, value) in dailyValues.enumerated() {
+        guard let daily = value.objectValue else {
+          throw MockScenarioError.invalidValue("state.health.dailySnapshots[\(index)]")
+        }
+        snapshots.append(
+          try makeDailyHealthSnapshot(
+            from: daily,
+            defaultDataState: defaultDataState,
+            requestState: requestState,
+            timeZoneIdentifier: timeZoneIdentifier,
+            index: index
+          )
+        )
+      }
+      snapshots.sort { $0.capturedAt < $1.capturedAt }
+      guard snapshots.allSatisfy({ $0.capturedAt <= now }) else {
+        throw MockScenarioError.invalidValue("state.health.dailySnapshots.capturedAt")
+      }
+      guard Set(snapshots.map(\.localDay)).count == snapshots.count else {
+        throw MockScenarioError.invalidValue("state.health.dailySnapshots.localDay")
+      }
+      return snapshots
+    }
+
     private static func makeHealthSnapshot(
       from health: [String: JSONValue],
       requestState: HealthRequestState,
@@ -237,24 +300,11 @@
     ) throws -> HealthSnapshot {
       let dataState = try requiredString(health, path: "dataState")
       let samples = health["samples"]?.arrayValue?.compactMap(\.objectValue) ?? []
-      let availability: HealthDataAvailability
-      let freshness: HealthDataFreshness
-      switch dataState {
-      case "available":
-        availability = .available
-        freshness = .fresh
-      case "partial":
-        availability = .partial
-        freshness = .fresh
-      case "stale":
-        availability = samples.isEmpty ? .noData : .partial
-        freshness = .stale
-      case "noData", "unavailable":
-        availability = .noData
-        freshness = .noData
-      default:
-        throw MockScenarioError.invalidValue("state.health.dataState")
-      }
+      let (availability, freshness) = try healthStates(
+        dataState: dataState,
+        hasData: !samples.isEmpty,
+        path: "state.health.dataState"
+      )
 
       var sleepMinutes = 0
       var hasSleep = false
@@ -332,6 +382,130 @@
       )
     }
 
+    private static func makeDailyHealthSnapshot(
+      from daily: [String: JSONValue],
+      defaultDataState: String,
+      requestState: HealthRequestState,
+      timeZoneIdentifier: String,
+      index: Int
+    ) throws -> HealthSnapshot {
+      guard let capturedAt = try date(daily, key: "capturedAt") else {
+        throw MockScenarioError.missingValue("state.health.dailySnapshots[\(index)].capturedAt")
+      }
+      let dataState = daily["dataState"]?.stringValue ?? defaultDataState
+      let sleepMinutes = daily["sleepMinutes"]?.numberValue.map(Int.init)
+      let steps = daily["steps"]?.numberValue.map(Int.init)
+      let activeMinutes = daily["activeMinutes"]?.numberValue.map(Int.init)
+      let restingHeartRate = daily["restingHeartRate"]?.numberValue
+      let sleepWindowStart = try date(daily, key: "sleepWindowStart")
+      let sleepWindowEnd = try date(daily, key: "sleepWindowEnd")
+      let workoutValues = daily["workouts"]?.arrayValue ?? []
+      var workouts: [WorkoutSummary] = []
+      for (workoutIndex, value) in workoutValues.enumerated() {
+        guard let workout = value.objectValue else {
+          throw MockScenarioError.invalidValue(
+            "state.health.dailySnapshots[\(index)].workouts[\(workoutIndex)]"
+          )
+        }
+        guard let startedAt = try date(workout, key: "startedAt") else {
+          throw MockScenarioError.missingValue(
+            "state.health.dailySnapshots[\(index)].workouts[\(workoutIndex)].startedAt"
+          )
+        }
+        guard
+          let activity = WorkoutSummary.Activity(
+            rawValue: workout["activityType"]?.stringValue ?? "other"
+          )
+        else {
+          throw MockScenarioError.invalidValue(
+            "state.health.dailySnapshots[\(index)].workouts[\(workoutIndex)].activityType"
+          )
+        }
+        workouts.append(
+          WorkoutSummary(
+            id: stableUUID(
+              from: workout["id"]?.stringValue ?? "daily-\(index)-workout-\(workoutIndex)"
+            ),
+            activity: activity,
+            startedAt: startedAt,
+            durationMinutes: Int(workout["durationMinutes"]?.numberValue ?? 0),
+            activeEnergyKilocalories: workout["activeEnergyKilocalories"]?.numberValue
+          )
+        )
+      }
+
+      let hasData =
+        sleepMinutes != nil || steps != nil || activeMinutes != nil || restingHeartRate != nil
+        || !workouts.isEmpty
+      let (availability, freshness) = try healthStates(
+        dataState: dataState,
+        hasData: hasData,
+        path: "state.health.dailySnapshots[\(index)].dataState"
+      )
+      return HealthSnapshot(
+        capturedAt: capturedAt,
+        timeZoneIdentifier: timeZoneIdentifier,
+        freshness: freshness,
+        requestState: requestState,
+        availability: availability,
+        sources: hasData ? [HealthFixtures.appleWatch] : [],
+        sleepMinutes: sleepMinutes,
+        sleepWindowStart: sleepWindowStart,
+        sleepWindowEnd: sleepWindowEnd,
+        steps: steps,
+        activeMinutes: activeMinutes,
+        restingHeartRateBPM: restingHeartRate,
+        workouts: workouts
+      )
+    }
+
+    private static func healthStates(
+      dataState: String,
+      hasData: Bool,
+      path: String
+    ) throws -> (HealthDataAvailability, HealthDataFreshness) {
+      switch dataState {
+      case "available":
+        return (.available, .fresh)
+      case "partial":
+        return (.partial, .fresh)
+      case "stale":
+        return (hasData ? .partial : .noData, .stale)
+      case "noData", "unavailable":
+        return (.noData, .noData)
+      default:
+        throw MockScenarioError.invalidValue(path)
+      }
+    }
+
+    private static func validateTrendExpectation(
+      _ expectation: [String: JSONValue]?,
+      against trend: PersonalHealthTrend
+    ) throws {
+      guard let expectation else { return }
+      if let expected = expectation["recentDayCount"]?.numberValue,
+        trend.recentDays.count != Int(expected)
+      {
+        throw MockScenarioError.expectationMismatch("trend.recentDayCount")
+      }
+      if let expected = expectation["usableBaselineDayCount"]?.numberValue,
+        trend.usableBaselineDayCount != Int(expected)
+      {
+        throw MockScenarioError.expectationMismatch("trend.usableBaselineDayCount")
+      }
+      for metric in TrendMetric.allCases {
+        guard let rawStatus = expectation[metric.rawValue]?.stringValue else { continue }
+        guard let expectedStatus = PersonalTrendStatus(rawValue: rawStatus) else {
+          throw MockScenarioError.invalidValue("expectations.trend.\(metric.rawValue)")
+        }
+        guard
+          trend.observations.first(where: { $0.metric == metric })?.status == expectedStatus
+        else {
+          throw MockScenarioError.expectationMismatch("trend.\(metric.rawValue)")
+        }
+      }
+    }
+
     private static func date(_ object: [String: JSONValue], key: String) throws -> Date? {
       guard let value = object[key]?.stringValue else { return nil }
       guard let date = ISO8601DateFormatter().date(from: value) else {
@@ -369,7 +543,7 @@
       ledger = runtime.initialLedger
       self.reducer = reducer
       state = try reducer.replay(ledger.events, from: runtime.initialState)
-      nextEventSequence = 2
+      nextEventSequence = UInt64(ledger.events.count + 1)
     }
 
     public mutating func advance(by interval: TimeInterval) {

@@ -136,7 +136,7 @@ struct PhonePresentationModel {
   #endif
 
   func addingMockCareMessage() -> Self {
-    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+    guard CompanionDataSource.isPeerExchangeFixtureID(mockScenario?.id) else { return self }
     var log = activityLog.filter { $0.id != "mock2-care" }
     log.insert(
       PhoneActivityLog(
@@ -168,7 +168,7 @@ struct PhonePresentationModel {
   }
 
   func resolvingMockRelationship() -> Self {
-    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+    guard CompanionDataSource.isPeerExchangeFixtureID(mockScenario?.id) else { return self }
     return PhonePresentationModel(
       dataMode: dataMode,
       initialScreen: initialScreen,
@@ -233,7 +233,7 @@ struct PhonePresentationModel {
       let base = live(
         companion: seed.companionState,
         health: seed.healthSnapshot,
-        trend: nil,
+        trend: seed.personalHealthTrend,
         syncStatus: seed.syncAvailable ? "Mock：模拟手表可达" : "Mock：手表暂不可达",
         now: seed.now,
         timeZone: TimeZone(identifier: seed.timeZoneIdentifier) ?? .current
@@ -244,6 +244,16 @@ struct PhonePresentationModel {
         ? " AI 服务不可用或响应无效，当前使用经过审核的本地表达；规则结果不变。" : ""
       let mockHealthExplanation =
         "模拟健康数据只会在可用且新鲜时进入规则；仅使用场景中已知的指标，缺失或过期数据保持中性。"
+      let mockActivityLog = base.activityLog.map { entry in
+        guard entry.id.hasPrefix("workout-") else { return entry }
+        return PhoneActivityLog(
+          id: entry.id,
+          title: entry.title,
+          detail: entry.detail,
+          time: "来自模拟健康数据",
+          symbol: entry.symbol
+        )
+      }
       let initialScreen: PhoneInitialScreen =
         switch seed.primaryState {
         case .onboarding: .onboarding
@@ -269,7 +279,7 @@ struct PhonePresentationModel {
         questProgress: base.questProgress,
         history: base.history,
         trendSummary: base.trendSummary,
-        activityLog: base.activityLog,
+        activityLog: mockActivityLog,
         dataExplanation: "模拟数据经真实规则运行时计算。\(mockHealthExplanation)\(fallbackExplanation)"
       )
     }

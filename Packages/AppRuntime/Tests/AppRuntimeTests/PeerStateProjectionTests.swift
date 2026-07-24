@@ -49,6 +49,20 @@ struct PeerStateProjectionTests {
     #expect(state.values.keys.allSatisfy { !$0.localizedCaseInsensitiveContains("health") })
   }
 
+  @Test("Seven-day demo data source round-trips through peer values")
+  func projectsSevenDayDataSource() {
+    let state = PeerStateProjection().makeState(
+      companion: CompanionState(),
+      preferences: nil,
+      dataSource: .mock7Rhythm,
+      revision: 1,
+      updatedAt: .distantPast
+    )
+
+    #expect(state.values["dataSource"] == "mock7_rhythm")
+    #expect(CompanionDataSource(rawValue: state.values["dataSource"] ?? "") == .mock7Rhythm)
+  }
+
   @Test("Watch projection omits phone-owned social consent")
   func watchOmitsPhoneOwnedSocialSettings() {
     let values = PeerStateProjection().makeValues(

@@ -15,10 +15,82 @@ struct ScenarioRuntimeTests {
 
       #expect(runtime.id == url.deletingPathExtension().lastPathComponent)
       #expect(runtime.mockBadgeVisible)
-      let expectedEventCount = runtime.hasCompletedOnboarding ? 1 : 0
+      let expectedEventCount = runtime.hasCompletedOnboarding ? runtime.healthSnapshots.count : 0
       #expect(run.ledger.events.count == expectedEventCount)
       #expect(run.state.processedEventIDs.count == expectedEventCount)
     }
+  }
+
+  @Test("Seven-day demos use real daily history and self-check their personal trends")
+  func sevenDayScenarios() throws {
+    let expectedStatuses: [String: [TrendMetric: PersonalTrendStatus]] = [
+      "mock7_stable": [
+        .sleepDuration: .withinPersonalRange,
+        .steps: .withinPersonalRange,
+        .activeMinutes: .withinPersonalRange,
+        .sleepTiming: .withinPersonalRange,
+      ],
+      "mock7_recovery": [
+        .sleepDuration: .belowPersonalRange,
+        .steps: .withinPersonalRange,
+        .activeMinutes: .withinPersonalRange,
+        .sleepTiming: .withinPersonalRange,
+      ],
+      "mock7_active": [
+        .sleepDuration: .withinPersonalRange,
+        .steps: .abovePersonalRange,
+        .activeMinutes: .abovePersonalRange,
+        .sleepTiming: .withinPersonalRange,
+      ],
+      "mock7_sparse": [
+        .sleepDuration: .withinPersonalRange,
+        .steps: .withinPersonalRange,
+        .activeMinutes: .withinPersonalRange,
+        .sleepTiming: .withinPersonalRange,
+      ],
+      "mock7_rhythm": [
+        .sleepDuration: .withinPersonalRange,
+        .steps: .withinPersonalRange,
+        .activeMinutes: .withinPersonalRange,
+        .sleepTiming: .abovePersonalRange,
+      ],
+    ]
+
+    for (name, statuses) in expectedStatuses {
+      let runtime = try runtime(named: name)
+      let run = try MockScenarioRun(runtime: runtime)
+      let trend = try #require(runtime.personalHealthTrend)
+
+      #expect(runtime.healthSnapshots.count == 14)
+      #expect(Set(runtime.healthSnapshots.map(\.localDay)).count == 14)
+      #expect(run.ledger.events.count == 14)
+      #expect(Set(run.ledger.events.map(\.eventID)).count == 14)
+      #expect(run.state.processedEventIDs.count == 14)
+      #expect(trend.recentDays.count == 7)
+      for (metric, expectedStatus) in statuses {
+        #expect(
+          trend.observations.first(where: { $0.metric == metric })?.status == expectedStatus,
+          "\(name) \(metric.rawValue)"
+        )
+      }
+    }
+
+    let recovery = try runtime(named: "mock7_recovery")
+    let recoveryRun = try MockScenarioRun(runtime: recovery)
+    #expect(recovery.healthSnapshot.sleepMinutes == 320)
+    #expect(recoveryRun.state.activeTheme == .recovery)
+
+    let active = try runtime(named: "mock7_active")
+    let activeRun = try MockScenarioRun(runtime: active)
+    #expect(active.healthSnapshot.steps == 10_800)
+    #expect(active.healthSnapshot.workouts.first?.durationMinutes == 45)
+    #expect(active.eligibleRandomStoryID == "lost_ball")
+    #expect(!activeRun.state.story.unlockedSideStoryIDs.contains("lost_ball"))
+
+    let sparseRuntime = try runtime(named: "mock7_sparse")
+    let sparse = try #require(sparseRuntime.personalHealthTrend)
+    #expect(sparse.usableBaselineDayCount == 10)
+    #expect(sparse.recentDays.filter { $0.steps == nil }.count == 2)
   }
 
   @Test("Fresh install derives onboarding from installation state and keeps an empty ledger")

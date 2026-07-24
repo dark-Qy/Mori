@@ -166,7 +166,7 @@ struct WatchPresentationModel {
   #endif
 
   func resolvingMockRelationship() -> Self {
-    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+    guard CompanionDataSource.isPeerExchangeFixtureID(mockScenario?.id) else { return self }
     return replacing(
       petMood: "Mori 又靠近了一点：我也很想你",
       scene: scene.applying(mood: .curious),
@@ -177,7 +177,7 @@ struct WatchPresentationModel {
   }
 
   func addingMockCareMessage() -> Self {
-    guard mockScenario?.id == CompanionDataSource.mock2.fixtureID else { return self }
+    guard CompanionDataSource.isPeerExchangeFixtureID(mockScenario?.id) else { return self }
     let care = WatchMessage(
       id: "mock2-care",
       title: "要不要安静待一会儿？",
@@ -239,7 +239,7 @@ struct WatchPresentationModel {
       let base = live(
         companion: seed.companionState,
         health: seed.healthSnapshot,
-        trend: nil,
+        trend: seed.personalHealthTrend,
         peerValues: seed.selectedOutfitID.map { ["outfit": $0] },
         now: seed.now,
         timeZone: TimeZone(identifier: seed.timeZoneIdentifier) ?? .current
@@ -347,7 +347,7 @@ struct WatchPresentationModel {
     guard let trend, trend.usableBaselineDayCount >= 7 else {
       return "个人基线至少需要 7 个已知日；缺失日不会按零计算。"
     }
-    return "最近 7 个已知日与最多 30 天个人历史比较，不与其他人比较。"
+    return "最近 7 天中的已知记录与最多 30 天个人历史比较，不与其他人比较。"
   }
 
   private static func moodText(

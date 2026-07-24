@@ -47,6 +47,19 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(element("watch.message.live-activity", in: app).exists)
   }
 
+  func testSevenDayScenarioRendersTrendChart() {
+    let app = launchApp(scenario: "mock7_rhythm")
+
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("watch.mock-badge", in: app).label.contains("7 日 · 节律改善"))
+    let trendLink = app.buttons["watch.open-trends"]
+    scrollToElement(trendLink, in: app)
+    trendLink.tap()
+    XCTAssertTrue(element("watch.trends", in: app).waitForExistence(timeout: 5))
+    XCTAssertTrue(element("watch.trend-chart", in: app).exists)
+    XCTAssertFalse(element("watch.trend-empty", in: app).exists)
+  }
+
   func testTouchExchangeStartsWithSharingEnabledByDefault() {
     let app = launchApp(scenario: "activity_high")
 
