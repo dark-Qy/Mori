@@ -98,6 +98,10 @@ Physical sensor availability remains a Device gate, not a Simulator assertion.
 
 ## G4 — Complete Mori Motion
 
+Current Mock-release scope is the validated black `penguin` handoff. White
+`polar_bear` parity remains a deferred gate and the character stays disabled
+until that gate is complete.
+
 | Behavior | Primary evidence |
 | --- | --- |
 | Black penguin and white polar bear have semantic parity without recolor identity drift | Static + visual review |

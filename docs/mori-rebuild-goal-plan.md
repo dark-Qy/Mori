@@ -4,7 +4,8 @@
 
 Complete the approved Mori product across Apple Watch and iPhone:
 
-- author complete black-penguin and white-polar-bear motion systems;
+- ship the complete black-penguin motion system for the current Mock release
+  while keeping white-polar-bear parity as an explicit deferred follow-up;
 - replace the card-heavy Watch and iPhone interfaces with the approved
   platform-native experience;
 - introduce passive companion events, concise tasks, coins, shared memories,
@@ -494,6 +495,19 @@ Add versioned, Codable, Sendable domain types and pure policy engines:
 - Late evidence cannot duplicate or silently rewrite a sealed daily memory.
 
 ## G4 — Complete Mori Motion System
+
+### Current Delivery Scope
+
+The current Mock release enables only `penguin`. The validated black-Mori
+handoff lives on `codex/mori-motion-g4` through `ef80865`; it must be integrated
+as its own reviewed Git checkpoint after G2. White-polar-bear production clips
+and semantic parity are explicitly deferred and cannot block the black-only
+Mock path, but `polar_bear` must remain disabled until its full gate passes.
+
+Integration must remove the legacy `idle_lively -> waving`,
+`touch_body -> failed`, and `story_reaction -> review` placeholders. Physical
+Watch playback, frame pacing, memory, thermal behavior, energy use, and haptic
+feel remain device-validation work after the main UI is stable.
 
 ### Identity Contract
 
