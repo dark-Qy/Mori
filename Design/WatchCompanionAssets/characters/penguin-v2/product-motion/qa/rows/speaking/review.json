@@ -1,0 +1,207 @@
+{
+  "ok": true,
+  "motionID": "speaking",
+  "sequenceType": "loop",
+  "source": {
+    "path": "/Users/shubing/.codex/worktrees/3a31/watch-companion/Design/WatchCompanionAssets/characters/penguin-v2/product-motion/decoded/speaking.png",
+    "size": [
+      1983,
+      793
+    ],
+    "mode": "RGB",
+    "borderKeyEvidence": {
+      "dominantRGB": [
+        235,
+        7,
+        217
+      ],
+      "uniformRatio": 0.883045148895293,
+      "requestedKeyCompatibleRatio": 1.0,
+      "dominantDistanceFromRequestedKey": 43.508619835614184
+    },
+    "poseSourceBBoxes": [
+      [
+        38,
+        229,
+        235,
+        598
+      ],
+      [
+        282,
+        230,
+        479,
+        598
+      ],
+      [
+        510,
+        230,
+        723,
+        598
+      ],
+      [
+        773,
+        230,
+        966,
+        598
+      ],
+      [
+        1017,
+        230,
+        1209,
+        598
+      ],
+      [
+        1265,
+        230,
+        1458,
+        598
+      ],
+      [
+        1510,
+        230,
+        1704,
+        598
+      ],
+      [
+        1752,
+        230,
+        1948,
+        598
+      ]
+    ]
+  },
+  "errors": [],
+  "warnings": [
+    "source border has minor color variation but remains within the selected chroma threshold (88.3% locally uniform)"
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        42,
+        5,
+        150,
+        203
+      ],
+      "nontransparentPixels": 16091,
+      "edgePixels": 0,
+      "sha256": "36ced5f6d51fc513fe3810463a609ff5b41748af820759dffa0491ad5f27eb9a"
+    },
+    {
+      "index": 1,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        42,
+        5,
+        150,
+        203
+      ],
+      "nontransparentPixels": 15777,
+      "edgePixels": 0,
+      "sha256": "53c5a0c752ab270a1a2afd892e68775f88bc8ce7a9b8b1f79b23b194c3fc0057"
+    },
+    {
+      "index": 2,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        38,
+        5,
+        154,
+        203
+      ],
+      "nontransparentPixels": 15886,
+      "edgePixels": 0,
+      "sha256": "9bcbf67b6ac7c3ac199080f61f541b40e4a362710be55182b99c9a5984231ab9"
+    },
+    {
+      "index": 3,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        43,
+        5,
+        149,
+        203
+      ],
+      "nontransparentPixels": 15856,
+      "edgePixels": 0,
+      "sha256": "2b4b26f4e151bbc2f3568011bdf89f76cabcf5a6d73ea9dd572d727e2120c6db"
+    },
+    {
+      "index": 4,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        43,
+        5,
+        149,
+        203
+      ],
+      "nontransparentPixels": 15782,
+      "edgePixels": 0,
+      "sha256": "c71e0eeb63767960dcc7eee64b1f6e071b76eb1bd6f09004f999090164d11990"
+    },
+    {
+      "index": 5,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        43,
+        5,
+        149,
+        203
+      ],
+      "nontransparentPixels": 15837,
+      "edgePixels": 0,
+      "sha256": "065bb80909044dab70f6b04a47225661b9f2c576a1c21e320d8cb3ca387556eb"
+    },
+    {
+      "index": 6,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        42,
+        5,
+        149,
+        203
+      ],
+      "nontransparentPixels": 15911,
+      "edgePixels": 0,
+      "sha256": "5819a57a7234892957495c32aeed63da9138d42800d2a9926f69824835c77260"
+    },
+    {
+      "index": 7,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        42,
+        5,
+        150,
+        203
+      ],
+      "nontransparentPixels": 15958,
+      "edgePixels": 0,
+      "sha256": "ec0ca3f59ccf485745382d374bbc7875a24932999ddb33bb4ab59129067b1b7b"
+    }
+  ]
+}

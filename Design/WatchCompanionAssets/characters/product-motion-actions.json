@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "frameCount": 8,
+  "actions": [
+    {
+      "id": "idle_resting",
+      "sequenceType": "loop",
+      "action": "Quiet resting idle: comfortably seated, breathing softly, with a tiny relaxed head or body shift.",
+      "requirements": [
+        "Keep the first and last poses close enough to form a calm seamless loop.",
+        "Read as comfortable rest, not waiting for input, sadness, illness, or sleep.",
+        "Keep the motion small and low-distraction."
+      ]
+    },
+    {
+      "id": "idle_curious",
+      "sequenceType": "loop",
+      "action": "Curious idle: notice something nearby, let the eyes lead, then make a small head turn and restrained upper-body lean.",
+      "requirements": [
+        "Keep the feet and lower body grounded while attention shifts.",
+        "Read as friendly curiosity within 300 to 500 milliseconds.",
+        "Do not resemble review, processing, searching a document, or asking for approval."
+      ]
+    },
+    {
+      "id": "idle_lively",
+      "sequenceType": "loop",
+      "action": "Lively idle: buoyant breathing, a tiny whole-body bounce, and light costume or limb follow-through.",
+      "requirements": [
+        "Keep the loop energetic but suitable for a persistent Watch home.",
+        "Do not wave, jump, run, travel, or introduce a greeting gesture.",
+        "Preserve a stable foot baseline and apparent scale."
+      ]
+    },
+    {
+      "id": "touch_head",
+      "sequenceType": "oneShot",
+      "action": "Warm response to a gentle head tap: notice the touch, soften the eyes, lean slightly into it, then settle with a pleased expression.",
+      "requirements": [
+        "Start close to neutral and end in a settled readable pose.",
+        "Express comfort through face, head, and upper body rather than a wave.",
+        "Do not show pain, surprise marks, floating hearts, or detached effects."
+      ]
+    },
+    {
+      "id": "touch_body",
+      "sequenceType": "oneShot",
+      "action": "Friendly response to a gentle body tap: a small soft recoil, glance toward the touched area, acknowledge the user, then settle.",
+      "requirements": [
+        "Keep the response playful and safe, never hurt, failed, angry, or afraid.",
+        "Use body and limb poses only; no impact marks or detached effects.",
+        "Start close to neutral and finish ready to return to the current idle."
+      ]
+    },
+    {
+      "id": "walk",
+      "sequenceType": "loop",
+      "action": "Steady companion walk in place: relaxed alternating steps with natural arm or costume follow-through.",
+      "requirements": [
+        "Clearly read as walking, not running or processing.",
+        "Use an even low-impact cadence and a stable scale and baseline.",
+        "Do not add direction arrows, dust, floor shadows, scenery, or motion trails."
+      ]
+    },
+    {
+      "id": "brisk_move",
+      "sequenceType": "loop",
+      "action": "Brisk companion movement in place: shorter faster alternating steps, a mild forward lean, and an eager effort to keep up.",
+      "requirements": [
+        "Read as faster than walk without looking distressed, failed, or exhausted.",
+        "Keep the cadence visibly alternating across all eight frames.",
+        "Do not add speed lines, dust, floor shadows, scenery, or motion trails."
+      ]
+    },
+    {
+      "id": "sit_down",
+      "sequenceType": "oneShot",
+      "action": "Stand-to-sit transition: notice the pause, bend naturally, lower the body, place the feet or paws, and arrive in a comfortable seated pose.",
+      "requirements": [
+        "The eight frames must form one chronological transition from standing to seated.",
+        "The final pose must match the emotional meaning of idle_resting.",
+        "Do not teleport, change scale, add a chair, or introduce scenery."
+      ]
+    },
+    {
+      "id": "catch_breath",
+      "sequenceType": "oneShot",
+      "action": "Gentle post-brisk recovery: slow down, take two calm visible breaths, relax the shoulders, and return to an easy expression.",
+      "requirements": [
+        "Read as ordinary catching breath, never a clinical symptom or medical distress.",
+        "Use restrained chest, shoulder, face, and limb motion.",
+        "Do not add sweat drops, smoke, warning icons, text, or detached effects."
+      ]
+    },
+    {
+      "id": "route_reflection",
+      "sequenceType": "oneShot",
+      "action": "Reflect on the route just shared: turn the gaze back, pause thoughtfully, then return with a warm knowing expression.",
+      "requirements": [
+        "Use gaze, head turn, and restrained upper-body motion to suggest remembering.",
+        "Do not add maps, paths, speech bubbles, scenery, or review/processing props.",
+        "Keep the sequence emotionally warm rather than analytical."
+      ]
+    },
+    {
+      "id": "speaking",
+      "sequenceType": "loop",
+      "action": "Conversational speaking loop: subtle mouth changes, attentive blinking, and one small natural hand, paw, or flipper gesture.",
+      "requirements": [
+        "Keep the loop calm enough for a chatbot conversation surface.",
+        "Do not add speech bubbles, text, punctuation, microphones, or detached effects.",
+        "Preserve the face and costume exactly while the expression remains friendly."
+      ]
+    },
+    {
+      "id": "action_success",
+      "sequenceType": "oneShotHoldFinal",
+      "action": "Compact success reaction: recognize the achievement, brighten visibly, make one contained celebratory gesture, and finish in a proud warm pose.",
+      "requirements": [
+        "Read as success within 300 to 500 milliseconds.",
+        "Keep the celebration self-contained and suitable for repeated task rewards.",
+        "Do not add confetti, stars, coins, text, floor marks, or detached effects."
+      ]
+    },
+    {
+      "id": "story_reaction",
+      "sequenceType": "oneShot",
+      "action": "Warm shared-memory reaction: recognition, a soft smile, a small hand-to-chest or equivalent affectionate gesture, then a reflective settle.",
+      "requirements": [
+        "Read as emotional recognition, not review, processing, or reading.",
+        "Do not add books, papers, speech bubbles, scenery, or detached effects.",
+        "Keep the gesture specific but restrained for a small Watch screen."
+      ]
+    },
+    {
+      "id": "daily_reflection",
+      "sequenceType": "oneShot",
+      "action": "Calm end-of-day reflection: ease into a thoughtful pose, look down briefly, then look back with a gentle satisfied expression.",
+      "requirements": [
+        "Do not assume nighttime, a moon, sleep, or a specific background scene.",
+        "Use only the character's pose and expression; no props, scenery, or text.",
+        "Finish in a composition that can hold while a daily memory is read."
+      ]
+    },
+    {
+      "id": "bedtime",
+      "sequenceType": "loop",
+      "action": "Sleepy wind-down loop: a small yawn, drooping eyelids, relaxed shoulders, and a soft settled sway.",
+      "requirements": [
+        "Read as ordinary bedtime tiredness, not illness, sadness, or a health conclusion.",
+        "Do not add a bed, pillow, moon, sleep symbols, scenery, or detached effects.",
+        "Keep the loop gentle and stable enough for a persistent home scene."
+      ]
+    }
+  ]
+}
