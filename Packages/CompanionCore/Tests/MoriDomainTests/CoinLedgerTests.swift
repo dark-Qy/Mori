@@ -5,6 +5,75 @@ import Testing
 
 @Suite("Coin ledger invariants")
 struct CoinLedgerTests {
+  @Test("Mock welcome grant is fixed, unique, and non-reversible")
+  func mockWelcomeGrant() {
+    let profile = MoriTestFixtures.mockProfile("normal-day")
+    var ledger = MoriTestFixtures.state(profile: profile).coinLedger
+    let grant = CoinTransaction(
+      header: MoriTestFixtures.header(
+        CoinTransactionID("welcome-v1"),
+        profile: profile
+      ),
+      revision: MoriTestFixtures.revision(1),
+      authoredAt: MoriTestFixtures.now,
+      direction: .credit,
+      amount: 18,
+      reason: .welcomeGrant(schemaVersion: 1)
+    )
+    let duplicateSchema = CoinTransaction(
+      header: MoriTestFixtures.header(
+        CoinTransactionID("welcome-v1-again"),
+        profile: profile
+      ),
+      revision: MoriTestFixtures.revision(2),
+      authoredAt: MoriTestFixtures.now,
+      direction: .credit,
+      amount: 18,
+      reason: .welcomeGrant(schemaVersion: 1)
+    )
+    let reversal = CoinTransaction(
+      header: MoriTestFixtures.header(
+        CoinTransactionID("reverse-welcome"),
+        profile: profile
+      ),
+      revision: MoriTestFixtures.revision(3),
+      authoredAt: MoriTestFixtures.now,
+      direction: .debit,
+      amount: 18,
+      reason: .reversal(grant.header.recordID)
+    )
+
+    #expect(ledger.apply(grant, in: profile) == .applied)
+    #expect(ledger.apply(grant, in: profile) == .duplicate)
+    #expect(
+      ledger.apply(duplicateSchema, in: profile)
+        == .rejected(.conflictingDuplicate)
+    )
+    #expect(
+      ledger.apply(reversal, in: profile)
+        == .rejected(.invalidRecord)
+    )
+    #expect(ledger.balance == 18)
+  }
+
+  @Test("Real profiles reject the Mock welcome grant")
+  func realProfileRejectsWelcomeGrant() {
+    let profile = MoriTestFixtures.profile("real-welcome")
+    let grant = CoinTransaction(
+      header: MoriTestFixtures.header(
+        CoinTransactionID("welcome-v1"),
+        profile: profile
+      ),
+      revision: MoriTestFixtures.revision(1),
+      authoredAt: MoriTestFixtures.now,
+      direction: .credit,
+      amount: 18,
+      reason: .welcomeGrant(schemaVersion: 1)
+    )
+
+    #expect(grant.validate(in: profile) == .invalidRecord)
+  }
+
   @Test("Reward tiers use one coin as the minimum unit")
   func exactRewardTiers() {
     #expect(CoinRewardTier.allCases.map(\.rawValue) == [1, 2, 4, 6, 7, 8, 9, 10])

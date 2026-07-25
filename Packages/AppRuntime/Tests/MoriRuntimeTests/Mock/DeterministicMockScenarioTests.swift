@@ -85,6 +85,51 @@
       )
     }
 
+    @Test("Reviewed UI aliases resolve to fixture-aligned deterministic scenarios")
+    func reviewedAliases() throws {
+      let catalog = MoriMockScenarioCatalog()
+      let aliases: [(String, MoriMockScenario)] = [
+        ("mock1", .normalDay),
+        ("mock2", .lateSleep),
+        ("mock3", .fastWalking),
+        ("activity_high", .fastWalking),
+      ]
+      let sensingEpoch = SensingEpoch(
+        LamportRevision(counter: 50, originDeviceID: "watch")
+      )
+
+      for (alias, expected) in aliases {
+        let scenarioID = MockScenarioID(alias)
+        let selection = try MockProfileDerivation.selection(
+          scenarioID: scenarioID,
+          revision: LamportRevision(
+            counter: 10,
+            originDeviceID: "phone"
+          )
+        )
+        let seed = try #require(
+          catalog.seed(
+            for: scenarioID,
+            profile: selection.profile,
+            sensingEpoch: sensingEpoch
+          )
+        )
+        #expect(seed.scenario == expected)
+        #expect(catalog.resolvedScenario(for: scenarioID) == expected)
+        if alias == "mock2" {
+          #expect(seed.localHour == 9)
+          #expect(
+            seed.facts.contains {
+              if case .sleepDuration(let duration) = $0.value {
+                return duration == 17_400
+              }
+              return false
+            }
+          )
+        }
+      }
+    }
+
     private func profile(for scenario: MoriMockScenario) throws -> RuntimeProfile {
       try MockProfileDerivation.selection(
         scenarioID: scenario.id,

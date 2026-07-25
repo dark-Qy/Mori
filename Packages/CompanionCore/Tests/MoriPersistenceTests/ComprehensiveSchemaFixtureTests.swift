@@ -758,6 +758,7 @@ private func payloadCoverage(_ envelopes: [ExperienceSyncEnvelope]) -> Set<Strin
       case .coinTransaction(let transaction):
         switch transaction.reason {
         case .taskReward: "coinReward"
+        case .welcomeGrant: "coinWelcomeGrant"
         case .cosmeticPurchase: "coinPurchaseSplit"
         case .reversal: "coinReversal"
         case .migration: "coinMigration"

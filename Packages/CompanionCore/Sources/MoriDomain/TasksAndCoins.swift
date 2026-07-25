@@ -382,6 +382,11 @@ public enum CoinTransactionDirection: String, Hashable, Codable, Sendable {
 
 public enum CoinTransactionReason: Hashable, Codable, Sendable {
   case taskReward(TaskSettlementID)
+  /// One explicit, Mock-only, non-reversible welcome balance for a schema.
+  ///
+  /// This is not a migration escape hatch: schema one is fixed at 18 coins
+  /// and the ledger admits at most one grant per profile and schema.
+  case welcomeGrant(schemaVersion: UInt16)
   case cosmeticPurchase(CosmeticID)
   case reversal(CoinTransactionID)
   case migration(schemaVersion: UInt16)
@@ -424,6 +429,15 @@ public struct CoinTransaction: Hashable, Codable, Sendable {
       guard direction == .credit, CoinRewardTier(rawValue: amount) != nil, settlementID.isValid
       else {
         return .invalidRewardTier
+      }
+    case .welcomeGrant(let schemaVersion):
+      guard
+        profile.isMock,
+        schemaVersion == 1,
+        direction == .credit,
+        amount == 18
+      else {
+        return .invalidRecord
       }
     case .cosmeticPurchase(let itemID):
       guard direction == .debit, amount > 0, itemID.isValid else { return .invalidRecord }
@@ -570,6 +584,7 @@ public struct CoinLedger: Hashable, Codable, Sendable {
   ) -> MoriDomainRejection? {
     var acceptedByID: [CoinTransactionID: CoinTransaction] = [:]
     var rewardedSettlements: Set<TaskSettlementID> = []
+    var welcomeGrantSchemas: Set<UInt16> = []
     var reversedTransactions: Set<CoinTransactionID> = []
     var balance = 0
 
@@ -583,6 +598,10 @@ public struct CoinLedger: Hashable, Codable, Sendable {
       switch transaction.reason {
       case .taskReward(let settlementID):
         guard rewardedSettlements.insert(settlementID).inserted else {
+          return .conflictingDuplicate
+        }
+      case .welcomeGrant(let schemaVersion):
+        guard welcomeGrantSchemas.insert(schemaVersion).inserted else {
           return .conflictingDuplicate
         }
       case .reversal(let originalID):
@@ -624,7 +643,7 @@ extension CoinTransactionReason {
     switch self {
     case .taskReward:
       true
-    case .cosmeticPurchase, .reversal, .migration:
+    case .welcomeGrant, .cosmeticPurchase, .reversal, .migration:
       false
     }
   }

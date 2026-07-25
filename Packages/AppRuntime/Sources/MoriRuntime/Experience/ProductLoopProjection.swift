@@ -143,6 +143,7 @@ public struct ProductLoopProjection: Hashable, Codable, Sendable {
 
   public enum CoinReason: Hashable, Codable, Sendable {
     case taskReward(TaskSettlementID)
+    case welcomeGrant(schemaVersion: UInt16)
     case cosmeticPurchase(CosmeticID)
     case reversal(CoinTransactionID)
     case migration(schemaVersion: UInt16)
@@ -164,6 +165,8 @@ public struct ProductLoopProjection: Hashable, Codable, Sendable {
         switch transaction.reason {
         case .taskReward(let settlementID):
           .taskReward(settlementID)
+        case .welcomeGrant(let schemaVersion):
+          .welcomeGrant(schemaVersion: schemaVersion)
         case .cosmeticPurchase(let cosmeticID):
           .cosmeticPurchase(cosmeticID)
         case .reversal(let transactionID):

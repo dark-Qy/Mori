@@ -712,6 +712,58 @@ struct ProfileLedgerTests {
 
 @Suite("Experience envelope privacy codec")
 struct ExperienceEnvelopePrivacyCodecTests {
+  @Test("Mock welcome grant round-trips as a closed canonical event")
+  func welcomeGrantRoundTrip() throws {
+    let epoch = ProfileEpoch(revision(7))
+    let profile = RuntimeProfile(
+      id: ProfileID("mock-welcome"),
+      epoch: epoch,
+      deletionEpoch: DeletionEpoch(
+        requestID: DeletionRequestID("mock-welcome-delete"),
+        revision: revision(1)
+      ),
+      source: .mock(
+        scenarioID: MockScenarioID("normal-day"),
+        selectionEpoch: epoch
+      )
+    )
+    let transaction = CoinTransaction(
+      header: header(CoinTransactionID("mock-welcome-v1"), in: profile),
+      revision: LamportRevision(
+        counter: 8,
+        originDeviceID: "mock-bootstrap"
+      ),
+      authoredAt: Date(timeIntervalSince1970: 1_700_000_000),
+      direction: .credit,
+      amount: 18,
+      reason: .welcomeGrant(schemaVersion: 1)
+    )
+    let envelope = ExperienceSyncEnvelope(
+      eventID: ExperienceEventID("mock-welcome-event-v1"),
+      eventType: .coinWelcomeGranted,
+      profileID: profile.id,
+      profileEpoch: profile.epoch,
+      deletionEpoch: profile.deletionEpoch,
+      profileSource: profile.source,
+      originDeviceID: "mock-bootstrap",
+      originSequence: 1,
+      revision: transaction.revision,
+      observedAt: nil,
+      authoredAt: transaction.authoredAt,
+      privacyClass: .productState,
+      tombstone: nil,
+      sourceEventID: nil,
+      settlementID: nil,
+      payload: .coinTransaction(transaction)
+    )
+    let codec = ExperienceEnvelopeCodec()
+    let data = try codec.encode(envelope)
+
+    #expect(envelope.validate() == nil)
+    #expect(try codec.decode(data) == envelope)
+    #expect(try codec.encode(codec.decode(data)) == data)
+  }
+
   @Test("Approved envelope round-trips as canonical bytes")
   func roundTrip() throws {
     let state = try sampleState()

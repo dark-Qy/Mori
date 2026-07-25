@@ -46,13 +46,33 @@
       self.normalizer = normalizer
     }
 
+    /// Resolves reviewed UI fixture aliases to one deterministic runtime
+    /// scenario. Unknown identifiers never fall back to production data.
+    ///
+    /// `mock2` intentionally follows the recovery-oriented fixture (short
+    /// sleep and stress) rather than the older walk-and-stop placeholder.
+    public func resolvedScenario(
+      for scenarioID: MockScenarioID
+    ) -> MoriMockScenario? {
+      switch scenarioID.rawValue {
+      case "mock1":
+        .normalDay
+      case "mock2":
+        .lateSleep
+      case "mock3", "activity_high":
+        .fastWalking
+      default:
+        MoriMockScenario(rawValue: scenarioID.rawValue)
+      }
+    }
+
     public func seed(
       for scenarioID: MockScenarioID,
       profile: RuntimeProfile,
       sensingEpoch: SensingEpoch
     ) -> MoriMockScenarioSeed? {
       guard
-        let scenario = MoriMockScenario(rawValue: scenarioID.rawValue),
+        let scenario = resolvedScenario(for: scenarioID),
         case .mock(let selectedScenarioID, _) = profile.source,
         selectedScenarioID == scenarioID
       else {
@@ -84,7 +104,7 @@
       return MoriMockScenarioSeed(
         scenario: scenario,
         evaluatedAt: evaluatedAt,
-        localHour: scenario == .lateSleep ? 22 : 12,
+        localHour: scenario == .lateSleep ? 9 : 12,
         activation: activation,
         facts: facts(
           for: scenario,
@@ -163,14 +183,14 @@
           ),
         ].compactMap { $0 }
       case .lateSleep:
-        let sleepStart = evaluatedAt.addingTimeInterval(-8 * 60 * 60)
+        let sleepStart = evaluatedAt.addingTimeInterval(-5 * 60 * 60)
         let snapshot = mockHealthSnapshot(
           capturedAt: evaluatedAt.addingTimeInterval(-15 * 60),
           steps: nil,
           sleep: [
             SleepSample(
               start: sleepStart,
-              end: sleepStart.addingTimeInterval(7.5 * 60 * 60),
+              end: sleepStart.addingTimeInterval(4 * 60 * 60 + 50 * 60),
               stage: .core
             )
           ]

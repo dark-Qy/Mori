@@ -10,6 +10,7 @@ public enum ExperienceEventType: String, CaseIterable, Hashable, Codable, Sendab
   case taskCompleted
   case taskExpired
   case coinEarned
+  case coinWelcomeGranted
   case coinReversed
   case coinMigrationMarker
   case memorySealed
@@ -89,6 +90,7 @@ public enum ExperienceSyncPayload: Hashable, Codable, Sendable {
     case .coinTransaction(let transaction):
       switch transaction.reason {
       case .taskReward: return .coinEarned
+      case .welcomeGrant: return .coinWelcomeGranted
       case .cosmeticPurchase: return .cosmeticPurchased
       case .reversal: return .coinReversed
       case .migration: return .coinMigrationMarker
