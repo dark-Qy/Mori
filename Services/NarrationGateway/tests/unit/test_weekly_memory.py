@@ -172,6 +172,34 @@ async def test_service_accepts_style_slots_and_excludes_facts_and_identifiers_fr
     assert "网球 45 分钟" in result.body
     assert result.title == "和网球一起向前"
     assert transport.payload["response_format"] == {"type": "json_object"}
+    assert transport.payload["max_tokens"] == 256
+
+
+@pytest.mark.anyio
+async def test_service_accepts_stepfun_reasoning_and_agent_metadata(
+    configured_gateway, valid_weekly_request
+) -> None:
+    response = openai_content_response(
+        {
+            "style": "warm",
+            "focus": "movement",
+            "ending": "together",
+        }
+    )
+    body = json.loads(response.body)
+    body["choices"][0]["message"]["reasoning"] = "provider-internal reasoning"
+    body["choices"][0]["message"]["reasoning_content"] = "provider-internal reasoning"
+    body["agent"] = {"name": "step"}
+    transport = ScriptedTransport(
+        type(response)(response.status_code, json.dumps(body).encode("utf-8"))
+    )
+    service = WeeklyMemoryPolishService(configured_gateway, transport, NullAuditSink())
+
+    result = await service.generate(validate(valid_weekly_request))
+
+    assert result.source == "upstream"
+    assert "provider-internal" not in result.title
+    assert "provider-internal" not in result.body
 
 
 @pytest.mark.parametrize(

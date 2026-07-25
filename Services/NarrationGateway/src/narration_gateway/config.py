@@ -37,7 +37,7 @@ class GatewayConfig:
     upstream_model: str
     upstream_api_key: Optional[str] = field(default=None, repr=False)
     gateway_access_token: Optional[str] = field(default=None, repr=False)
-    upstream_timeout_seconds: float = 2.5
+    upstream_timeout_seconds: float = 5.0
     max_request_bytes: int = 32_768
     max_upstream_response_bytes: int = 16_384
     max_narration_characters: int = 180
@@ -57,9 +57,7 @@ class GatewayConfig:
     @classmethod
     def from_environment(cls, environment: Optional[Mapping[str, str]] = None) -> "GatewayConfig":
         env = os.environ if environment is None else environment
-        base_url = env.get(
-            "NARRATION_UPSTREAM_BASE_URL", "https://api-gateway.openagents.org"
-        ).strip()
+        base_url = env.get("NARRATION_UPSTREAM_BASE_URL", "https://api.stepfun.com").strip()
         parsed = urlparse(base_url)
         if (
             parsed.scheme != "https"
@@ -75,7 +73,7 @@ class GatewayConfig:
                 "NARRATION_UPSTREAM_BASE_URL must be an HTTPS origin without credentials"
             )
 
-        model = env.get("NARRATION_UPSTREAM_MODEL", "deepseek-4-flash").strip()
+        model = env.get("NARRATION_UPSTREAM_MODEL", "step-3.5-flash").strip()
         if not re.fullmatch(r"[A-Za-z0-9._:/-]{1,128}", model):
             raise ValueError("NARRATION_UPSTREAM_MODEL contains unsupported characters")
 
@@ -105,7 +103,7 @@ class GatewayConfig:
             upstream_api_key=api_key,
             gateway_access_token=access_token,
             upstream_timeout_seconds=_bounded_float(
-                env, "NARRATION_UPSTREAM_TIMEOUT_SECONDS", 2.5, 0.25, 5.0
+                env, "NARRATION_UPSTREAM_TIMEOUT_SECONDS", 5.0, 0.25, 5.0
             ),
             max_request_bytes=_bounded_int(
                 env, "NARRATION_MAX_REQUEST_BYTES", 32_768, 4_096, 65_536

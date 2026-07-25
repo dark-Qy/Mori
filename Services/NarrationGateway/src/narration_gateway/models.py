@@ -7,7 +7,7 @@ injection fields and gives every potentially sensitive collection a hard cap.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Annotated, List, Literal, Optional
+from typing import Annotated, Any, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -385,6 +385,10 @@ class UpstreamMessage(StrictModel):
         ),
     ]
     refusal: Optional[str] = None
+    # StepFun reasoning models can return these provider-owned metadata fields
+    # beside content. They are never logged, rendered, or used for decisions.
+    reasoning: Optional[str] = None
+    reasoning_content: Optional[str] = None
 
 
 class UpstreamChoice(StrictModel):
@@ -409,3 +413,7 @@ class UpstreamChatCompletionResponse(StrictModel):
     usage: Optional[UpstreamUsage] = None
     system_fingerprint: Optional[str] = None
     service_tier: Optional[str] = None
+    # StepFun can attach an agent descriptor to an otherwise standard response.
+    # Keep the envelope strict for unknown fields while explicitly ignoring this
+    # documented provider metadata.
+    agent: Optional[Any] = None

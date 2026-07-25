@@ -72,7 +72,8 @@ def build_weekly_chat_payload(
             },
         ],
         "temperature": 0.2,
-        "max_tokens": 80,
+        # StepFun reasoning tokens share this budget with the JSON response.
+        "max_tokens": 256,
         "response_format": {"type": "json_object"},
         "n": 1,
     }

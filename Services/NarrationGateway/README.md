@@ -205,11 +205,11 @@ stream that attempts to exceed the wall-clock deadline.
 | Variable | Default | Constraint |
 | --- | --- | --- |
 | `NARRATION_BIND_PORT` | `8790` | 1024–65535, localhost bind only |
-| `NARRATION_UPSTREAM_BASE_URL` | `https://api-gateway.openagents.org` | HTTPS origin, no embedded credentials |
-| `NARRATION_UPSTREAM_MODEL` | `deepseek-4-flash` | 1–128 characters |
+| `NARRATION_UPSTREAM_BASE_URL` | `https://api.stepfun.com` | HTTPS origin, no embedded credentials |
+| `NARRATION_UPSTREAM_MODEL` | `step-3.5-flash` | 1–128 characters |
 | `NARRATION_UPSTREAM_API_KEY` | unset | Read only from process environment |
 | `NARRATION_GATEWAY_ACCESS_TOKEN` | unset | Required for narration requests; 24–4096 visible characters |
-| `NARRATION_UPSTREAM_TIMEOUT_SECONDS` | `2.5` | 0.25–5.0 seconds |
+| `NARRATION_UPSTREAM_TIMEOUT_SECONDS` | `5.0` | 0.25–5.0 seconds |
 | `NARRATION_MAX_REQUEST_BYTES` | `32768` | 4096–65536 bytes |
 | `NARRATION_MAX_UPSTREAM_RESPONSE_BYTES` | `16384` | 1024–65536 bytes |
 | `NARRATION_MAX_CHARACTERS` | `180` | 40–300 characters |
@@ -221,8 +221,9 @@ stream that attempts to exceed the wall-clock deadline.
 ## Known integration risks
 
 - OpenAI-compatible providers sometimes add response fields. This gateway
-  deliberately treats undeclared fields as malformed until the schema and tests
-  are reviewed and updated.
+  explicitly ignores StepFun's non-visible `reasoning`, `reasoning_content`,
+  and `agent` metadata, and treats every other undeclared field as malformed
+  until the schema and tests are reviewed and updated.
 - Final user-facing templates still require human product and localization
   review. Model-selected tone is not a medical interpretation.
 - Retries are intentionally absent: they can amplify cost, latency, and duplicate

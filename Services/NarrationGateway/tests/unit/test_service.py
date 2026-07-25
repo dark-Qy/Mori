@@ -122,6 +122,26 @@ async def test_extra_upstream_fields_are_treated_as_malformed(
 
 
 @pytest.mark.anyio
+async def test_stepfun_reasoning_and_agent_metadata_are_ignored(
+    configured_gateway, valid_request
+) -> None:
+    response = openai_response("calm")
+    body = json.loads(response.body)
+    body["choices"][0]["message"]["reasoning"] = "provider-internal reasoning"
+    body["choices"][0]["message"]["reasoning_content"] = "provider-internal reasoning"
+    body["agent"] = {"name": "step"}
+    service, _, _ = make_service(
+        configured_gateway,
+        UpstreamHTTPResponse(200, json.dumps(body).encode("utf-8")),
+    )
+
+    result = await service.generate(NarrationRequest.model_validate_json(json.dumps(valid_request)))
+
+    assert result.source == "upstream"
+    assert "provider-internal" not in result.narration
+
+
+@pytest.mark.anyio
 async def test_model_can_never_return_direct_health_or_medication_copy(
     configured_gateway, valid_request
 ) -> None:
