@@ -85,7 +85,7 @@ struct PhoneRootView: View {
     }
     .sheet(
       isPresented: $store.isShowingSettings,
-      onDismiss: store.dismissSettings
+      onDismiss: store.settingsDidDismiss
     ) {
       NavigationStack {
         PhoneSettingsView(store: store)

@@ -68,6 +68,10 @@ final class AppSmokeTests: XCTestCase {
     XCTAssertFalse(store.isShowingSettings)
     XCTAssertEqual(store.selectedTab, .mori)
     XCTAssertNil(store.notificationDestination)
+    XCTAssertFalse(store.isShowingFullChat)
+
+    store.settingsDidDismiss()
+
     XCTAssertTrue(store.isShowingFullChat)
     XCTAssertEqual(
       store.fullChatOpeningLine,

@@ -3,10 +3,16 @@
   import Foundation
 
   public final class RuntimeNotificationRouteObserver: @unchecked Sendable {
+    private static let sharedRouter = AppleNotificationResponseRouter()
+
     private let router: AppleNotificationResponseRouter
 
+    public static func install() {
+      _ = sharedRouter
+    }
+
     public init() {
-      router = AppleNotificationResponseRouter()
+      router = Self.sharedRouter
     }
 
     public func routes() -> AsyncStream<RuntimeNotificationRoute> {

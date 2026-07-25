@@ -119,6 +119,7 @@ final class PhoneAppStore: ObservableObject {
   private var movementSceneTask: Task<Void, Never>?
   private var personalizationMutationTask: Task<Void, Never>?
   private var chatNudgeTask: Task<Void, Never>?
+  private var pendingFullChatOpeningLine: String?
   private var deletedWeeklyMemoryIDs: Set<String> = []
   private var companionInteractionRevision: UInt64 = 0
   private var companionPreferenceWritesInFlight = 0
@@ -1566,6 +1567,13 @@ final class PhoneAppStore: ObservableObject {
     isShowingSettings = false
   }
 
+  func settingsDidDismiss() {
+    isShowingSettings = false
+    guard let openingLine = pendingFullChatOpeningLine else { return }
+    pendingFullChatOpeningLine = nil
+    presentFullChat(openingLine: openingLine)
+  }
+
   func dismissNotificationDestination() {
     notificationDestination = nil
   }
@@ -2455,11 +2463,16 @@ final class PhoneAppStore: ObservableObject {
 
   private func handleNotificationRoute(_ value: RuntimeNotificationRoute) {
     if value.route == "chat/invite" {
-      dismissSettings()
       selectedTab = .mori
       notificationDestination = nil
-      presentFullChat(openingLine: MoriChatNudge.gentle.openingLine)
       statusMessage = "Mori 邀请你聊一会儿"
+      let openingLine = MoriChatNudge.gentle.openingLine
+      if isShowingSettings {
+        pendingFullChatOpeningLine = openingLine
+        dismissSettings()
+      } else {
+        presentFullChat(openingLine: openingLine)
+      }
       return
     }
     guard
