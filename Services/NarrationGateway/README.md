@@ -3,6 +3,8 @@
 This service turns bounded health, pet, rule, and story context into one short
 virtual-pet narration. It also turns a typed weekly snapshot into a short
 server-rendered title and body, with the model limited to presentation choices.
+The companion chat endpoint accepts a small conversation window and returns one
+short, validated Mori reply.
 It is a server-side boundary: Apple clients must never receive the upstream API
 key or call the model provider directly.
 
@@ -30,6 +32,13 @@ POST /v1/weekly-memories/polish
   -> provider-neutral JSON style/focus/ending enum selection
   -> server-owned evidence phrases and final title/body templates
   -> model-selected presentation OR deterministic presentation fallback
+
+POST /v1/chat/reply
+  -> the same authentication, size, rate, and timeout boundaries
+  -> at most 12 alternating user/assistant messages plus compact personality
+  -> StepFun-compatible JSON chat completion
+  -> strict visible-copy length, control-character, refusal, and schema checks
+  -> validated short reply OR safe local Mori fallback
 ```
 
 The transport is injected into `NarrationService`, so tests and the free
@@ -60,11 +69,27 @@ Personal Team experience need no network or APNs. Production uses
   Final titles, evidence phrases, connective text, and endings come from
   reviewed server templates, so invented results, diagnoses, psychological
   conclusions, comparisons, and internal disclaimers cannot enter the response.
+- Chat accepts one to twelve messages, must begin and end with `user`, and must
+  alternate `user`/`assistant`. Each message is capped at 500 characters and
+  cannot contain control characters; client-supplied system/developer messages
+  and unknown fields are rejected. Compact personality is restricted to the
+  same voice, pace, and theme enums used by weekly polish.
+- Chat is the only endpoint where provider-authored text can be visible. It is
+  accepted only from an exact `{"reply":"..."}` JSON object, within the
+  configured character budget and without control characters. Medication,
+  self-harm, and dangerous-behaviour risk patterns are checked on both the
+  latest user message and provider output; risky user messages never reach the
+  provider and receive a reviewed local response. Provider refusal, malformed
+  output, risky output, oversize output, transport failure, or missing
+  configuration returns local Mori copy. `passed_output_checks` means only
+  that these declared bounded checks passed; it is not a universal safety
+  certification. Conversation and reply text are never recorded by the
+  metadata-only audit sink.
 - Audit events contain only request ID, outcome code, and upstream status. They
   cannot accept health text, prompts, narration, headers, credentials, or raw
   exceptions. Uvicorn access logging is disabled by the local entrypoint.
 - Validation errors never echo Pydantic input snapshots.
-- `POST /v1/narrations` always requires a separately configured gateway bearer
+- All product endpoints always require a separately configured gateway bearer
   token and is protected by a bounded per-process request limit. Missing auth
   configuration fails closed. The default server also binds only to
   `127.0.0.1`. Production still requires short-lived user/session credentials,
@@ -184,6 +209,47 @@ cache validation but is never sent to the model. `source: "upstream"` means the
 model successfully selected strict presentation slots; it does not mean the
 model authored the visible title or body.
 
+`POST /v1/chat/reply` uses the same bearer authentication and returns HTTP 200
+for both provider and fallback paths. The request carries only the recent
+conversation window and compact expression settings:
+
+```json
+{
+  "request_id": "chat-request-001",
+  "locale": "zh-CN",
+  "messages": [
+    {"role": "user", "content": "今天游泳有点累。"},
+    {"role": "assistant", "content": "辛苦啦，先在岸边陪你坐一会儿。"},
+    {"role": "user", "content": "好呀，你今天在想什么？"}
+  ],
+  "personality": {
+    "voice": "warm",
+    "pace": "gentle",
+    "themes": ["water_sports", "exploration"],
+    "is_personalized": true
+  }
+}
+```
+
+```json
+{
+  "request_id": "chat-request-001",
+  "reply": "我在想，下次要不要一起去找一片会发光的海？",
+  "source": "upstream",
+  "fallback_reason": null,
+  "passed_output_checks": true
+}
+```
+
+The request ID is used only for the response and metadata-only audit event; it
+is not sent to the provider. The provider receives the message text because it
+is required to answer, but the gateway does not persist or log it. The client
+owns conversation retention and must send no more than the latest 12 messages.
+`themes` are coarse allowlisted interests derived from on-device personalization,
+not raw memory records or health measurements. The iPhone client asks for
+session consent before the first external AI send and does not write chat text
+or model replies into long-term memory.
+
 ## Tests
 
 ```bash
@@ -206,13 +272,14 @@ stream that attempts to exceed the wall-clock deadline.
 | --- | --- | --- |
 | `NARRATION_BIND_PORT` | `8790` | 1024–65535, localhost bind only |
 | `NARRATION_UPSTREAM_BASE_URL` | `https://api.stepfun.com` | HTTPS origin, no embedded credentials |
-| `NARRATION_UPSTREAM_MODEL` | `step-1o-turbo-vision` | 1–128 characters |
+| `NARRATION_UPSTREAM_MODEL` | `step-3.7-flash` | 1–128 characters |
 | `NARRATION_UPSTREAM_API_KEY` | unset | Read only from process environment |
 | `NARRATION_GATEWAY_ACCESS_TOKEN` | unset | Required for narration requests; 24–4096 visible characters |
 | `NARRATION_UPSTREAM_TIMEOUT_SECONDS` | `8.0` | 0.25–8.0 seconds |
 | `NARRATION_MAX_REQUEST_BYTES` | `32768` | 4096–65536 bytes |
 | `NARRATION_MAX_UPSTREAM_RESPONSE_BYTES` | `16384` | 1024–65536 bytes |
 | `NARRATION_MAX_CHARACTERS` | `180` | 40–300 characters |
+| `NARRATION_MAX_CHAT_REPLY_CHARACTERS` | `120` | 40–240 characters |
 | `NARRATION_MAX_WEEKLY_TITLE_CHARACTERS` | `24` | 8–32 characters |
 | `NARRATION_MAX_WEEKLY_BODY_CHARACTERS` | `160` | 60–180 characters |
 | `NARRATION_RATE_LIMIT_REQUESTS` | `30` | 1–600 requests per process/window |

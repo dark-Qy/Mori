@@ -10,6 +10,7 @@ def test_configuration_reads_secret_only_from_environment_and_hides_repr() -> No
             "NARRATION_UPSTREAM_MODEL": "model-a",
             "NARRATION_UPSTREAM_API_KEY": "extremely-secret",
             "NARRATION_GATEWAY_ACCESS_TOKEN": "gateway-secret-with-24-characters",
+            "NARRATION_MAX_CHAT_REPLY_CHARACTERS": "100",
             "NARRATION_MAX_WEEKLY_TITLE_CHARACTERS": "20",
             "NARRATION_MAX_WEEKLY_BODY_CHARACTERS": "140",
         }
@@ -19,6 +20,7 @@ def test_configuration_reads_secret_only_from_environment_and_hides_repr() -> No
     assert config.chat_completions_url == "https://gateway.example/v1/chat/completions"
     assert "extremely-secret" not in repr(config)
     assert "gateway-secret-with-24-characters" not in repr(config)
+    assert config.max_chat_reply_characters == 100
     assert config.max_weekly_title_characters == 20
     assert config.max_weekly_body_characters == 140
 
@@ -43,6 +45,7 @@ def test_missing_key_keeps_gateway_startable_for_deterministic_fallback() -> Non
         {"NARRATION_GATEWAY_ACCESS_TOKEN": "invalid token with spaces 123"},
         {"NARRATION_UPSTREAM_TIMEOUT_SECONDS": "20"},
         {"NARRATION_MAX_REQUEST_BYTES": "100"},
+        {"NARRATION_MAX_CHAT_REPLY_CHARACTERS": "20"},
         {"NARRATION_MAX_WEEKLY_TITLE_CHARACTERS": "40"},
         {"NARRATION_MAX_WEEKLY_BODY_CHARACTERS": "40"},
         {"NARRATION_RATE_LIMIT_REQUESTS": "0"},

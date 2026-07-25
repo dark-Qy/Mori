@@ -105,10 +105,12 @@ curl --fail https://social.bsti.online/ai/healthz
 ```
 
 The existing `/healthz` and `/v1/` routes still point to SocialGateway. Only
-`/ai/healthz` and the exact `/ai/v1/weekly-memories/polish` product route are
+`/ai/healthz`, `/ai/v1/weekly-memories/polish`, and `/ai/v1/chat/reply` are
 public. The generic narration endpoint, `/ai/openapi.json`, and all other
-`/ai/` paths return 404. The product route explicitly forwards Authorization,
-uses bounded proxy timeouts, and forces `Cache-Control: no-store`.
+`/ai/` paths return 404. Both product routes explicitly forward Authorization,
+use bounded proxy timeouts, and force `Cache-Control: no-store`. Chat request
+and response text stays out of application audit logs, but is necessarily sent
+to the configured provider to produce a reply.
 
 ## 4. Prove a real upstream response
 

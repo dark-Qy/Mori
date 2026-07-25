@@ -100,6 +100,25 @@ def valid_weekly_request() -> Dict[str, Any]:
 
 
 @pytest.fixture
+def valid_chat_request() -> Dict[str, Any]:
+    return {
+        "request_id": "chat-request-001",
+        "locale": "zh-CN",
+        "messages": [
+            {"role": "user", "content": "今天游泳有点累。"},
+            {"role": "assistant", "content": "辛苦啦，先在岸边陪你坐一会儿。"},
+            {"role": "user", "content": "好呀，你今天在想什么？"},
+        ],
+        "personality": {
+            "voice": "warm",
+            "pace": "gentle",
+            "themes": ["water_sports", "exploration"],
+            "is_personalized": True,
+        },
+    }
+
+
+@pytest.fixture
 def configured_gateway() -> GatewayConfig:
     return GatewayConfig(
         upstream_base_url="https://upstream.example",

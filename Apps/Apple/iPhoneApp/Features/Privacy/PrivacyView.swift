@@ -148,7 +148,7 @@ struct PrivacyView: View {
           .foregroundStyle(CompanionPalette.blue)
           Text(
             model.isLive
-              ? "当前只读取本机授权的 HealthKit 数据并保存派生事件；没有服务器上传。"
+              ? "HealthKit 原始数据仍只在本机处理。只有你主动发送聊天时，最近对话与粗粒度性格提示会交给 AI 服务生成回复；不会写入长期记忆。"
               : "此运行使用显式 Mock 场景验证交互，不会把演示值标记为真实健康数据。"
           )
           .font(.footnote)

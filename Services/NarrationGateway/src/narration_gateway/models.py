@@ -224,11 +224,47 @@ class CompactPersonalityProjection(StrictModel):
     voice: Literal["calm", "warm", "playful"] = "warm"
     pace: Literal["gentle", "balanced", "brisk"] = "balanced"
     themes: List[PersonalityTheme] = Field(default_factory=list, max_length=3)
+    is_personalized: bool = False
 
     @model_validator(mode="after")
     def themes_are_unique(self) -> "CompactPersonalityProjection":
         if len(self.themes) != len(set(self.themes)):
             raise ValueError("personality themes must be unique")
+        return self
+
+
+ChatMessageText = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=500,
+        pattern=r"^[^\x00-\x1F\x7F]+$",
+        strict=True,
+    ),
+]
+
+
+class ChatMessage(StrictModel):
+    role: Literal["user", "assistant"]
+    content: ChatMessageText
+
+
+class ChatReplyRequest(StrictModel):
+    """A short conversation window; system/developer messages are server-owned."""
+
+    request_id: StrictIdentifier
+    locale: Literal["zh-CN", "en-US"] = "zh-CN"
+    messages: List[ChatMessage] = Field(min_length=1, max_length=12)
+    personality: CompactPersonalityProjection
+
+    @model_validator(mode="after")
+    def conversation_is_alternating_and_awaits_a_reply(self) -> "ChatReplyRequest":
+        if self.messages[0].role != "user" or self.messages[-1].role != "user":
+            raise ValueError("chat must start and end with a user message")
+        for previous, current in zip(self.messages, self.messages[1:]):
+            if previous.role == current.role:
+                raise ValueError("chat message roles must alternate")
         return self
 
 
@@ -269,6 +305,7 @@ class FallbackReason(str, Enum):
     NETWORK_ERROR = "upstream_network_error"
     MALFORMED = "malformed_upstream_response"
     UNSAFE = "unsafe_upstream_response"
+    UNSAFE_INPUT = "unsafe_user_input"
     RESPONSE_TOO_LARGE = "upstream_response_too_large"
     INTERNAL_ERROR = "internal_error"
 
@@ -295,6 +332,34 @@ class NarrationResponse(StrictModel):
             raise ValueError("upstream narration cannot include a fallback reason")
         if self.source == "fallback" and self.fallback_reason is None:
             raise ValueError("fallback narration requires a fallback reason")
+        return self
+
+
+ChatReplyText = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=240,
+        pattern=r"^[^\x00-\x1F\x7F]+$",
+        strict=True,
+    ),
+]
+
+
+class ChatReplyResponse(StrictModel):
+    request_id: StrictIdentifier
+    reply: ChatReplyText
+    source: Literal["upstream", "fallback"]
+    fallback_reason: Optional[FallbackReason]
+    passed_output_checks: Literal[True] = True
+
+    @model_validator(mode="after")
+    def source_matches_fallback_reason(self) -> "ChatReplyResponse":
+        if self.source == "upstream" and self.fallback_reason is not None:
+            raise ValueError("upstream chat reply cannot include a fallback reason")
+        if self.source == "fallback" and self.fallback_reason is None:
+            raise ValueError("fallback chat reply requires a fallback reason")
         return self
 
 
@@ -371,6 +436,12 @@ class GeneratedWeeklyMemoryStyle(StrictModel):
     style: Literal["calm", "warm", "playful"]
     focus: Literal["movement", "rhythm", "balanced"]
     ending: Literal["trail", "together", "collection"]
+
+
+class GeneratedChatReply(StrictModel):
+    """The only provider-authored text allowed onto the chatbot surface."""
+
+    reply: ChatReplyText
 
 
 class UpstreamMessage(StrictModel):

@@ -5,6 +5,8 @@ struct OverviewView: View {
   @ObservedObject var store: PhoneAppStore
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @State private var showsDataSourcePicker = false
+  @State private var showsChat = false
+  @State private var chatOpeningLine = MoriChatNudge.gentle.openingLine
 
   private var model: PhonePresentationModel { store.model }
 
@@ -22,8 +24,13 @@ struct OverviewView: View {
           characterID: store.preferences.selectedCharacterIDs.first
             ?? CompanionVisualCatalog.defaultCharacterID,
           backgroundID: store.preferences.selectedBackgroundID,
+          chatNudge: store.chatNudge,
           onCompanionInteraction: { interaction in
             Task { await store.companionInteraction(interaction) }
+          },
+          onOpenChat: {
+            chatOpeningLine = store.openChatNudge().openingLine
+            showsChat = true
           }
         )
 
@@ -93,6 +100,12 @@ struct OverviewView: View {
     }
     .navigationTitle("Mori")
     .accessibilityIdentifier("phone.overview")
+    .task {
+      store.scheduleChatNudge()
+    }
+    .navigationDestination(isPresented: $showsChat) {
+      MoriChatView(store: store, openingLine: chatOpeningLine)
+    }
     .sheet(isPresented: $showsDataSourcePicker) {
       PhoneDataSourcePicker(store: store, isPresented: $showsDataSourcePicker)
     }
@@ -119,7 +132,9 @@ private struct PetOverviewCard: View {
   let model: PhonePresentationModel
   let characterID: String
   let backgroundID: String
+  let chatNudge: MoriChatNudge?
   let onCompanionInteraction: (PhonePetInteraction) -> Void
+  let onOpenChat: () -> Void
 
   var body: some View {
     VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
@@ -128,6 +143,13 @@ private struct PetOverviewCard: View {
         backgroundID: backgroundID,
         onInteraction: onCompanionInteraction
       )
+      .overlay(alignment: .topLeading) {
+        if let chatNudge {
+          MoriChatNudgeBubble(nudge: chatNudge, action: onOpenChat)
+            .padding(10)
+        }
+      }
+      .animation(.easeOut(duration: 0.22), value: chatNudge?.id)
 
       VStack(alignment: .leading, spacing: 3) {
         Text("Mori · Lv.\(model.level)")

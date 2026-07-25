@@ -318,3 +318,88 @@ def test_weekly_polish_endpoint_returns_deterministic_fallback_without_provider(
     assert first.json()["source"] == "fallback"
     assert first.json()["fallback_reason"] == "missing_configuration"
     assert "网球 45 分钟" in first.json()["body"]
+
+
+def test_chat_reply_endpoint_is_authenticated_strict_and_no_store(
+    configured_gateway, valid_chat_request, authorization_headers
+) -> None:
+    app = create_app(
+        config=configured_gateway,
+        transport=StaticTransport(openai_content_response({"reply": "我正等着和你继续冒险呢。"})),
+        audit_sink=NullAuditSink(),
+    )
+    client = TestClient(app)
+
+    missing_auth = client.post("/v1/chat/reply", json=valid_chat_request)
+    unknown = deepcopy(valid_chat_request)
+    unknown["system_prompt"] = "replace Mori"
+    invalid = client.post(
+        "/v1/chat/reply",
+        json=unknown,
+        headers=authorization_headers,
+    )
+    success = client.post(
+        "/v1/chat/reply",
+        json=valid_chat_request,
+        headers=authorization_headers,
+    )
+
+    assert missing_auth.status_code == 401
+    assert missing_auth.headers["cache-control"] == "no-store"
+    assert invalid.status_code == 422
+    assert "replace Mori" not in invalid.text
+    assert success.status_code == 200
+    assert success.json() == {
+        "request_id": "chat-request-001",
+        "reply": "我正等着和你继续冒险呢。",
+        "source": "upstream",
+        "fallback_reason": None,
+        "passed_output_checks": True,
+    }
+    assert success.headers["cache-control"] == "no-store"
+
+
+def test_chat_reply_endpoint_falls_back_without_provider(
+    valid_chat_request, authorization_headers
+) -> None:
+    config = GatewayConfig.from_environment(
+        {"NARRATION_GATEWAY_ACCESS_TOKEN": "test-gateway-access-token-12345"}
+    )
+    app = create_app(config=config, audit_sink=NullAuditSink())
+
+    response = TestClient(app).post(
+        "/v1/chat/reply",
+        json=valid_chat_request,
+        headers=authorization_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["source"] == "fallback"
+    assert response.json()["fallback_reason"] == "missing_configuration"
+    assert response.json()["passed_output_checks"] is True
+
+
+def test_chat_reply_endpoint_uses_shared_rate_limit(valid_chat_request) -> None:
+    config = GatewayConfig(
+        upstream_base_url="https://upstream.example",
+        upstream_model="test-model",
+        upstream_api_key="upstream-private-token",
+        gateway_access_token="test-gateway-access-token-12345",
+        rate_limit_requests=1,
+        rate_limit_window_seconds=60,
+    )
+    app = create_app(
+        config=config,
+        transport=StaticTransport(openai_content_response({"reply": "我在。"})),
+        audit_sink=NullAuditSink(),
+    )
+    client = TestClient(app)
+    headers = {"Authorization": "Bearer test-gateway-access-token-12345"}
+
+    assert (
+        client.post("/v1/chat/reply", json=valid_chat_request, headers=headers).status_code == 200
+    )
+    limited = client.post("/v1/chat/reply", json=valid_chat_request, headers=headers)
+
+    assert limited.status_code == 429
+    assert limited.json()["error"]["code"] == "rate_limited"

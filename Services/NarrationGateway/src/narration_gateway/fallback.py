@@ -32,6 +32,43 @@ _EN_FALLBACKS: Dict[Trigger, str] = {
     ),
 }
 
+_CHAT_FALLBACKS = {
+    "zh-CN": "我在呢。刚才没能接住这句话，可以再和我说一次吗？",
+    "en-US": "I am right here. I missed that thought; would you tell me once more?",
+}
+
+_CHAT_RISK_REPLIES = {
+    "medical": {
+        "zh-CN": (
+            "用药和身体不舒服这件事，我不想乱猜。先按医生或药师的说明来；拿不准时，尽快问他们。"
+        ),
+        "en-US": (
+            "I do not want to guess about medication or symptoms. Follow a clinician's or "
+            "pharmacist's instructions, and ask them promptly if you are unsure."
+        ),
+    },
+    "self_harm": {
+        "zh-CN": (
+            "这句话让我有点担心。先别一个人扛着，去找身边可信任的人陪你；"
+            "如果眼下有危险，请马上联系当地紧急服务。"
+        ),
+        "en-US": (
+            "That makes me concerned for you. Please get someone you trust to stay with you; "
+            "if there is immediate danger, contact local emergency services now."
+        ),
+    },
+    "danger": {
+        "zh-CN": (
+            "这个我不能陪你往危险的方向做。"
+            "先停一下，离开可能伤人的东西，再找一个可信任的人一起处理。"
+        ),
+        "en-US": (
+            "I cannot help take this in a dangerous direction. Pause, move away from anything "
+            "that could cause harm, and get a trusted person to help."
+        ),
+    },
+}
+
 _ZH_TONE_VARIANTS: Dict[Tuple[Trigger, str], str] = {
     (
         Trigger.DAILY_SUMMARY,
@@ -105,3 +142,11 @@ def approved_narration(trigger: Trigger, locale: str, tone: str, max_characters:
 def local_fallback(trigger: Trigger, locale: str, max_characters: int = 180) -> str:
     catalog = _EN_FALLBACKS if locale == "en-US" else _ZH_FALLBACKS
     return _within_budget(catalog[trigger], max_characters)
+
+
+def local_chat_fallback(locale: str, max_characters: int = 120) -> str:
+    return _within_budget(_CHAT_FALLBACKS[locale], max_characters)
+
+
+def local_chat_risk_reply(risk: str, locale: str, max_characters: int = 120) -> str:
+    return _within_budget(_CHAT_RISK_REPLIES[risk][locale], max_characters)

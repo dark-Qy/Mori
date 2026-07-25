@@ -29,11 +29,13 @@ final class PhoneAppStore: ObservableObject {
   @Published private(set) var isPersonalizationEnabled = true
   @Published private(set) var isClearingPersonalization = false
   @Published private(set) var personalizationStatus: String?
+  @Published private(set) var chatNudge: MoriChatNudge?
   @Published var selectedTab: PhoneTab = .overview
   @Published var notificationDestination: RuntimeNotificationDestination? = nil
 
   var dataMode: PhoneDataMode { model.dataMode }
   var dataSourceSelectionAvailable: Bool { !hasLaunchScenarioOverride }
+  let chatRequiresExternalAIConsent: Bool
   private let runtime: AppleCompanionRuntime?
   private let wardrobeService = WardrobeService()
   private let notificationRouteObserver: RuntimeNotificationRouteObserver?
@@ -42,6 +44,8 @@ final class PhoneAppStore: ObservableObject {
   private let hasLaunchScenarioOverride: Bool
   private let weeklyMemoryArchive: WeeklyMemoryArchiveStore
   private let weeklyMemoryPolisher: WeeklyMemoryPolishing
+  private let chatReplying: any MoriChatReplying
+  private let chatNudgePolicy: MoriChatNudgePolicy
   private let personalizationRepository: any PersonalizationRepositoryProtocol
   private var hasStarted = false
   private var hasLoadedPersonalization = false
@@ -54,12 +58,15 @@ final class PhoneAppStore: ObservableObject {
   private var peerUpdateTask: Task<Void, Never>?
   private var mockCareTask: Task<Void, Never>?
   private var personalizationMutationTask: Task<Void, Never>?
+  private var chatNudgeTask: Task<Void, Never>?
   private var deletedWeeklyMemoryIDs: Set<String> = []
   private var companionInteractionRevision: UInt64 = 0
 
   init(
     arguments: [String] = ProcessInfo.processInfo.arguments,
     weeklyMemoryPolisher: WeeklyMemoryPolishing? = nil,
+    chatReplying: (any MoriChatReplying)? = nil,
+    chatNudgePolicy: MoriChatNudgePolicy? = nil,
     personalizationRepository: (any PersonalizationRepositoryProtocol)? = nil
   ) {
     let initialModel = PhonePresentationModel.initial(arguments: arguments)
@@ -109,6 +116,19 @@ final class PhoneAppStore: ObservableObject {
             .appendingPathComponent("Personalization", isDirectory: true)
         )
     }
+    let usesLocalChatFixture =
+      arguments.contains("-UITesting")
+      && !arguments.contains("--enable-chat-ai")
+    chatRequiresExternalAIConsent =
+      arguments.contains("--chat-consent=required") || !usesLocalChatFixture
+    if usesLocalChatFixture {
+      self.chatReplying = chatReplying ?? LocalMoriChatClient()
+    } else {
+      self.chatReplying = chatReplying ?? MoriChatAIClient.live()
+    }
+    self.chatNudgePolicy =
+      chatNudgePolicy
+      ?? MoriChatNudgePolicy(arguments: arguments)
     if let personalizationRepository {
       self.personalizationRepository = personalizationRepository
     } else if hasLaunchScenarioOverride {
@@ -148,6 +168,41 @@ final class PhoneAppStore: ObservableObject {
 
   var hiddenWeeklyMemories: [PhoneWeeklyMemory] {
     weeklyMemories.filter(\.record.isHidden)
+  }
+
+  func scheduleChatNudge() {
+    guard phase == .ready, chatNudge == nil, chatNudgeTask == nil else { return }
+    let policy = chatNudgePolicy
+    chatNudgeTask = Task { [weak self] in
+      let delay = policy.isForcedVisible ? Duration.milliseconds(180) : .seconds(8)
+      try? await Task.sleep(for: delay)
+      guard !Task.isCancelled, let self else { return }
+      guard let nudge = policy.nextNudge(at: Date()) else {
+        self.chatNudgeTask = nil
+        return
+      }
+      self.chatNudge = nudge
+      if !policy.isForcedVisible {
+        try? await Task.sleep(for: .seconds(12))
+        guard !Task.isCancelled, self.chatNudge?.id == nudge.id else { return }
+        self.chatNudge = nil
+      }
+      self.chatNudgeTask = nil
+    }
+  }
+
+  func openChatNudge() -> MoriChatNudge {
+    let nudge = chatNudge ?? .gentle
+    chatNudge = nil
+    chatNudgeTask?.cancel()
+    chatNudgeTask = nil
+    return nudge
+  }
+
+  func replyToMoriChat(messages: [MoriChatMessage]) async -> MoriChatReply {
+    await loadPersonalization()
+    let personality = isPersonalizationEnabled ? personalityProjection : .moriCore
+    return await chatReplying.reply(to: messages, personality: personality)
   }
 
   func prepareWeeklyMemory(force: Bool = false) async {

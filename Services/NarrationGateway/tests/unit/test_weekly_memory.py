@@ -172,7 +172,8 @@ async def test_service_accepts_style_slots_and_excludes_facts_and_identifiers_fr
     assert "网球 45 分钟" in result.body
     assert result.title == "和网球一起向前"
     assert transport.payload["response_format"] == {"type": "json_object"}
-    assert transport.payload["max_tokens"] == 256
+    assert transport.payload["reasoning_effort"] == "low"
+    assert transport.payload["max_tokens"] == 1_024
 
 
 @pytest.mark.anyio

@@ -13,6 +13,8 @@ from .audit import AuditSink, StructuredAuditSink
 from .config import GatewayConfig
 from .middleware import RequestBoundaryMiddleware
 from .models import (
+    ChatReplyRequest,
+    ChatReplyResponse,
     ErrorResponse,
     HealthResponse,
     NarrationRequest,
@@ -20,7 +22,7 @@ from .models import (
     WeeklyMemoryPolishRequest,
     WeeklyMemoryPolishResponse,
 )
-from .service import NarrationService, WeeklyMemoryPolishService
+from .service import CompanionChatService, NarrationService, WeeklyMemoryPolishService
 from .transport import ChatCompletionTransport, HttpxChatCompletionTransport
 
 
@@ -47,6 +49,11 @@ def create_app(
         audit_sink=runtime_audit_sink,
     )
     weekly_memory_service = WeeklyMemoryPolishService(
+        config=runtime_config,
+        transport=runtime_transport,
+        audit_sink=runtime_audit_sink,
+    )
+    companion_chat_service = CompanionChatService(
         config=runtime_config,
         transport=runtime_transport,
         audit_sink=runtime_audit_sink,
@@ -129,5 +136,20 @@ def create_app(
         request: WeeklyMemoryPolishRequest,
     ) -> WeeklyMemoryPolishResponse:
         return await weekly_memory_service.generate(request)
+
+    @app.post(
+        "/v1/chat/reply",
+        response_model=ChatReplyResponse,
+        responses={
+            401: {"model": ErrorResponse},
+            413: {"model": ErrorResponse},
+            415: {"model": ErrorResponse},
+            422: {"model": ErrorResponse},
+            429: {"model": ErrorResponse},
+            503: {"model": ErrorResponse},
+        },
+    )
+    async def reply_to_chat(request: ChatReplyRequest) -> ChatReplyResponse:
+        return await companion_chat_service.generate(request)
 
     return app

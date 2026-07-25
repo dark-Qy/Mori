@@ -57,6 +57,7 @@ def test_nginx_contract_adds_only_ai_namespace_on_port_8790() -> None:
 
     assert "location = /ai/healthz" in locations
     assert "location = /ai/v1/weekly-memories/polish" in locations
+    assert "location = /ai/v1/chat/reply" in locations
     assert "location ^~ /ai/" in locations
     assert "127.0.0.1:8790" in locations
     assert "127.0.0.1:8788" not in locations

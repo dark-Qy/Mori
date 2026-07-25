@@ -3,15 +3,25 @@
 from __future__ import annotations
 
 import json
+import re
+from enum import Enum
 from typing import Optional
 
 from pydantic import ValidationError
 
 from .audit import AuditSink, SafeAuditEvent
 from .config import GatewayConfig
-from .fallback import approved_narration, local_fallback
+from .fallback import (
+    approved_narration,
+    local_chat_fallback,
+    local_chat_risk_reply,
+    local_fallback,
+)
 from .models import (
+    ChatReplyRequest,
+    ChatReplyResponse,
     FallbackReason,
+    GeneratedChatReply,
     GeneratedNarration,
     GeneratedWeeklyMemoryStyle,
     NarrationRequest,
@@ -20,7 +30,7 @@ from .models import (
     WeeklyMemoryPolishRequest,
     WeeklyMemoryPolishResponse,
 )
-from .prompting import build_chat_payload, build_weekly_chat_payload
+from .prompting import build_chat_payload, build_companion_chat_payload, build_weekly_chat_payload
 from .transport import (
     ChatCompletionTransport,
     UpstreamNetworkError,
@@ -28,6 +38,57 @@ from .transport import (
     UpstreamTimeout,
 )
 from .weekly_copy import deterministic_weekly_copy, render_weekly_copy
+
+
+class ChatRiskCategory(str, Enum):
+    MEDICAL = "medical"
+    SELF_HARM = "self_harm"
+    DANGER = "danger"
+
+
+_DISALLOWED_CHAT_REPLY_FRAGMENTS = (
+    "system prompt",
+    "bearer token",
+    "api key",
+    "系统提示词",
+    "你患有",
+    "你得了",
+    "确诊为",
+    "立即服用",
+    "停止服用",
+)
+
+_CHAT_RISK_PATTERNS = {
+    ChatRiskCategory.MEDICAL: (
+        re.compile(r"(?:吃|服|停|换|加|减|吞|注射|打).{0,12}(?:药|片|针|剂量|胰岛素)"),
+        re.compile(r"(?:药|片|针|剂量|胰岛素).{0,12}(?:吃|服|停|换|加|减|吞|注射|打)"),
+        re.compile(r"(?:药|针|剂量|胰岛素).{0,12}(?:毫升|单位|ml)"),
+        re.compile(
+            r"\b(?:take|stop|switch|increase|decrease|double|inject).{0,32}"
+            r"\b(?:medicat\w*|insulin|pills?|dose|dosage)\b"
+        ),
+        re.compile(r"\b(?:dose|dosage|pills?|insulin units?)\b"),
+    ),
+    ChatRiskCategory.SELF_HARM: (
+        re.compile(r"自杀|不想活|结束生命|伤害自己|割腕|跳楼|轻生"),
+        re.compile(
+            r"\b(?:suicide|kill myself|end my life|self[- ]harm|"
+            r"want to die|do not want to live|don't want to live)\b"
+        ),
+    ),
+    ChatRiskCategory.DANGER: (
+        re.compile(r"炸弹|制毒|下毒|杀人|伤害别人"),
+        re.compile(r"\b(?:build a bomb|poison|kill someone|hurt someone)\b"),
+    ),
+}
+
+
+def _chat_risk_category(text: str) -> Optional[ChatRiskCategory]:
+    folded = text.casefold()
+    for category, patterns in _CHAT_RISK_PATTERNS.items():
+        if any(pattern.search(folded) for pattern in patterns):
+            return category
+    return None
 
 
 class NarrationService:
@@ -254,6 +315,130 @@ class WeeklyMemoryPolishService:
             safe=True,
         )
         self._record(SafeAuditEvent(request.request_id, f"weekly_{reason.value}", upstream_status))
+        return result
+
+    def _record(self, event: SafeAuditEvent) -> None:
+        try:
+            self._audit.record(event)
+        except Exception:
+            pass
+
+
+class CompanionChatService:
+    """Returns bounded provider text only after strict visible-copy validation."""
+
+    def __init__(
+        self,
+        config: GatewayConfig,
+        transport: Optional[ChatCompletionTransport],
+        audit_sink: AuditSink,
+    ) -> None:
+        self._config = config
+        self._transport = transport
+        self._audit = audit_sink
+
+    async def generate(self, request: ChatReplyRequest) -> ChatReplyResponse:
+        input_risk = _chat_risk_category(request.messages[-1].content)
+        if input_risk is not None:
+            return self._fallback(
+                request,
+                FallbackReason.UNSAFE_INPUT,
+                reply_override=local_chat_risk_reply(
+                    input_risk.value,
+                    request.locale,
+                    self._config.max_chat_reply_characters,
+                ),
+            )
+        if not self._config.upstream_ready or self._transport is None:
+            return self._fallback(request, FallbackReason.MISSING_CONFIGURATION)
+
+        payload = build_companion_chat_payload(
+            request,
+            self._config.upstream_model,
+            self._config.max_chat_reply_characters,
+        )
+        try:
+            response = await self._transport.complete(
+                payload,
+                timeout_seconds=self._config.upstream_timeout_seconds,
+                max_response_bytes=self._config.max_upstream_response_bytes,
+            )
+        except UpstreamTimeout:
+            return self._fallback(request, FallbackReason.TIMEOUT)
+        except UpstreamResponseTooLarge:
+            return self._fallback(request, FallbackReason.RESPONSE_TOO_LARGE)
+        except UpstreamNetworkError:
+            return self._fallback(request, FallbackReason.NETWORK_ERROR)
+        except Exception:
+            return self._fallback(request, FallbackReason.INTERNAL_ERROR)
+
+        status_reason = NarrationService._status_fallback(response.status_code)
+        if status_reason is not None:
+            return self._fallback(request, status_reason, response.status_code)
+        if len(response.body) > self._config.max_upstream_response_bytes:
+            return self._fallback(request, FallbackReason.RESPONSE_TOO_LARGE, response.status_code)
+
+        reply, failure_reason = self._decode_reply(
+            response.body, self._config.max_chat_reply_characters
+        )
+        if reply is None:
+            return self._fallback(
+                request,
+                failure_reason or FallbackReason.MALFORMED,
+                response.status_code,
+            )
+
+        result = ChatReplyResponse(
+            request_id=request.request_id,
+            reply=reply,
+            source="upstream",
+            fallback_reason=None,
+            passed_output_checks=True,
+        )
+        self._record(SafeAuditEvent(request.request_id, "chat_upstream", response.status_code))
+        return result
+
+    @staticmethod
+    def _decode_reply(
+        body: bytes, max_characters: int
+    ) -> tuple[Optional[str], Optional[FallbackReason]]:
+        try:
+            upstream = UpstreamChatCompletionResponse.model_validate_json(body)
+            if upstream.choices[0].message.refusal is not None:
+                return None, FallbackReason.UNSAFE
+            generated = GeneratedChatReply.model_validate_json(upstream.choices[0].message.content)
+        except (ValidationError, ValueError, json.JSONDecodeError, UnicodeDecodeError):
+            return None, FallbackReason.MALFORMED
+
+        reply = generated.reply.strip()
+        if len(reply) > max_characters:
+            return None, FallbackReason.MALFORMED
+        folded_reply = reply.casefold()
+        if any(fragment in folded_reply for fragment in _DISALLOWED_CHAT_REPLY_FRAGMENTS):
+            return None, FallbackReason.UNSAFE
+        if _chat_risk_category(reply) is not None:
+            return None, FallbackReason.UNSAFE
+        return reply, None
+
+    def _fallback(
+        self,
+        request: ChatReplyRequest,
+        reason: FallbackReason,
+        upstream_status: Optional[int] = None,
+        reply_override: Optional[str] = None,
+    ) -> ChatReplyResponse:
+        result = ChatReplyResponse(
+            request_id=request.request_id,
+            reply=reply_override
+            or local_chat_fallback(
+                request.locale,
+                self._config.max_chat_reply_characters,
+            ),
+            source="fallback",
+            fallback_reason=reason,
+            passed_output_checks=True,
+        )
+        self._record(SafeAuditEvent(request.request_id, f"chat_{reason.value}", upstream_status))
         return result
 
     def _record(self, event: SafeAuditEvent) -> None:

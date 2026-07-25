@@ -37,7 +37,11 @@ class RequestBoundaryMiddleware:
     async def __call__(
         self, scope: Dict[str, Any], receive: Callable[..., Any], send: Callable[..., Any]
     ) -> None:
-        protected_paths = {"/v1/narrations", "/v1/weekly-memories/polish"}
+        protected_paths = {
+            "/v1/narrations",
+            "/v1/weekly-memories/polish",
+            "/v1/chat/reply",
+        }
         if scope.get("type") != "http" or scope.get("path") not in protected_paths:
             await self._app(scope, receive, send)
             return

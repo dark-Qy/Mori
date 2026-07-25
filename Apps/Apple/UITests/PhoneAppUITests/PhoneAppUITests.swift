@@ -91,6 +91,33 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Mori 转过身回应了你"].waitForExistence(timeout: 2))
   }
 
+  func testOccasionalChatBubbleOpensConversationAndSendsReply() {
+    let app = launchApp(
+      scenario: "health_normal",
+      additionalArguments: ["--chat-nudge=visible", "--chat-consent=required"]
+    )
+
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
+    let nudge = app.buttons["phone.chat-nudge"]
+    XCTAssertTrue(nudge.waitForExistence(timeout: 3))
+    nudge.tap()
+
+    XCTAssertTrue(element("phone.chat.messages", in: app).waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["phone.chat.message.assistant"].exists)
+    let composer = app.textFields["phone.chat.composer"]
+    XCTAssertTrue(composer.waitForExistence(timeout: 3))
+    composer.tap()
+    composer.typeText("今天有点累")
+    app.buttons["phone.chat.send"].tap()
+    XCTAssertTrue(app.alerts["发送给 AI 服务？"].waitForExistence(timeout: 2))
+    app.alerts.buttons["同意并发送"].tap()
+
+    XCTAssertTrue(
+      app.staticTexts["Mori 说，我在。先不用把一切说清楚，慢慢来就好。"]
+        .waitForExistence(timeout: 5)
+    )
+  }
+
   func testThirtyFiveDayScenarioRendersWeeklyTimeline() {
     let app = launchApp(scenario: "mock7_active")
 
@@ -302,9 +329,13 @@ final class PhoneAppUITests: XCTestCase {
     }
   }
 
-  private func launchApp(scenario: String) -> XCUIApplication {
+  private func launchApp(
+    scenario: String,
+    additionalArguments: [String] = []
+  ) -> XCUIApplication {
     let app = XCUIApplication()
-    app.launchArguments = ["-UITesting", "--mock-scenario=\(scenario)"]
+    app.launchArguments =
+      ["-UITesting", "--mock-scenario=\(scenario)"] + additionalArguments
     app.launch()
     return app
   }

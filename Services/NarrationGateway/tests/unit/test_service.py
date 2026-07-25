@@ -64,6 +64,8 @@ async def test_valid_upstream_tone_selects_server_owned_copy_and_transport_is_bo
     assert result.narration == "我看见节奏有一点变化。先照顾此刻的自己，晚些我们再温柔地回顾。"
     assert transport.timeout_seconds == configured_gateway.upstream_timeout_seconds
     assert transport.max_response_bytes == configured_gateway.max_upstream_response_bytes
+    assert transport.payload["reasoning_effort"] == "low"
+    assert transport.payload["max_tokens"] == 1_024
     assert transport.payload["model"] == "test-model"
     assert transport.payload["response_format"] == {"type": "json_object"}
     assert "request-001" not in transport.payload["messages"][1]["content"]
