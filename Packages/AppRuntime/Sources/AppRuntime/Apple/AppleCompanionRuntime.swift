@@ -68,6 +68,7 @@
     private var peerSyncTask: Task<Void, Never>?
     private var careScheduleInFlight: Set<UUID> = []
     #if DEBUG
+      private var mockChatInviteScheduleGeneration: UInt64 = 0
       private var mockCareScheduleGeneration: UInt64 = 0
       private var mockDailyMomentsScheduleGeneration: UInt64 = 0
     #endif
@@ -390,6 +391,84 @@
       Self.mapNotificationPermission(await requestNotificationPermission())
     }
 
+    public func scheduleMockChatInviteNotification(
+      after delay: TimeInterval = 10,
+      now: Date = Date()
+    ) async -> RuntimeNotificationScheduleStatus {
+      #if DEBUG
+        guard
+          let selectionToken =
+            await dataSourceSelection.mockChatInviteNotificationTokenIfNeeded()
+        else {
+          return .alreadyScheduled
+        }
+        mockChatInviteScheduleGeneration &+= 1
+        let generation = mockChatInviteScheduleGeneration
+        let notificationID = "mock.chat.invite.\(selectionToken)"
+        var permission = await mockNotifications.permissionState()
+        if permission == .notRequested {
+          permission = await mockNotifications.requestPermission()
+        }
+        guard
+          generation == mockChatInviteScheduleGeneration,
+          await dataSourceSelection.mockChatInviteNotificationTokenIfNeeded()
+            == selectionToken
+        else { return .failed }
+        switch permission {
+        case .authorized, .provisional, .ephemeral:
+          break
+        case .denied:
+          return .denied
+        case .notRequested, .unavailable:
+          return .unavailable
+        }
+
+        let interaction = MockChatInvitePlanner().plan(
+          id: notificationID,
+          now: now,
+          delay: delay
+        )
+        do {
+          let decision = try await ProactiveInteractionService(
+            client: mockNotifications
+          ).schedule(
+            interaction,
+            policy: NotificationPolicy()
+          )
+          guard decision == .allow else { return .failed }
+          guard
+            generation == mockChatInviteScheduleGeneration,
+            await dataSourceSelection
+              .markMockChatInviteNotificationScheduled(
+                selectionToken: selectionToken
+              )
+          else {
+            await mockNotifications.cancelAndRemoveDelivered(id: notificationID)
+            return .failed
+          }
+          return .scheduled
+        } catch {
+          return .failed
+        }
+      #else
+        return .unavailable
+      #endif
+    }
+
+    public func cancelMockChatInviteNotification() async {
+      #if DEBUG
+        mockChatInviteScheduleGeneration &+= 1
+        if let selectionToken =
+          await dataSourceSelection
+          .lastScheduledMockChatInviteNotificationToken()
+        {
+          await mockNotifications.cancelAndRemoveDelivered(
+            id: "mock.chat.invite.\(selectionToken)"
+          )
+        }
+      #endif
+    }
+
     public func scheduleMockCareNotification(
       after delay: TimeInterval = 60,
       now: Date = Date()
@@ -554,6 +633,7 @@
     }
 
     public func cancelProactiveNotifications() async {
+      await cancelMockChatInviteNotification()
       await cancelMockCareNotification()
       await cancelMockDailyMomentsNotification()
       await acquireProductionMutation()
@@ -583,7 +663,9 @@
       careScheduleInFlight.removeAll()
 
       #if DEBUG
+        mockChatInviteScheduleGeneration &+= 1
         mockCareScheduleGeneration &+= 1
+        mockDailyMomentsScheduleGeneration &+= 1
         await mockNotifications.cancelAll()
       #endif
       await notificationClient().cancelAll()

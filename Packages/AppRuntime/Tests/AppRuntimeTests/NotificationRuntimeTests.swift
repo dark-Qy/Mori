@@ -8,6 +8,21 @@ import Testing
 struct NotificationRuntimeTests {
   private let now = Date(timeIntervalSince1970: 1_760_000_000)
 
+  @Test("Mock chat invite is a ten-second time-sensitive deep link")
+  func mockChatInvitePlan() {
+    let plan = MockChatInvitePlanner().plan(
+      id: "mock.chat.invite.selection-token",
+      now: now
+    )
+
+    #expect(plan.id == "mock.chat.invite.selection-token")
+    #expect(plan.fireDate == now.addingTimeInterval(10))
+    #expect(plan.route == "chat/invite")
+    #expect(plan.interruptionLevel == .timeSensitive)
+    #expect(plan.title == "Mori 想和你聊聊")
+    #expect(plan.body == "要和我聊一会儿吗？")
+  }
+
   @Test("No rule decision means silence")
   func silenceWithoutContext() {
     #expect(ProactiveInteractionPlanner().plan(for: CompanionState(), now: now) == nil)

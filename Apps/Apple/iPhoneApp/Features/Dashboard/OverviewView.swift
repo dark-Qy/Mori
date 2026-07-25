@@ -4,8 +4,6 @@ import SwiftUI
 
 struct MoriHomeView: View {
   @ObservedObject var store: PhoneAppStore
-  @State private var showsChat = false
-  @State private var chatOpeningLine = MoriChatNudge.gentle.openingLine
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @FocusState private var isComposerFocused: Bool
   @State private var conversationIsAtBottom = true
@@ -27,8 +25,8 @@ struct MoriHomeView: View {
 
           if let chatNudge = store.chatNudge {
             MoriChatNudgeBubble(nudge: chatNudge) {
-              chatOpeningLine = store.openChatNudge().openingLine
-              showsChat = true
+              let nudge = store.openChatNudge()
+              store.presentFullChat(openingLine: nudge.openingLine)
             }
             .padding(.horizontal, CompanionSpacing.page)
             .padding(.top, CompanionSpacing.small)
@@ -71,8 +69,8 @@ struct MoriHomeView: View {
     .task {
       store.scheduleChatNudge()
     }
-    .navigationDestination(isPresented: $showsChat) {
-      MoriChatView(store: store, openingLine: chatOpeningLine)
+    .navigationDestination(isPresented: $store.isShowingFullChat) {
+      MoriChatView(store: store, openingLine: store.fullChatOpeningLine)
     }
     .alert(
       "发送前确认",

@@ -52,6 +52,30 @@ final class AppSmokeTests: XCTestCase {
     XCTAssertEqual(store.mockExperience, .empty)
   }
 
+  func testChatInviteNotificationRouteOpensFullMoriChat() async {
+    let store = PhoneAppStore(
+      arguments: [
+        "WatchCompanion",
+        "-UITesting",
+        "--mock-scenario=mock1",
+        "--notification-route=chat/invite",
+      ]
+    )
+    store.showSettings()
+
+    await store.start()
+
+    XCTAssertFalse(store.isShowingSettings)
+    XCTAssertEqual(store.selectedTab, .mori)
+    XCTAssertNil(store.notificationDestination)
+    XCTAssertTrue(store.isShowingFullChat)
+    XCTAssertEqual(
+      store.fullChatOpeningLine,
+      MoriChatNudge.gentle.openingLine
+    )
+    XCTAssertEqual(store.statusMessage, "Mori 邀请你聊一会儿")
+  }
+
   func testLivePresentationKeepsOnlyExactFacts() {
     let now = Date(timeIntervalSince1970: 1_760_000_000)
     let snapshot = HealthSnapshot(

@@ -27,6 +27,27 @@ public struct ApprovedProactiveInteraction: Equatable, Sendable {
   }
 }
 
+#if DEBUG
+  public struct MockChatInvitePlanner: Sendable {
+    public init() {}
+
+    public func plan(
+      id: String,
+      now: Date,
+      delay: TimeInterval = 10
+    ) -> ApprovedProactiveInteraction {
+      ApprovedProactiveInteraction(
+        id: id,
+        title: "Mori 想和你聊聊",
+        body: "要和我聊一会儿吗？",
+        fireDate: now.addingTimeInterval(max(1, delay)),
+        route: "chat/invite",
+        interruptionLevel: .timeSensitive
+      )
+    }
+  }
+#endif
+
 public struct CareCheckInPlanner: Sendable {
   public static let minimumSeededDelay: TimeInterval = 30 * 60
   public static let maximumSeededDelay: TimeInterval = 90 * 60

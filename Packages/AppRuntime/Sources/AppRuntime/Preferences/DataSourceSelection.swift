@@ -116,6 +116,7 @@ public actor DataSourceSelectionRepository {
   private let defaults: UserDefaults
   private let key: String
   private let tokenKey: String
+  private let mockChatInviteNotificationTokenKey: String
   private let mockCareNotificationTokenKey: String
   private let mockDailyMomentsNotificationTokenKey: String
   private var pendingPeerPlan: PeerDataSourceSelectionPlan?
@@ -127,6 +128,8 @@ public actor DataSourceSelectionRepository {
     self.defaults = defaults
     self.key = key
     tokenKey = "\(key).selection-token"
+    mockChatInviteNotificationTokenKey =
+      "\(key).mock-chat-invite-notification-token"
     mockCareNotificationTokenKey = "\(key).mock-care-notification-token"
     mockDailyMomentsNotificationTokenKey =
       "\(key).mock-daily-moments-notification-token"
@@ -155,6 +158,7 @@ public actor DataSourceSelectionRepository {
     pendingPeerPlan = nil
     defaults.removeObject(forKey: key)
     defaults.removeObject(forKey: tokenKey)
+    defaults.removeObject(forKey: mockChatInviteNotificationTokenKey)
     defaults.removeObject(forKey: mockCareNotificationTokenKey)
     defaults.removeObject(forKey: mockDailyMomentsNotificationTokenKey)
   }
@@ -164,6 +168,30 @@ public actor DataSourceSelectionRepository {
   }
 
   #if DEBUG
+    public func mockChatInviteNotificationTokenIfNeeded() -> String? {
+      guard
+        load() == .mock1,
+        let token = loadSelectionToken(),
+        token != defaults.string(forKey: mockChatInviteNotificationTokenKey)
+      else { return nil }
+      return token
+    }
+
+    @discardableResult
+    public func markMockChatInviteNotificationScheduled(
+      selectionToken: String
+    ) -> Bool {
+      guard load() == .mock1, loadSelectionToken() == selectionToken else {
+        return false
+      }
+      defaults.set(selectionToken, forKey: mockChatInviteNotificationTokenKey)
+      return true
+    }
+
+    public func lastScheduledMockChatInviteNotificationToken() -> String? {
+      defaults.string(forKey: mockChatInviteNotificationTokenKey)
+    }
+
     public func mockCareNotificationTokenIfNeeded() -> String? {
       guard
         load() == .mock2,

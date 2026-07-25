@@ -32,6 +32,9 @@ final class PhoneAppStore: ObservableObject {
   @Published var selectedTab: PhoneTab
   @Published var notificationDestination: RuntimeNotificationDestination?
   @Published var isShowingSettings = false
+  @Published var isShowingFullChat = false
+  @Published private(set) var fullChatOpeningLine =
+    MoriChatNudge.gentle.openingLine
   @Published private(set) var statusMessage: String?
   @Published private(set) var notificationStatus = "尚未请求"
   @Published private(set) var movementScene: MovementScenePresentation?
@@ -342,6 +345,18 @@ final class PhoneAppStore: ObservableObject {
     return nudge
   }
 
+  func presentFullChat(openingLine: String) {
+    chatNudge = nil
+    chatNudgeTask?.cancel()
+    chatNudgeTask = nil
+    fullChatOpeningLine = openingLine
+    isShowingFullChat = true
+  }
+
+  func dismissFullChat() {
+    isShowingFullChat = false
+  }
+
   func replyToMoriChat(messages: [MoriChatMessage]) async -> MoriChatReply {
     await loadPersonalization()
     if let latestMessage = messages.last(where: { $0.author == .owner }) {
@@ -595,8 +610,6 @@ final class PhoneAppStore: ObservableObject {
     defer { isSwitchingDataSource = false }
     mockCareTask?.cancel()
     companionInteractionRevision &+= 1
-    await runtime?.cancelMockCareNotification()
-    await runtime?.cancelMockDailyMomentsNotification()
     retireProductLoop()
     await stopConversationRuntime(clearPresentation: true)
     do {
@@ -606,6 +619,9 @@ final class PhoneAppStore: ObservableObject {
       statusMessage = "数据模式暂时没能保存"
       return
     }
+    await runtime?.cancelMockChatInviteNotification()
+    await runtime?.cancelMockCareNotification()
+    await runtime?.cancelMockDailyMomentsNotification()
     selectedDataSource = source
     if let runtime {
       _ = await runtime.saveDataSourceSelection(source)
@@ -1381,7 +1397,7 @@ final class PhoneAppStore: ObservableObject {
     Task { [weak self] in
       guard let self, selectedDataSource == dataSource else { return }
       guard dataSource == .healthKit else {
-        notificationStatus = "Mock 不修改系统通知"
+        notificationStatus = "Mock 通知由演示场景控制"
         return
       }
       guard let runtime else { return }
@@ -1503,6 +1519,8 @@ final class PhoneAppStore: ObservableObject {
         phase = .ready
         statusMessage = "\(selectedDataSource.displayName) 已载入"
         startMovementSceneIfNeeded()
+        notificationStatus = "此 Mock 未安排系统提醒"
+        await scheduleMockChatInviteNotificationIfNeeded()
         await scheduleMockDailyMomentsNotificationIfNeeded()
       #else
         selectedDataSource = .healthKit
@@ -1521,6 +1539,34 @@ final class PhoneAppStore: ObservableObject {
     }
     await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
   }
+
+  #if DEBUG
+    private func scheduleMockChatInviteNotificationIfNeeded() async {
+      guard
+        selectedDataSource == .mock1,
+        mockSystemNotificationsEnabled,
+        let runtime
+      else { return }
+      let status = await runtime.scheduleMockChatInviteNotification()
+      guard selectedDataSource == .mock1 else {
+        await runtime.cancelMockChatInviteNotification()
+        return
+      }
+      switch status {
+      case .scheduled:
+        notificationStatus = "已安排 · 约 10 秒后强提醒"
+      case .alreadyScheduled:
+        notificationStatus = "本次聊天邀请已安排"
+      case .denied:
+        notificationStatus = "已在系统中关闭"
+        statusMessage = "Mock 1 已载入；请在系统设置中开启通知"
+      case .unavailable:
+        notificationStatus = "此设备不可用"
+      case .failed:
+        statusMessage = "Mock 1 已载入；聊天邀请暂时未能安排"
+      }
+    }
+  #endif
 
   private func scheduleMockDailyMomentsNotificationIfNeeded() async {
     guard
@@ -2270,6 +2316,14 @@ final class PhoneAppStore: ObservableObject {
   }
 
   private func handleNotificationRoute(_ value: RuntimeNotificationRoute) {
+    if value.route == "chat/invite" {
+      dismissSettings()
+      selectedTab = .mori
+      notificationDestination = nil
+      presentFullChat(openingLine: MoriChatNudge.gentle.openingLine)
+      statusMessage = "Mori 邀请你聊一会儿"
+      return
+    }
     guard
       let destination = NotificationRouteCoordinator().destination(for: value)
     else {
@@ -2509,6 +2563,9 @@ final class PhoneAppStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: preferencesKey)
         UserDefaults.standard.removeObject(forKey: dataSourceKey)
         UserDefaults.standard.removeObject(forKey: "\(dataSourceKey).selection-token")
+        UserDefaults.standard.removeObject(
+          forKey: "\(dataSourceKey).mock-chat-invite-notification-token"
+        )
         UserDefaults.standard.removeObject(
           forKey: "\(dataSourceKey).mock-care-notification-token"
         )

@@ -132,6 +132,38 @@ struct DataSourceSelectionTests {
       #expect(await storage.repository.mockCareNotificationTokenIfNeeded() == nil)
     }
 
+    @Test("Mock chat invite notification schedules once per explicit Mock 1 selection token")
+    func mockChatInviteNotificationOccurrence() async {
+      let storage = makeRepository()
+      defer { removeStorage(suiteName: storage.suiteName) }
+
+      let firstToken = await storage.repository.save(.mock1)
+      #expect(
+        await storage.repository.mockChatInviteNotificationTokenIfNeeded()
+          == firstToken
+      )
+      #expect(
+        await storage.repository.markMockChatInviteNotificationScheduled(
+          selectionToken: firstToken
+        )
+      )
+      #expect(
+        await storage.repository.mockChatInviteNotificationTokenIfNeeded() == nil
+      )
+
+      let secondToken = await storage.repository.save(.mock1)
+      #expect(secondToken != firstToken)
+      #expect(
+        await storage.repository.mockChatInviteNotificationTokenIfNeeded()
+          == secondToken
+      )
+
+      _ = await storage.repository.save(.mock2)
+      #expect(
+        await storage.repository.mockChatInviteNotificationTokenIfNeeded() == nil
+      )
+    }
+
     @Test("Mock daily moments notification schedules once per explicit selection token")
     func mockDailyMomentsNotificationOccurrence() async {
       let storage = makeRepository()

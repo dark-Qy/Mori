@@ -189,7 +189,7 @@ struct PhoneSettingsView: View {
     } header: {
       Text("通知")
     } footer: {
-      Text("Mock 不会请求系统权限。真实模式仅在你开启时请求。")
+      Text("Mock 只会为演示提醒请求通知权限；健康与定位权限仅在真实模式由你开启。")
     }
   }
 
