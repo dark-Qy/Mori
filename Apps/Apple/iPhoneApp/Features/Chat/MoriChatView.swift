@@ -204,7 +204,7 @@ struct MoriChatView: View {
         pendingConsentText = nil
       }
     } message: {
-      Text("最近几句对话和粗粒度性格提示会发送给 AI 服务生成回复；不会发送原始健康数据，也不会写入 Mori 的长期记忆。")
+      Text("最近几句对话和粗粒度性格提示会发送给 AI 服务生成回复；不会发送原始健康数据。")
     }
   }
 
@@ -268,11 +268,6 @@ struct MoriChatView: View {
 
   private var composer: some View {
     VStack(alignment: .leading, spacing: 7) {
-      Text("AI 生成 · 最近对话会被发送 · 不写入长期记忆")
-        .font(.caption2)
-        .foregroundStyle(CompanionPalette.secondaryText)
-        .accessibilityIdentifier("phone.chat.privacy-note")
-
       HStack(alignment: .bottom, spacing: 10) {
         TextField("和 Mori 说点什么", text: $draft, axis: .vertical)
           .lineLimit(1...4)

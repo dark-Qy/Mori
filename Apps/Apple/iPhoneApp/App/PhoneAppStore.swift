@@ -323,8 +323,28 @@ final class PhoneAppStore: ObservableObject {
 
   func replyToMoriChat(messages: [MoriChatMessage]) async -> MoriChatReply {
     await loadPersonalization()
+    if let latestMessage = messages.last(where: { $0.author == .owner }) {
+      await rememberChatHabits(from: latestMessage)
+    }
     let personality = isPersonalizationEnabled ? personalityProjection : .moriCore
     return await chatReplying.reply(to: messages, personality: personality)
+  }
+
+  private func rememberChatHabits(from message: MoriChatMessage) async {
+    guard isPersonalizationEnabled else { return }
+    let signals = ChatPersonalizationEvidenceFactory().make(from: message)
+    guard !signals.isEmpty else { return }
+    do {
+      for signal in signals {
+        try await personalizationRepository.record(signal, at: Date())
+      }
+      let projection = try await personalizationRepository.projection()
+      personalityProjection = WeeklyMemoryAIPersonalityProjection(
+        projection: projection
+      )
+    } catch {
+      // Chat remains available when optional personalization persistence fails.
+    }
   }
 
   func prepareWeeklyMemory(force: Bool = false) async {

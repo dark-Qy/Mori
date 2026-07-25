@@ -172,6 +172,34 @@ struct RuntimeWeeklyMemoryAICredentialProvider: WeeklyMemoryAICredentialProvidin
   }
 }
 
+struct BundledWeeklyMemoryAICredentialProvider: WeeklyMemoryAICredentialProviding {
+  private static let resourceName = "MoriGatewayToken"
+  private static let resourceExtension = "private"
+
+  private let resourceURL: URL?
+
+  init(bundle: Bundle = .main) {
+    resourceURL = bundle.url(
+      forResource: Self.resourceName,
+      withExtension: Self.resourceExtension
+    )
+  }
+
+  init(resourceURL: URL?) {
+    self.resourceURL = resourceURL
+  }
+
+  func bearerToken() -> String? {
+    guard
+      let resourceURL,
+      let value = try? String(contentsOf: resourceURL, encoding: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines),
+      !value.isEmpty
+    else { return nil }
+    return value
+  }
+}
+
 struct ChainedWeeklyMemoryAICredentialProvider: WeeklyMemoryAICredentialProviding {
   let providers: [any WeeklyMemoryAICredentialProviding]
 
@@ -393,6 +421,7 @@ final class WeeklyMemoryAIClient: WeeklyMemoryPolishing {
         providers: [
           KeychainWeeklyMemoryAICredentialProvider(),
           RuntimeWeeklyMemoryAICredentialProvider(),
+          BundledWeeklyMemoryAICredentialProvider(),
         ]
       ),
       session: URLSession(configuration: sessionConfiguration),

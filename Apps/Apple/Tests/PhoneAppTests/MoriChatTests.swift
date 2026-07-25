@@ -1,3 +1,5 @@
+import Domain
+import Persistence
 import XCTest
 
 @testable import WatchCompanion
@@ -117,6 +119,101 @@ final class MoriChatTests: XCTestCase {
 
     XCTAssertEqual(reply.source, .fallback)
     XCTAssertTrue(MoriChatURLProtocolStub.recordedRequest() == nil)
+  }
+
+  func testBundledCredentialReadsTrimmedToken() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+    let tokenURL = directory.appending(path: "MoriGatewayToken.private")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(
+      at: directory,
+      withIntermediateDirectories: true
+    )
+    try Data("  bundled-token\n".utf8).write(to: tokenURL, options: .atomic)
+
+    let provider = BundledWeeklyMemoryAICredentialProvider(resourceURL: tokenURL)
+
+    XCTAssertEqual(provider.bearerToken(), "bundled-token")
+  }
+
+  func testChatHabitExtractorKeepsOnlyTypedStablePreferences() {
+    let message = MoriChatMessage(
+      id: UUID(uuidString: "D21997C4-0A58-4E4B-AF7A-57D22F7A7060")!,
+      author: .owner,
+      text: "我周末经常打网球，也喜欢游泳。以后回复短一点。"
+    )
+
+    let signals = ChatPersonalizationEvidenceFactory().make(from: message)
+
+    XCTAssertTrue(
+      signals.contains {
+        guard case .explicitActivityPreference(.tennis, 0.8, _) = $0 else {
+          return false
+        }
+        return true
+      }
+    )
+    XCTAssertTrue(
+      signals.contains {
+        guard case .explicitActivityPreference(.swimming, 0.8, _) = $0 else {
+          return false
+        }
+        return true
+      }
+    )
+    XCTAssertTrue(
+      signals.contains {
+        guard case .explicitInterest(.racketSports, 0.8, _) = $0 else {
+          return false
+        }
+        return true
+      }
+    )
+    XCTAssertTrue(
+      signals.contains {
+        guard case .explicitExpressionPreference(.concise, _) = $0 else {
+          return false
+        }
+        return true
+      }
+    )
+    XCTAssertTrue(
+      ChatPersonalizationEvidenceFactory()
+        .make(from: MoriChatMessage(author: .owner, text: "今天有点累"))
+        .isEmpty
+    )
+  }
+
+  @MainActor
+  func testChatHabitIsPersistedWithoutStoringConversationText() async throws {
+    let repository = PersonalizationRepository(
+      storage: InMemoryPersonalizationStorage()
+    )
+    let store = PhoneAppStore(
+      arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=health_normal"],
+      chatReplying: LocalMoriChatClient(),
+      personalizationRepository: repository
+    )
+
+    _ = await store.replyToMoriChat(
+      messages: [
+        MoriChatMessage(author: .owner, text: "我周末经常游泳")
+      ]
+    )
+
+    let state = try await repository.state()
+    XCTAssertTrue(
+      state.memories.contains {
+        guard case .activity(.swimming) = $0.subject else { return false }
+        return true
+      }
+    )
+    XCTAssertEqual(state.owner.activityAffinities[.swimming] ?? 0, 0.72, accuracy: 0.001)
+    XCTAssertFalse(
+      state.memories.flatMap(\.evidence).map(\.id)
+        .contains(where: { $0.contains("我周末经常游泳") })
+    )
   }
 
   private func utcCalendar() -> Calendar {

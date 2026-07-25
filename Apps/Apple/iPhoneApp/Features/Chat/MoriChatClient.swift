@@ -148,6 +148,7 @@ final class MoriChatAIClient: MoriChatReplying {
         providers: [
           KeychainWeeklyMemoryAICredentialProvider(),
           RuntimeWeeklyMemoryAICredentialProvider(),
+          BundledWeeklyMemoryAICredentialProvider(),
         ]
       ),
       session: URLSession(configuration: sessionConfiguration)
