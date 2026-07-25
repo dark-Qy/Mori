@@ -54,12 +54,15 @@ Background delivery timing must be recorded as observed, never promised as immed
 ## 3. Local notification and haptic spike
 
 1. Verify first-request explanation and system prompt.
-2. Schedule a short, non-sensitive local event.
-3. Test delivery with Watch app foreground, background, terminated, and under a Focus mode.
-4. Open the notification and verify the intended route.
-5. Reopen it and verify no duplicate task completion or reward.
-6. Deny permission and verify a usable in-app path without repeated prompting.
-7. Evaluate each haptic on a real Watch; simulator execution is insufficient.
+2. Schedule the labeled `Mock 2` Time Sensitive local notification.
+3. Confirm Time Sensitive Notifications are enabled in system settings.
+4. Test delivery with the iPhone app foreground, background, terminated, and under a Focus mode.
+5. With a paired Watch, record whether iPhone delivery is mirrored; do not schedule a second Mock
+   notification directly on Watch.
+6. Open the notification and verify the intended route.
+7. Reopen it and verify no duplicate task completion or reward.
+8. Deny permission and verify a usable in-app path without repeated prompting.
+9. Evaluate each haptic on a real Watch; simulator execution is insufficient.
 
 Pass requires five consecutive notification-route runs without duplicate settlement. Do not promise delivery timing when Focus or system scheduling may intervene.
 

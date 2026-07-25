@@ -78,6 +78,7 @@ public actor DataSourceSelectionRepository {
   private let defaults: UserDefaults
   private let key: String
   private let tokenKey: String
+  private let mockCareNotificationTokenKey: String
 
   public init(
     defaults: UserDefaults = .standard,
@@ -86,6 +87,7 @@ public actor DataSourceSelectionRepository {
     self.defaults = defaults
     self.key = key
     tokenKey = "\(key).selection-token"
+    mockCareNotificationTokenKey = "\(key).mock-care-notification-token"
   }
 
   public func load() -> CompanionDataSource {
@@ -109,6 +111,28 @@ public actor DataSourceSelectionRepository {
   public func loadSelectionToken() -> String? {
     defaults.string(forKey: tokenKey)
   }
+
+  #if DEBUG
+    public func mockCareNotificationTokenIfNeeded() -> String? {
+      guard
+        load() == .mock2,
+        let token = loadSelectionToken(),
+        token != defaults.string(forKey: mockCareNotificationTokenKey)
+      else { return nil }
+      return token
+    }
+
+    @discardableResult
+    public func markMockCareNotificationScheduled(selectionToken: String) -> Bool {
+      guard load() == .mock2, loadSelectionToken() == selectionToken else { return false }
+      defaults.set(selectionToken, forKey: mockCareNotificationTokenKey)
+      return true
+    }
+
+    public func lastScheduledMockCareNotificationToken() -> String? {
+      defaults.string(forKey: mockCareNotificationTokenKey)
+    }
+  #endif
 
   /// Returns true when the peer sent a new selection action. A token lets reselecting the same
   /// Mock reset both devices without replaying old peer snapshots as fresh resets.

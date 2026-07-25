@@ -313,6 +313,23 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["已打开 Mori 的恢复来信；不会自动完成任务或领取奖励"].exists)
   }
 
+  func testCareNotificationRouteOpensSafeCareMessage() {
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "-UITesting", "--mock-scenario=health_normal", "--notification-route=pet/care",
+    ]
+    app.launch()
+
+    XCTAssertTrue(
+      element("phone.notification.careMessage", in: app).waitForExistence(timeout: 8)
+    )
+    XCTAssertTrue(app.staticTexts["Mori 的陪伴来信"].exists)
+    XCTAssertTrue(app.staticTexts["打开来信只负责导航"].exists)
+    app.buttons["phone.notification.dismiss"].tap()
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["已打开 Mori 的陪伴来信；不需要解释，也不用立刻回应"].exists)
+  }
+
   func testAccessibilityAuditAcrossManagementSurfaces() throws {
     let app = launchApp(scenario: "health_partial")
     XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))

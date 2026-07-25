@@ -109,6 +109,21 @@ struct NotificationAdapterTests {
     #expect(await client.pending.isEmpty)
   }
 
+  @Test func timeSensitiveInterruptionLevelRoundTrips() async throws {
+    let client = MockLocalNotificationClient(state: .authorized, calendar: utcCalendar)
+    let value = LocalNotification(
+      id: "time-sensitive",
+      title: "Mori",
+      body: "I am here",
+      fireDate: Date(timeIntervalSince1970: 1_700_000_000),
+      interruptionLevel: .timeSensitive
+    )
+
+    _ = try await client.schedule(value, policy: NotificationPolicy())
+
+    #expect(await client.pending[value.id]?.interruptionLevel == .timeSensitive)
+  }
+
   @Test func deniedPermissionFailsWithoutScheduling() async {
     let client = MockLocalNotificationClient(state: .denied, calendar: utcCalendar)
     await #expect(throws: NotificationAdapterError.permissionDenied) {

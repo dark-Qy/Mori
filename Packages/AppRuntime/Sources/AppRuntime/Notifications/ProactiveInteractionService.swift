@@ -8,13 +8,22 @@ public struct ApprovedProactiveInteraction: Equatable, Sendable {
   public let body: String
   public let fireDate: Date
   public let route: String
+  public let interruptionLevel: LocalNotificationInterruptionLevel
 
-  public init(id: String, title: String, body: String, fireDate: Date, route: String) {
+  public init(
+    id: String,
+    title: String,
+    body: String,
+    fireDate: Date,
+    route: String,
+    interruptionLevel: LocalNotificationInterruptionLevel = .timeSensitive
+  ) {
     self.id = id
     self.title = title
     self.body = body
     self.fireDate = fireDate
     self.route = route
+    self.interruptionLevel = interruptionLevel
   }
 }
 
@@ -144,7 +153,8 @@ public struct ProactiveInteractionService<Client: LocalNotificationClient>: Send
         title: interaction.title,
         body: interaction.body,
         fireDate: interaction.fireDate,
-        deepLink: NotificationDeepLink(route: interaction.route)
+        deepLink: NotificationDeepLink(route: interaction.route),
+        interruptionLevel: interaction.interruptionLevel
       ),
       policy: policy
     )

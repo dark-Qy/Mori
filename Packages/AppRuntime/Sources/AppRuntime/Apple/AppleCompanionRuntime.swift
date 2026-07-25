@@ -20,6 +20,14 @@
     case unavailable
   }
 
+  public enum RuntimeNotificationScheduleStatus: Equatable, Sendable {
+    case scheduled
+    case alreadyScheduled
+    case denied
+    case unavailable
+    case failed
+  }
+
   public struct RuntimeHealthRefresh: Sendable {
     public let requestState: HealthAccessRequestState
     public let health: Domain.HealthSnapshot
@@ -48,6 +56,9 @@
     private let source: EventSource
     private let health: AppleHealthKitClient
     private let notifications: AppleLocalNotificationClient
+    #if DEBUG
+      private let mockNotifications: AppleLocalNotificationClient
+    #endif
     private let connectivity: AppleWatchConnectivityClient
     private let events: CompanionEventEngine<FileEventLedgerStorage>
     private let preferences: PreferencesRepository<UserDefaultsPreferencesDataStore>
@@ -56,6 +67,9 @@
     private let peerSyncEnabled: Bool
     private var peerSyncTask: Task<Void, Never>?
     private var careScheduleInFlight: Set<UUID> = []
+    #if DEBUG
+      private var mockCareScheduleGeneration: UInt64 = 0
+    #endif
 
     public init(
       source: EventSource,
@@ -68,6 +82,13 @@
       self.peerSyncEnabled = peerSyncEnabled
       health = AppleHealthKitClient()
       notifications = AppleLocalNotificationClient()
+      #if DEBUG
+        mockNotifications = AppleLocalNotificationClient(
+          cooldownStore: UserDefaultsNotificationCooldownStore(
+            key: "app.notifications.mock.last-scheduled-date.v1"
+          )
+        )
+      #endif
       connectivity = AppleWatchConnectivityClient()
       events = CompanionEventEngine(
         storage: FileEventLedgerStorage(
@@ -257,10 +278,85 @@
       Self.mapNotificationPermission(await requestNotificationPermission())
     }
 
+    public func scheduleMockCareNotification(
+      after delay: TimeInterval = 60,
+      now: Date = Date()
+    ) async -> RuntimeNotificationScheduleStatus {
+      #if DEBUG
+        guard let selectionToken = await dataSourceSelection.mockCareNotificationTokenIfNeeded()
+        else {
+          return .alreadyScheduled
+        }
+        mockCareScheduleGeneration &+= 1
+        let generation = mockCareScheduleGeneration
+        let notificationID = "mock.pet.state-of-mind.check-in.\(selectionToken)"
+        var permission = await mockNotifications.permissionState()
+        if permission == .notRequested {
+          permission = await mockNotifications.requestPermission()
+        }
+        guard
+          generation == mockCareScheduleGeneration,
+          await dataSourceSelection.mockCareNotificationTokenIfNeeded() == selectionToken
+        else { return .failed }
+        switch permission {
+        case .authorized, .provisional, .ephemeral:
+          break
+        case .denied:
+          return .denied
+        case .notRequested, .unavailable:
+          return .unavailable
+        }
+
+        let interaction = ApprovedProactiveInteraction(
+          id: notificationID,
+          title: "Mock 2 · Mori 想陪你待一会",
+          body: "模拟来信：不用解释，要不要和我安静待一会儿？",
+          fireDate: now.addingTimeInterval(max(1, delay)),
+          route: "pet/care",
+          interruptionLevel: .timeSensitive
+        )
+        do {
+          let decision = try await ProactiveInteractionService(client: mockNotifications).schedule(
+            interaction,
+            policy: NotificationPolicy()
+          )
+          guard decision == .allow else { return .failed }
+          guard
+            generation == mockCareScheduleGeneration,
+            await dataSourceSelection.markMockCareNotificationScheduled(
+              selectionToken: selectionToken
+            )
+          else {
+            await mockNotifications.cancelAndRemoveDelivered(id: notificationID)
+            return .failed
+          }
+          return .scheduled
+        } catch {
+          return .failed
+        }
+      #else
+        return .unavailable
+      #endif
+    }
+
+    public func cancelMockCareNotification() async {
+      #if DEBUG
+        mockCareScheduleGeneration &+= 1
+        if let selectionToken =
+          await dataSourceSelection.lastScheduledMockCareNotificationToken()
+        {
+          await mockNotifications.cancelAndRemoveDelivered(
+            id: "mock.pet.state-of-mind.check-in.\(selectionToken)"
+          )
+        }
+      #endif
+    }
+
     public func cancelProactiveNotifications() async {
       await notifications.cancel(id: "pet.recovery.check-in")
       await notifications.cancel(id: "pet.activity.check-in")
       await notifications.cancel(id: "pet.state-of-mind.check-in")
+      await cancelMockCareNotification()
     }
 
     public func latestPeerState() async -> CompanionSyncState? {

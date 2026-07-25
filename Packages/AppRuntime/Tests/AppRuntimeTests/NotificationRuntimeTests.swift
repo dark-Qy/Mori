@@ -27,6 +27,7 @@ struct NotificationRuntimeTests {
     let client = MockLocalNotificationClient(state: .authorized, calendar: utcCalendar)
     let service = ProactiveInteractionService(client: client)
 
+    #expect(plan.interruptionLevel == .timeSensitive)
     let decision = try await service.schedule(
       plan,
       policy: NotificationPolicy(quietHours: QuietHours(startMinute: 0, endMinute: 1_439))
@@ -56,6 +57,7 @@ struct NotificationRuntimeTests {
       ) == .allow
     )
     #expect(await client.pending[plan.id]?.deepLink?.route == "pet/activity")
+    #expect(await client.pending[plan.id]?.interruptionLevel == .timeSensitive)
   }
 
   @Test("Low activity copy does not claim a workout occurred")
@@ -143,6 +145,7 @@ struct NotificationRuntimeTests {
     #expect(plan.fireDate == now.addingTimeInterval(60))
     #expect(plan.route == "pet/care")
     #expect(plan.body.contains("不用解释"))
+    #expect(plan.interruptionLevel == .timeSensitive)
   }
 
   @Test("A handled State of Mind sample cannot schedule care again")

@@ -75,6 +75,7 @@ for marker in \
   "MockScenarios" \
   "-UITesting" \
   "--notification-route=" \
+  "--enable-mock-system-notification" \
   "--touch-exchange-demo" \
   "--touch-exchange-peer-first" \
   "--touch-exchange-cancel-confirm-race" \

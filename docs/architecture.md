@@ -218,8 +218,9 @@ app does not claim that the hardware detects literal case-to-case contact.
 - Disabling proactive messages cancels the app's pending Mori check-ins. Notification responses
   are parsed at the adapter boundary and routed to a non-settling in-app action; opening a message
   never awards progress by itself.
-- Mock and invalid-Mock modes do not construct the HealthKit, notification, persistence, or
-  WatchConnectivity runtime.
+- Mock and invalid-Mock modes do not read HealthKit or write production event history. The only
+  notification exception is an explicit Debug selection of `Mock 2`, which uses an isolated
+  cooldown namespace to schedule one labeled Time Sensitive local notification on iPhone.
 
 ## Capability degradation
 

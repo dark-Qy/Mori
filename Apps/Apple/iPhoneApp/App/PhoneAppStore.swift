@@ -42,6 +42,7 @@ final class PhoneAppStore: ObservableObject {
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private let usesE2EOfflineRuntime: Bool
   private let hasLaunchScenarioOverride: Bool
+  private let mockSystemNotificationsEnabled: Bool
   private let weeklyMemoryArchive: WeeklyMemoryArchiveStore
   private let weeklyMemoryPolisher: WeeklyMemoryPolishing
   private let chatReplying: any MoriChatReplying
@@ -160,6 +161,13 @@ final class PhoneAppStore: ObservableObject {
       launchNotificationRoute = nil
     #endif
     usesE2EOfflineRuntime = !runtimeConfiguration.peerSyncEnabled
+    #if DEBUG
+      mockSystemNotificationsEnabled =
+        !arguments.contains("-UITesting")
+        || arguments.contains("--enable-mock-system-notification")
+    #else
+      mockSystemNotificationsEnabled = false
+    #endif
   }
 
   var visibleWeeklyMemories: [PhoneWeeklyMemory] {
@@ -326,11 +334,11 @@ final class PhoneAppStore: ObservableObject {
     guard !hasStarted else { return }
     hasStarted = true
     await loadPersonalization()
-    guard !hasLaunchScenarioOverride else { return }
-    observeNotificationRoutes()
     if let launchNotificationRoute {
       handleNotificationRoute(launchNotificationRoute)
     }
+    guard !hasLaunchScenarioOverride else { return }
+    observeNotificationRoutes()
     guard let runtime else { return }
     do {
       preferences = try await runtime.loadPreferences()
@@ -373,6 +381,7 @@ final class PhoneAppStore: ObservableObject {
     guard !hasLaunchScenarioOverride else { return }
     mockCareTask?.cancel()
     companionInteractionRevision &+= 1
+    await runtime?.cancelMockCareNotification()
     selectedDataSource = source
     _ = await runtime?.saveDataSourceSelection(source)
     await applySelectedDataSource(requestAccessIfNeeded: source == .healthKit)
@@ -700,7 +709,7 @@ final class PhoneAppStore: ObservableObject {
         unlockedOutfitIDs = model.wardrobe.unlockedOutfitIDs
         phase = .ready
         statusMessage = "\(selectedDataSource.displayName) 已载入"
-        scheduleMockCareIfNeeded()
+        await scheduleMockCareIfNeeded()
       #else
         selectedDataSource = .healthKit
         await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
@@ -718,8 +727,28 @@ final class PhoneAppStore: ObservableObject {
     await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
   }
 
-  private func scheduleMockCareIfNeeded() {
+  private func scheduleMockCareIfNeeded() async {
     guard selectedDataSource.simulatesPeerExchange else { return }
+    if mockSystemNotificationsEnabled, let runtime {
+      let scheduleStatus = await runtime.scheduleMockCareNotification()
+      guard selectedDataSource.simulatesPeerExchange else {
+        await runtime.cancelMockCareNotification()
+        return
+      }
+      switch scheduleStatus {
+      case .scheduled:
+        notificationStatus = "已安排 · 时效通知"
+      case .alreadyScheduled:
+        notificationStatus = "本次已安排 · 时效通知"
+      case .denied:
+        notificationStatus = "已在系统中关闭"
+        statusMessage = "Mock 2 已载入；请在系统设置中开启通知"
+      case .unavailable:
+        notificationStatus = "此设备不可用"
+      case .failed:
+        statusMessage = "Mock 2 已载入；系统通知暂时未能安排"
+      }
+    }
     mockCareTask = Task { [weak self] in
       try? await Task.sleep(for: .seconds(60))
       guard !Task.isCancelled, let self, self.selectedDataSource.simulatesPeerExchange else {
@@ -762,6 +791,7 @@ final class PhoneAppStore: ObservableObject {
       let incoming = CompanionDataSource(rawValue: rawValue),
       shouldReloadDataSource
     else { return }
+    await runtime.cancelMockCareNotification()
     selectedDataSource = incoming
     await applySelectedDataSource(requestAccessIfNeeded: false)
   }
@@ -1000,6 +1030,9 @@ final class PhoneAppStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: preferencesKey)
         UserDefaults.standard.removeObject(forKey: dataSourceKey)
         UserDefaults.standard.removeObject(forKey: "\(dataSourceKey).selection-token")
+        UserDefaults.standard.removeObject(
+          forKey: "\(dataSourceKey).mock-care-notification-token"
+        )
       }
       if let seededSource = e2eDataSource(arguments: arguments) {
         UserDefaults.standard.set(seededSource.rawValue, forKey: dataSourceKey)

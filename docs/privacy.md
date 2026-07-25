@@ -21,6 +21,10 @@ separate consent version when explicitly enabled, and treats older implicit opt-
 Turning it off cancels pending Mori check-ins. A notification tap may navigate to an optional
 in-app action, but cannot settle a task or reward.
 
+In Debug builds, explicitly selecting `Mock 2` may request notification permission and schedule
+one notification labeled as simulated data. It uses synthetic State of Mind input, never reads
+live health data, and does not share the production notification cooldown.
+
 ## Data categories
 
 | Category | Examples | Default location | Remote use |

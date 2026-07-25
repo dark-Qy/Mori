@@ -14,7 +14,11 @@ Mocks make deterministic development possible when HealthKit history, physical h
 - An unknown Mock scenario fails closed into a labeled neutral error state and never falls back to
   live HealthKit or other Apple capabilities.
 - Mock application stores use in-memory presentation state only; changing a Mock wardrobe or
-  privacy control must not mutate live UserDefaults, notifications, files, or WatchConnectivity.
+  privacy control must not mutate live UserDefaults, files, or production event history.
+- `Mock 2` is the only notification exception: selecting it is an explicit Debug action that may
+  request notification permission and schedule one labeled, time-sensitive local care message
+  after 60 seconds. Switching data sources cancels the pending Mock notification. Its cooldown
+  storage is isolated from production notifications, so a demo cannot suppress a later real message.
 
 ## Interactive demo selector
 
@@ -25,6 +29,13 @@ the selected label, and projects that label through the existing WatchConnectivi
 
 Mock world state remains in memory. Selecting a fixture again or relaunching reconstructs its
 canonical initial state instead of persisting interactions into the next demonstration.
+
+`Mock 2` schedules its 60-second system notification on iPhone. The paired Watch keeps the same
+in-app care-message timeline; normal Apple notification routing decides whether the iPhone alert
+is mirrored to Watch. General UI-test launches suppress the system permission prompt; a focused
+notification run opts in with `--enable-mock-system-notification`. The system notification is
+scheduled once for each data-source selection token: relaunching does not send it again, while
+explicitly selecting `Mock 2` again creates a new token and resets the 60-second notification.
 
 ## Fixture format
 

@@ -37,6 +37,26 @@ struct DataSourceSelectionTests {
     #expect(await storage.repository.loadSelectionToken() == "second")
   }
 
+  @Test("Mock care notification schedules once per explicit selection token")
+  func mockCareNotificationOccurrence() async {
+    let storage = makeRepository()
+    defer { removeStorage(suiteName: storage.suiteName) }
+
+    let firstToken = await storage.repository.save(.mock2)
+    #expect(await storage.repository.mockCareNotificationTokenIfNeeded() == firstToken)
+    #expect(
+      await storage.repository.markMockCareNotificationScheduled(selectionToken: firstToken)
+    )
+    #expect(await storage.repository.mockCareNotificationTokenIfNeeded() == nil)
+
+    let secondToken = await storage.repository.save(.mock2)
+    #expect(secondToken != firstToken)
+    #expect(await storage.repository.mockCareNotificationTokenIfNeeded() == secondToken)
+
+    _ = await storage.repository.save(.mock1)
+    #expect(await storage.repository.mockCareNotificationTokenIfNeeded() == nil)
+  }
+
   @Test("Invalid stored selection falls back to Mock 1")
   func invalidSelection() async {
     let storage = makeRepository(initialRawValue: "unknown")

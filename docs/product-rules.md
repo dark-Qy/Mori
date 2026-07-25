@@ -113,6 +113,11 @@ Narration: how does the pet express it?
 
 Quiet hours, active rest, frequency caps, cooldowns, stale-data checks, and user notification settings outrank story urgency. The pet can remain quiet; silence is a valid companion behavior. AI cannot schedule or send a notification directly.
 
+Phase one does not implement custom Focus filters or Focus-status behavior. Approved proactive
+Mori messages use the system Time Sensitive interruption level with the default sound. This can
+break through Focus and notification summaries when the user allows Time Sensitive notifications;
+it does not use the separately approved Critical Alerts entitlement.
+
 For the current local-notification slice, the seeded scheduler chooses a replay-stable whole-minute
 delay between 10 and 90 minutes from the latest approved state. Different event histories can lead
 to different times. This changes timing only: policy may still suppress the interaction, and
@@ -122,7 +127,8 @@ An explicitly logged Apple Health State of Mind with a supported label such as s
 worried, or overwhelmed may create one gentle care check-in. Physiological values, inferred stress,
 sleep, steps, and heart rate can never synthesize a State of Mind. The real-data delay is a
 replay-stable whole minute between 30 and 90 minutes; `Mock 2` accelerates the same presentation
-to 60 seconds. The copy offers quiet company and never claims a diagnosis.
+to 60 seconds and schedules a real Debug-only local notification on iPhone. The copy offers quiet
+company and never claims a diagnosis.
 
 ## Relationship presence
 

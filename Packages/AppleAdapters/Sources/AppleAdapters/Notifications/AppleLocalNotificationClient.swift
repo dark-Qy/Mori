@@ -55,6 +55,11 @@
       content.title = notification.title
       content.body = notification.body
       content.sound = .default
+      content.interruptionLevel =
+        switch notification.interruptionLevel {
+        case .active: .active
+        case .timeSensitive: .timeSensitive
+        }
       if let deepLink = notification.deepLink {
         content.userInfo = [
           "route": deepLink.route,
@@ -80,6 +85,11 @@
 
     public func cancel(id: String) async {
       center.removePendingNotificationRequests(withIdentifiers: [id])
+    }
+
+    public func cancelAndRemoveDelivered(id: String) {
+      center.removePendingNotificationRequests(withIdentifiers: [id])
+      center.removeDeliveredNotifications(withIdentifiers: [id])
     }
 
     public func cancelAll() async {

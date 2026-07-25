@@ -19,25 +19,33 @@ public struct NotificationDeepLink: Codable, Equatable, Sendable {
   }
 }
 
+public enum LocalNotificationInterruptionLevel: Equatable, Sendable {
+  case active
+  case timeSensitive
+}
+
 public struct LocalNotification: Equatable, Sendable {
   public let id: String
   public let title: String
   public let body: String
   public let fireDate: Date
   public let deepLink: NotificationDeepLink?
+  public let interruptionLevel: LocalNotificationInterruptionLevel
 
   public init(
     id: String,
     title: String,
     body: String,
     fireDate: Date,
-    deepLink: NotificationDeepLink? = nil
+    deepLink: NotificationDeepLink? = nil,
+    interruptionLevel: LocalNotificationInterruptionLevel = .active
   ) {
     self.id = id
     self.title = title
     self.body = body
     self.fireDate = fireDate
     self.deepLink = deepLink
+    self.interruptionLevel = interruptionLevel
   }
 }
 
