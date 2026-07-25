@@ -151,23 +151,23 @@ struct DataSourceSelectionTests {
     #if DEBUG
       #expect(
         CompanionDataSource.allCases == [
-          .healthKit, .mock1, .mock2, .mock3, .mock7Active, .mock7Recovery, .mock7Rhythm,
-          .mock7Sparse, .mock7Stable,
+          .healthKit, .mock1, .mock2, .mock3, .mock4, .mock7Active, .mock7Recovery,
+          .mock7Rhythm, .mock7Sparse, .mock7Stable,
         ])
       #expect(
         CompanionDataSource.allCases.map(\.displayName) == [
-          "Apple 健康", "Mock 1", "Mock 2", "Mock 3", "35 日 · 活动旅程",
-          "35 日 · 恢复旅程", "35 日 · 节律旅程", "35 日 · 片段旅程",
-          "35 日 · 平稳旅程",
+          "Apple 健康", "Mock 1", "Mock 2", "Mock 3", "Mock 4 · 实时场景",
+          "35 日 · 活动旅程", "35 日 · 恢复旅程", "35 日 · 节律旅程",
+          "35 日 · 片段旅程", "35 日 · 平稳旅程",
         ])
       #expect(
         CompanionDataSource.allCases.map(\.fixtureID) == [
-          nil, "mock1", "mock2", "mock3", "mock7_active", "mock7_recovery",
-          "mock7_rhythm", "mock7_sparse", "mock7_stable",
+          nil, "mock1", "mock2", "mock3", "mock4", "mock7_active",
+          "mock7_recovery", "mock7_rhythm", "mock7_sparse", "mock7_stable",
         ])
       #expect(
         CompanionDataSource.allCases.map(\.isMock) == [
-          false, true, true, true, true, true, true, true, true,
+          false, true, true, true, true, true, true, true, true, true,
         ])
       #expect(CompanionDataSource.isPeerExchangeFixtureID("mock2"))
       #expect(!CompanionDataSource.isPeerExchangeFixtureID(nil))

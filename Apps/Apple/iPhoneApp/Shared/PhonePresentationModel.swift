@@ -150,7 +150,8 @@ struct PhonePresentationModel {
             displayName: seed.displayName,
             evaluatedAt: seed.now,
             timeZoneIdentifier: seed.timeZoneIdentifier,
-            healthSnapshots: seed.healthSnapshots
+            healthSnapshots: seed.healthSnapshots,
+            reactiveSceneTimeline: seed.reactiveSceneTimeline
           )
         ),
         initialScreen: initialScreen,
@@ -186,6 +187,9 @@ struct PhoneMockScenario: Equatable {
   let healthSnapshots: [HealthSnapshot]
 
   var now: Date { evaluatedAt }
+  #if DEBUG
+    let reactiveSceneTimeline: DebugReactiveSceneTimeline?
+  #endif
 }
 
 enum PhoneInitialScreen: Equatable {

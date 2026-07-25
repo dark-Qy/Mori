@@ -40,6 +40,34 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["碰一碰 · 22 娘 转身靠近"].waitForExistence(timeout: 2))
   }
 
+  func testMock4ChangesSceneFromSimulatedGPSAndHeartRate() {
+    let app = launchApp(scenario: "mock4")
+
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
+    let badge = element("phone.movement-scene", in: app)
+    XCTAssertTrue(badge.waitForExistence(timeout: 3))
+    let scene = app.buttons["phone.companion-interaction"]
+    XCTAssertTrue(scene.exists)
+    let initialBadgeLabel = badge.label
+    let initialSceneValue = scene.value as? String
+    expectation(
+      for: NSPredicate(format: "label != %@", initialBadgeLabel),
+      evaluatedWith: badge
+    )
+    if let initialSceneValue {
+      expectation(
+        for: NSPredicate(format: "value != %@", initialSceneValue),
+        evaluatedWith: scene
+      )
+    }
+    waitForExpectations(timeout: 6)
+
+    XCTAssertNotEqual(badge.label, initialBadgeLabel)
+    XCTAssertNotEqual(scene.value as? String, initialSceneValue)
+    XCTAssertTrue(badge.label.contains("模拟 GPS"))
+    XCTAssertTrue(badge.label.contains("心率"))
+  }
+
   func testOccasionalChatBubbleOpensConversationAndSendsReply() {
     let app = launchApp(
       scenario: "health_normal",

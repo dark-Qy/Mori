@@ -179,6 +179,20 @@ struct ScenarioRuntimeTests {
     #expect(active.eligibleRandomStoryID == "lost_ball")
   }
 
+  @Test("Mock 4 classifies GPS speed and heart rate into a looping scene journey")
+  func reactiveSceneTimeline() throws {
+    let runtime = try runtime(named: "mock4")
+    let timeline = try #require(runtime.reactiveSceneTimeline)
+
+    #expect(timeline.loopDurationSeconds == 16)
+    #expect(timeline.samples.count == 4)
+    #expect(MovementSceneState.classify(timeline.sample(at: 0).telemetry) == .stationary)
+    #expect(MovementSceneState.classify(timeline.sample(at: 4).telemetry) == .walking)
+    #expect(MovementSceneState.classify(timeline.sample(at: 8).telemetry) == .active)
+    #expect(MovementSceneState.classify(timeline.sample(at: 12).telemetry) == .recovering)
+    #expect(timeline.sample(at: 16) == timeline.sample(at: 0))
+  }
+
   @Test("Time travel and replay remain deterministic")
   func timeTravelReplay() throws {
     var run = try MockScenarioRun(runtime: runtime(named: "health_normal"))

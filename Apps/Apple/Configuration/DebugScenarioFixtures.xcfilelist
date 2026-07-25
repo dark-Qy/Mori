@@ -8,6 +8,7 @@ $(SRCROOT)/../../Fixtures/Scenarios/health_partial.json
 $(SRCROOT)/../../Fixtures/Scenarios/mock1.json
 $(SRCROOT)/../../Fixtures/Scenarios/mock2.json
 $(SRCROOT)/../../Fixtures/Scenarios/mock3.json
+$(SRCROOT)/../../Fixtures/Scenarios/mock4.json
 $(SRCROOT)/../../Fixtures/Scenarios/mock7_active.json
 $(SRCROOT)/../../Fixtures/Scenarios/mock7_recovery.json
 $(SRCROOT)/../../Fixtures/Scenarios/mock7_rhythm.json

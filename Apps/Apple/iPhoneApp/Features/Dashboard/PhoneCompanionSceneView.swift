@@ -62,6 +62,8 @@ struct PhoneCompanionSceneView: View {
           .scaledToFill()
           .frame(width: geometry.size.width, height: geometry.size.height)
           .clipped()
+          .id(backgroundAssetName)
+          .transition(.opacity)
           .accessibilityHidden(true)
 
         animatedCharacter(in: geometry.size)
@@ -79,6 +81,7 @@ struct PhoneCompanionSceneView: View {
             .accessibilityIdentifier("phone.pet-interaction-feedback")
         }
       }
+      .animation(reduceMotion ? nil : .easeInOut(duration: 0.55), value: backgroundAssetName)
       .contentShape(Rectangle())
       .gesture(
         SpatialTapGesture()

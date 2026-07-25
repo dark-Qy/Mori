@@ -76,6 +76,29 @@ final class WatchAppUITests: XCTestCase {
     }
   }
 
+  func testMock4ChangesSceneFromSimulatedGPSAndHeartRate() {
+    let app = launchApp(scenario: "mock4")
+
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 8))
+    let badge = element("watch.movement-scene", in: app)
+    XCTAssertTrue(badge.waitForExistence(timeout: 3))
+    let scene = app.buttons["watch.pet-home"]
+    XCTAssertTrue(scene.exists)
+    let initialBadgeLabel = badge.label
+    let initialSceneValue = scene.value as? String
+
+    let changed = waitForMock4SceneChange(
+      in: app,
+      initialBadgeLabel: initialBadgeLabel,
+      initialSceneValue: initialSceneValue,
+      timeout: 8
+    )
+
+    XCTAssertNotNil(changed)
+    XCTAssertTrue(changed?.badgeLabel.contains("模拟 GPS") == true)
+    XCTAssertTrue(changed?.badgeLabel.contains("心率") == true)
+  }
+
   func testMockGlanceIsPresentedAtMostOnceAcrossRelaunch() {
     let storageID = "glance-once-\(UUID().uuidString)"
     let arguments = [
@@ -998,6 +1021,25 @@ final class WatchAppUITests: XCTestCase {
     let predicate = NSPredicate(format: "label == %@", expectedLabel)
     let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
+  private func waitForMock4SceneChange(
+    in app: XCUIApplication,
+    initialBadgeLabel: String,
+    initialSceneValue: String?,
+    timeout: TimeInterval
+  ) -> (badgeLabel: String, sceneValue: String?)? {
+    let deadline = Date().addingTimeInterval(timeout)
+    repeat {
+      let currentBadgeLabel = element("watch.movement-scene", in: app).label
+      let currentSceneValue = app.buttons["watch.pet-home"].value as? String
+      let sceneChanged = initialSceneValue.map { currentSceneValue != $0 } ?? true
+      if currentBadgeLabel != initialBadgeLabel, sceneChanged {
+        return (currentBadgeLabel, currentSceneValue)
+      }
+      RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+    } while Date() < deadline
+    return nil
   }
 
   private func waitForValue(

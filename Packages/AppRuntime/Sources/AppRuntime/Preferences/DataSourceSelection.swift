@@ -6,6 +6,7 @@ public enum CompanionDataSource: String, Codable, CaseIterable, Sendable {
     case mock1
     case mock2
     case mock3
+    case mock4
     case mock7Active = "mock7_active"
     case mock7Recovery = "mock7_recovery"
     case mock7Rhythm = "mock7_rhythm"
@@ -20,6 +21,7 @@ public enum CompanionDataSource: String, Codable, CaseIterable, Sendable {
       case .mock1: "Mock 1"
       case .mock2: "Mock 2"
       case .mock3: "Mock 3"
+      case .mock4: "Mock 4 · 实时场景"
       case .mock7Active: "35 日 · 活动旅程"
       case .mock7Recovery: "35 日 · 恢复旅程"
       case .mock7Rhythm: "35 日 · 节律旅程"
@@ -36,6 +38,7 @@ public enum CompanionDataSource: String, Codable, CaseIterable, Sendable {
       case .mock1: "mock1"
       case .mock2: "mock2"
       case .mock3: "mock3"
+      case .mock4: "mock4"
       case .mock7Active: "mock7_active"
       case .mock7Recovery: "mock7_recovery"
       case .mock7Rhythm: "mock7_rhythm"

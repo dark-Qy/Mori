@@ -54,6 +54,43 @@
     }
   }
 
+  public struct MockReactiveSceneSample: Equatable, Sendable {
+    public let offsetSeconds: TimeInterval
+    public let latitude: Double
+    public let longitude: Double
+    public let telemetry: MovementTelemetry
+
+    public init(
+      offsetSeconds: TimeInterval,
+      latitude: Double,
+      longitude: Double,
+      telemetry: MovementTelemetry
+    ) {
+      self.offsetSeconds = offsetSeconds
+      self.latitude = latitude
+      self.longitude = longitude
+      self.telemetry = telemetry
+    }
+  }
+
+  public struct MockReactiveSceneTimeline: Equatable, Sendable {
+    public let loopDurationSeconds: TimeInterval
+    public let samples: [MockReactiveSceneSample]
+
+    public init(
+      loopDurationSeconds: TimeInterval,
+      samples: [MockReactiveSceneSample]
+    ) {
+      self.loopDurationSeconds = loopDurationSeconds
+      self.samples = samples
+    }
+
+    public func sample(at elapsedSeconds: TimeInterval) -> MockReactiveSceneSample {
+      let elapsed = elapsedSeconds.truncatingRemainder(dividingBy: loopDurationSeconds)
+      return samples.last(where: { $0.offsetSeconds <= elapsed }) ?? samples[0]
+    }
+  }
+
   /// Typed, executable projection of a repository fixture. UI and integration tests consume this
   /// instead of reaching into loosely typed JSON dictionaries.
   public struct MockScenarioRuntime: Sendable {
@@ -67,6 +104,7 @@
     public let healthSnapshots: [HealthSnapshot]
     public let healthSnapshot: HealthSnapshot
     public let personalHealthTrend: PersonalHealthTrend?
+    public let reactiveSceneTimeline: MockReactiveSceneTimeline?
     public let petLifecycle: MockPetLifecycle
     public let petLevel: Int
     public let wardrobe: MockWardrobeState
@@ -121,6 +159,7 @@
       } else {
         personalHealthTrend = nil
       }
+      reactiveSceneTimeline = try Self.makeReactiveSceneTimeline(from: state["reactiveScene"])
 
       let pet = try Self.requiredObject(state, path: "pet")
       let lifecycleValue = try Self.requiredString(pet, path: "lifecycle")
@@ -241,6 +280,71 @@
         throw MockScenarioError.invalidValue("state.services")
       }
       return result
+    }
+
+    private static func makeReactiveSceneTimeline(
+      from value: JSONValue?
+    ) throws -> MockReactiveSceneTimeline? {
+      guard let value else { return nil }
+      guard let object = value.objectValue else {
+        throw MockScenarioError.invalidValue("state.reactiveScene")
+      }
+      guard
+        let loopDurationSeconds = object["loopDurationSeconds"]?.numberValue,
+        loopDurationSeconds >= 4,
+        loopDurationSeconds <= 120,
+        let sampleValues = object["samples"]?.arrayValue,
+        (4...16).contains(sampleValues.count)
+      else {
+        throw MockScenarioError.invalidValue("state.reactiveScene")
+      }
+
+      var samples: [MockReactiveSceneSample] = []
+      for (index, value) in sampleValues.enumerated() {
+        guard
+          let sample = value.objectValue,
+          let offsetSeconds = sample["offsetSeconds"]?.numberValue,
+          let latitude = sample["latitude"]?.numberValue,
+          let longitude = sample["longitude"]?.numberValue,
+          let speed = sample["speedMetersPerSecond"]?.numberValue,
+          let heartRate = sample["heartRateBPM"]?.numberValue,
+          offsetSeconds >= 0,
+          offsetSeconds < loopDurationSeconds,
+          (-90...90).contains(latitude),
+          (-180...180).contains(longitude),
+          (0...15).contains(speed),
+          (30...240).contains(heartRate)
+        else {
+          throw MockScenarioError.invalidValue(
+            "state.reactiveScene.samples[\(index)]"
+          )
+        }
+        samples.append(
+          MockReactiveSceneSample(
+            offsetSeconds: offsetSeconds,
+            latitude: latitude,
+            longitude: longitude,
+            telemetry: MovementTelemetry(
+              speedMetersPerSecond: speed,
+              heartRateBPM: heartRate
+            )
+          )
+        )
+      }
+      guard samples.first?.offsetSeconds == 0 else {
+        throw MockScenarioError.invalidValue("state.reactiveScene.samples[0].offsetSeconds")
+      }
+      guard
+        zip(samples, samples.dropFirst()).allSatisfy({
+          $0.offsetSeconds < $1.offsetSeconds
+        })
+      else {
+        throw MockScenarioError.invalidValue("state.reactiveScene.samples.offsetSeconds")
+      }
+      return MockReactiveSceneTimeline(
+        loopDurationSeconds: loopDurationSeconds,
+        samples: samples
+      )
     }
 
     private static func makeHealthSnapshots(

@@ -173,7 +173,7 @@ struct WatchRootView: View {
     GeometryReader { geometry in
       ZStack {
         CompanionSceneView(
-          scene: model.scene,
+          scene: store.scenePresentation,
           reaction: sceneReaction,
           usesStaticArtwork: true,
           cornerRadius: 0,
@@ -202,6 +202,19 @@ struct WatchRootView: View {
           .padding(.horizontal, 10)
           .padding(.top, 12)
           .padding(.bottom, 6)
+
+        if let movementScene = store.movementScene {
+          VStack {
+            HStack {
+              movementSceneBadge(movementScene)
+              Spacer(minLength: 0)
+            }
+            .padding(.top, 62)
+            .padding(.horizontal, 10)
+            Spacer(minLength: 0)
+          }
+          .allowsHitTesting(false)
+        }
 
         if let bubbleMessage {
           MoriSpeechBubble(message: bubbleMessage)
@@ -292,6 +305,26 @@ struct WatchRootView: View {
     return store.companionSensingEnabled
       ? "location.fill"
       : "location.slash.fill"
+  }
+
+  private func movementSceneBadge(
+    _ movementScene: MovementScenePresentation
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 1) {
+      Label(movementScene.title, systemImage: movementScene.systemImage)
+        .font(.caption2.weight(.bold))
+      Text("模拟 \(movementScene.detail)")
+        .font(.system(size: 9, weight: .medium, design: .monospaced))
+    }
+    .foregroundStyle(.white)
+    .padding(.horizontal, 8)
+    .padding(.vertical, 6)
+    .background(.black.opacity(0.58), in: Capsule())
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(
+      "\(movementScene.title)，模拟 \(movementScene.detail)"
+    )
+    .accessibilityIdentifier("watch.movement-scene")
   }
 
   @ViewBuilder

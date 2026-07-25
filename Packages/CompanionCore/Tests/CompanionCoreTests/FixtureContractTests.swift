@@ -9,7 +9,7 @@ struct FixtureContractTests {
     let required = Set([
       "activity_high", "ai_malformed", "ai_offline", "fresh_install", "health_no_data",
       "health_normal", "health_partial", "notification_denied", "outfit_locked",
-      "mock1", "mock2", "mock3", "outfit_unlocked", "permission_not_requested", "pet_new",
+      "mock1", "mock2", "mock3", "mock4", "outfit_unlocked", "permission_not_requested", "pet_new",
       "mock7_active", "mock7_recovery", "mock7_rhythm", "mock7_sparse", "mock7_stable",
       "sleep_stale",
       "soccer_workout", "sync_unreachable",

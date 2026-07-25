@@ -7,6 +7,10 @@ import MoriPersistence
 import MoriRuntime
 import SwiftUI
 
+#if DEBUG
+  import DebugScenarioSupport
+#endif
+
 enum WatchAppPhase: Equatable {
   case loading
   case onboarding
@@ -33,6 +37,7 @@ final class WatchAppStore: ObservableObject {
   @Published private(set) var suggestedActionReward = 0
   @Published private(set) var coinBalance = 0
   @Published private(set) var selectedDataSource: CompanionDataSource
+  @Published private(set) var movementScene: MovementScenePresentation?
   @Published private(set) var notificationDestination: RuntimeNotificationDestination? = nil
   @Published private(set) var companionSensingEnabled = true
   @Published private(set) var reminderMode: CompanionReminderMode = .wristRaise
@@ -84,6 +89,7 @@ final class WatchAppStore: ObservableObject {
   private var productLoopGeneration: UInt64 = 0
   private var suggestedTaskID: TaskID?
   private var suggestedTaskCompletionDate: Date?
+  private var movementSceneTask: Task<Void, Never>?
 
   var touchExchangeLocalCard: TouchExchangeLocalCard {
     TouchExchangeLocalCard(
@@ -93,6 +99,17 @@ final class WatchAppStore: ObservableObject {
       outfitAssetID: preferences.selectedOutfitID,
       backgroundAssetID: preferences.selectedBackgroundID,
       socialState: preferences.publicPetSocialState
+    )
+  }
+
+  var scenePresentation: WatchScenePresentation {
+    guard let movementScene else { return model.scene }
+    return WatchScenePresentation.make(
+      peerValues: [
+        "background": movementScene.backgroundID,
+        "characters": model.scene.slots.map(\.characterID).joined(separator: ","),
+      ],
+      mood: movementScene.petMood
     )
   }
 
@@ -140,10 +157,10 @@ final class WatchAppStore: ObservableObject {
     #endif
     selectedDataSource = initialDataSource
     #if DEBUG
-    let initialGlobalProfileSource =
-      initialModel.mockScenario.map {
-        MoriGlobalProfileSource.mock(scenarioID: $0.id)
-      }
+      let initialGlobalProfileSource =
+        initialModel.mockScenario.map {
+          MoriGlobalProfileSource.mock(scenarioID: $0.id)
+        }
         ?? initialModel.invalidMockID.map {
           MoriGlobalProfileSource.mock(scenarioID: $0)
         }
@@ -153,6 +170,7 @@ final class WatchAppStore: ObservableObject {
     #else
       let initialGlobalProfileSource = MoriGlobalProfileSource.real
     #endif
+    movementScene = nil
     preferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
       socialSharingEnabled: touchExchangeSharingEnabled,
@@ -211,7 +229,12 @@ final class WatchAppStore: ObservableObject {
     hasStarted = true
     await loadGlobalPreferences()
     await rebuildProductLoopRuntime(activateMock: true)
-    guard !hasLaunchScenarioOverride else { return }
+    guard !hasLaunchScenarioOverride else {
+      #if DEBUG
+        startMovementSceneIfNeeded()
+      #endif
+      return
+    }
     observeNotificationRoutes()
     if let launchNotificationRoute {
       handleNotificationRoute(launchNotificationRoute)
@@ -534,6 +557,8 @@ final class WatchAppStore: ObservableObject {
     }
     mockCareTask?.cancel()
     stopPeerUpdates()
+    movementSceneTask?.cancel()
+    movementScene = nil
     selectedDataSource = source
     if let runtime {
       _ = await runtime.saveDataSourceSelection(source)
@@ -730,6 +755,9 @@ final class WatchAppStore: ObservableObject {
 
   private func applySelectedDataSource(requestAccessIfNeeded: Bool) async {
     mockCareTask?.cancel()
+    movementSceneTask?.cancel()
+    movementSceneTask = nil
+    movementScene = nil
     actionCompleted = false
     if selectedDataSource.isMock {
       #if DEBUG
@@ -741,6 +769,7 @@ final class WatchAppStore: ObservableObject {
         }
         phase = .ready
         statusMessage = "\(selectedDataSource.displayName) 已载入"
+        startMovementSceneIfNeeded()
         scheduleMockCareIfNeeded()
       #else
         selectedDataSource = .healthKit
@@ -1052,6 +1081,31 @@ final class WatchAppStore: ObservableObject {
         .pausedTogether
       default:
         .fastPace
+      }
+    }
+
+    private func startMovementSceneIfNeeded() {
+      movementSceneTask?.cancel()
+      movementSceneTask = nil
+      movementScene = nil
+      guard
+        model.mockScenario?.id == CompanionDataSource.mock4.fixtureID,
+        let timeline = model.mockScenario?.reactiveSceneTimeline
+      else { return }
+
+      let startedAt = Date()
+      movementSceneTask = Task { [weak self] in
+        while !Task.isCancelled {
+          guard let self else { return }
+          let telemetry = timeline.telemetry(
+            at: Date().timeIntervalSince(startedAt)
+          )
+          let next = MovementScenePresentation(telemetry: telemetry)
+          if self.movementScene != next {
+            self.movementScene = next
+          }
+          try? await Task.sleep(for: .milliseconds(250))
+        }
       }
     }
 

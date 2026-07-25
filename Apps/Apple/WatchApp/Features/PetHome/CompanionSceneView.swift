@@ -27,6 +27,8 @@ struct CompanionSceneView: View {
           .scaledToFill()
           .frame(width: geometry.size.width, height: geometry.size.height)
           .clipped()
+          .id(scene.backgroundID)
+          .transition(.opacity)
           .accessibilityHidden(true)
 
         ForEach(scene.slots) { slot in
@@ -46,6 +48,7 @@ struct CompanionSceneView: View {
             .zIndex(100)
         }
       }
+      .animation(reduceMotion ? nil : .easeInOut(duration: 0.55), value: scene.backgroundID)
       .contentShape(Rectangle())
       .gesture(
         LongPressGesture(minimumDuration: 0.55)

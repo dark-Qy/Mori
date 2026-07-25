@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "mock4",
+  "displayName": "Mock 4 · 实时场景",
+  "clock": {
+    "now": "2026-07-25T10:00:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "mock4"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": {
+      "source": "mock",
+      "dataState": "available",
+      "samples": [
+        {
+          "id": "mock4-sleep",
+          "type": "sleepAnalysis",
+          "start": "2026-07-24T23:20:00+08:00",
+          "end": "2026-07-25T06:50:00+08:00",
+          "value": "core",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "mock4-steps",
+          "type": "stepCount",
+          "start": "2026-07-25T00:00:00+08:00",
+          "end": "2026-07-25T10:00:00+08:00",
+          "value": 3680,
+          "unit": "count",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "mock4-exercise",
+          "type": "appleExerciseTime",
+          "start": "2026-07-25T00:00:00+08:00",
+          "end": "2026-07-25T10:00:00+08:00",
+          "value": 24,
+          "unit": "min",
+          "source": "Mock Watch"
+        }
+      ]
+    },
+    "reactiveScene": {
+      "loopDurationSeconds": 16,
+      "samples": [
+        {
+          "offsetSeconds": 0,
+          "latitude": 31.23040,
+          "longitude": 121.47370,
+          "speedMetersPerSecond": 0,
+          "heartRateBPM": 72
+        },
+        {
+          "offsetSeconds": 4,
+          "latitude": 31.23044,
+          "longitude": 121.47378,
+          "speedMetersPerSecond": 1.3,
+          "heartRateBPM": 96
+        },
+        {
+          "offsetSeconds": 8,
+          "latitude": 31.23053,
+          "longitude": 121.47392,
+          "speedMetersPerSecond": 2.9,
+          "heartRateBPM": 138
+        },
+        {
+          "offsetSeconds": 12,
+          "latitude": 31.23056,
+          "longitude": 121.47396,
+          "speedMetersPerSecond": 0.2,
+          "heartRateBPM": 104
+        }
+      ]
+    },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": {
+      "lifecycle": "active",
+      "level": 2,
+      "vitality": 44,
+      "bond": 10,
+      "insight": 8,
+      "lastInteractionAt": "2026-07-25T09:45:00+08:00"
+    },
+    "wardrobe": {
+      "selectedOutfitID": "default",
+      "unlockedOutfitIDs": ["default", "scarf"]
+    }
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "eventProcessedAtMostOnce": true
+  }
+}

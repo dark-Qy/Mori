@@ -174,6 +174,11 @@ struct WatchPresentationModel {
         health: seed.healthSnapshot,
         peerValues: seed.selectedOutfitID.map { ["outfit": $0] }
       )
+      let scenario = WatchMockScenario(
+        id: seed.id,
+        displayName: seed.displayName,
+        reactiveSceneTimeline: seed.reactiveSceneTimeline
+      )
       let initialScreen: WatchInitialScreen =
         switch seed.primaryState {
         case .onboarding:
@@ -184,9 +189,7 @@ struct WatchPresentationModel {
           .petHome
         }
       return WatchPresentationModel(
-        dataMode: .mock(
-          WatchMockScenario(id: seed.id, displayName: seed.displayName)
-        ),
+        dataMode: .mock(scenario),
         initialScreen: initialScreen,
         outfitID: base.outfitID,
         scene: base.scene,
@@ -220,6 +223,9 @@ enum WatchInitialScreen: Equatable {
 struct WatchMockScenario: Equatable {
   let id: String
   let displayName: String
+  #if DEBUG
+    let reactiveSceneTimeline: DebugReactiveSceneTimeline?
+  #endif
 }
 
 struct WatchMetric: Identifiable {

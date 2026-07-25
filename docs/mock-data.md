@@ -41,11 +41,11 @@ validation of production data.
   files, event history, permissions, or services.
 
 The Debug product starts with `Mock 1` when no source has been selected. iPhone
-and Watch expose a compact source selector for `Apple 健康`, the three focused
-Mock demos, and five `35 日` compatibility journeys. A selection closes the
-chooser, creates or selects the isolated Mock profile, and synchronizes only its
-approved selection authority. Explicitly reselecting the same Mock creates a
-new token and profile epoch instead of replaying stale state.
+and Watch expose a compact source selector for `Apple 健康`, three focused Mock
+demos, one real-time scene Mock, and five `35 日` compatibility journeys. A
+selection closes the chooser, creates or selects the isolated Mock profile, and
+synchronizes only its approved selection authority. Explicitly reselecting the
+same Mock creates a new token and profile epoch instead of replaying stale state.
 
 ## Profile And Storage Isolation
 
@@ -153,6 +153,23 @@ Mock epoch before stale peer data can be admitted; that orchestration belongs
 to the durable preference/synchronization work and must not be replaced by a
 filesystem-only reset button.
 
+### Reactive scene demo
+
+`Mock 4 · 实时场景` replays four synthetic telemetry samples in a 16-second loop. The scene rule
+receives only GPS-derived speed and heart rate; fixture coordinates stop at the Mock runtime and
+are not exposed to presentation. The deterministic thresholds produce:
+
+| Telemetry state | Scene |
+|---|---|
+| stationary, heart rate below 90 | rainy reading room |
+| speed at least 0.6 m/s | spring meadow walk |
+| speed at least 2.2 m/s or heart rate at least 120 | summer lake activity |
+| stopped with heart rate at least 90 | sunset coast recovery |
+
+Both iPhone and Watch show a persistent `模拟 GPS / 心率` overlay while this demo is active. This
+proves the real-time presentation and rule boundary only; it does not claim live Core Location,
+workout-session heart rate, background execution, or physical-device sensor validation.
+
 ## Compatibility Scenario Catalog
 
 | ID | Purpose | Key expectation |
@@ -175,6 +192,7 @@ filesystem-only reset button.
 | `mock1` | Everyday demo | normal sleep and activity |
 | `mock2` | Relationship and care demo | three complete days without interaction plus an explicitly logged stressful State of Mind |
 | `mock3` | High-activity story demo | high activity and an explicit soccer workout eligible for `lost_ball` |
+| `mock4` | Real-time scene demo | looping synthetic GPS speed and heart rate drive four scene states |
 | `mock7_stable` | Five-week stable timeline | recent metrics remain steady across 35 days |
 | `mock7_recovery` | Five-week recovery timeline | sleep duration gradually reduces and the latest day enters recovery |
 | `mock7_active` | Five-week activity timeline | walking, swimming, badminton, tennis, then soccer; latest soccer workout is eligible for `lost_ball` |

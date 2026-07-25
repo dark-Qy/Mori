@@ -1,3 +1,4 @@
+import AppRuntime
 import MoriRuntime
 import SwiftUI
 
@@ -16,9 +17,10 @@ struct MoriHomeView: View {
       ScrollView {
         LazyVStack(spacing: 0) {
           MoriSceneHero(
-            sceneID: store.selectedSceneID,
+            sceneID: store.sceneBackgroundID,
             characterID: store.selectedCharacterID,
-            model: store.model
+            model: store.model,
+            movementScene: store.movementScene
           ) { interaction in
             Task { await store.companionInteraction(interaction) }
           }
@@ -288,6 +290,7 @@ struct MoriSceneHero: View {
   let sceneID: String
   let characterID: String
   let model: PhonePresentationModel
+  let movementScene: MovementScenePresentation?
   let onInteraction: (PhonePetInteraction) -> Void
 
   var body: some View {
@@ -310,10 +313,41 @@ struct MoriSceneHero: View {
       .padding(CompanionSpacing.medium)
       .allowsHitTesting(false)
     }
+    .overlay(alignment: .topLeading) {
+      if let movementScene {
+        MovementSceneBadge(presentation: movementScene)
+          .padding(CompanionSpacing.medium)
+          .allowsHitTesting(false)
+      }
+    }
     .padding(.horizontal, CompanionSpacing.page)
     .padding(.top, CompanionSpacing.small)
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("phone.mori.scene")
+  }
+}
+
+private struct MovementSceneBadge: View {
+  let presentation: MovementScenePresentation
+
+  var body: some View {
+    Label {
+      VStack(alignment: .leading, spacing: 1) {
+        Text(presentation.title)
+          .font(.caption.weight(.bold))
+        Text("模拟 \(presentation.detail)")
+          .font(.caption2.monospacedDigit())
+      }
+    } icon: {
+      Image(systemName: presentation.systemImage)
+    }
+    .foregroundStyle(.white)
+    .padding(.horizontal, 10)
+    .padding(.vertical, 7)
+    .background(.black.opacity(0.58), in: Capsule())
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("\(presentation.title)，模拟 \(presentation.detail)")
+    .accessibilityIdentifier("phone.movement-scene")
   }
 }
 

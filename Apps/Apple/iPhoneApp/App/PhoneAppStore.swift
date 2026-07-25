@@ -3,10 +3,14 @@ import Combine
 import CryptoKit
 import Domain
 import Foundation
-import Persistence
 import MoriDomain
 import MoriRuntime
+import Persistence
 import SwiftUI
+
+#if DEBUG
+  import DebugScenarioSupport
+#endif
 
 enum PhoneAppPhase: Equatable {
   case loading
@@ -31,6 +35,7 @@ final class PhoneAppStore: ObservableObject {
   @Published var isShowingSettings = false
   @Published private(set) var statusMessage: String?
   @Published private(set) var notificationStatus = "尚未请求"
+  @Published private(set) var movementScene: MovementScenePresentation?
   @Published private(set) var weeklyMemories: [PhoneWeeklyMemory] = []
   @Published private(set) var isPreparingWeeklyMemory = false
   @Published private(set) var weeklyMemoryStatus: String?
@@ -111,6 +116,7 @@ final class PhoneAppStore: ObservableObject {
   private var peerSyncRetryTask: Task<Void, Never>?
   private var peerUpdateTask: Task<Void, Never>?
   private var mockCareTask: Task<Void, Never>?
+  private var movementSceneTask: Task<Void, Never>?
   private var personalizationMutationTask: Task<Void, Never>?
   private var chatNudgeTask: Task<Void, Never>?
   private var deletedWeeklyMemoryIDs: Set<String> = []
@@ -133,8 +139,7 @@ final class PhoneAppStore: ObservableObject {
   private var memoryContextWriteTask: Task<Void, Never>?
   private var memoryContextWriteRevision: UInt64 = 0
   #if DEBUG
-    private let mockProfileSettingsRepository:
-      PhoneMockProfileSettingsRepository
+    private let mockProfileSettingsRepository: PhoneMockProfileSettingsRepository
     private let mockChatBehavior: DeterministicMockChatBehavior
     private var productLoopRuntime: ProductLoopAppRuntime?
     private var productLoopProfileScope: MoriGlobalProfileScope?
@@ -176,7 +181,7 @@ final class PhoneAppStore: ObservableObject {
     #else
       let initialGlobalProfileSource = MoriGlobalProfileSource.real
     #endif
-
+    movementScene = nil
     var initialPreferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
       selectedOutfitID: initialModel.wardrobe.selectedOutfitID,
@@ -307,6 +312,10 @@ final class PhoneAppStore: ObservableObject {
 
   var hiddenWeeklyMemories: [PhoneWeeklyMemory] {
     weeklyMemories.filter(\.record.isHidden)
+  }
+
+  var sceneBackgroundID: String {
+    movementScene?.backgroundID ?? selectedSceneID
   }
 
   func scheduleChatNudge() {
@@ -499,7 +508,12 @@ final class PhoneAppStore: ObservableObject {
     if let launchNotificationRoute {
       handleNotificationRoute(launchNotificationRoute)
     }
-    guard !hasLaunchScenarioOverride else { return }
+    guard !hasLaunchScenarioOverride else {
+      #if DEBUG
+        startMovementSceneIfNeeded()
+      #endif
+      return
+    }
     observeNotificationRoutes()
     guard let runtime else {
       phase = .ready
@@ -1275,6 +1289,7 @@ final class PhoneAppStore: ObservableObject {
         return
       }
       await configureConversation()
+      startMovementSceneIfNeeded()
       statusMessage = "当前 Mock 状态已重置；真实记录未改变"
     #endif
   }
@@ -1367,6 +1382,9 @@ final class PhoneAppStore: ObservableObject {
     conversationProcessor = nil
     conversationProfileScope = nil
     selectedDataSource = .healthKit
+    movementSceneTask?.cancel()
+    movementSceneTask = nil
+    movementScene = nil
     model = .liveNoData()
     latestHealth = nil
     companionSensingEnabled = false
@@ -1409,8 +1427,7 @@ final class PhoneAppStore: ObservableObject {
         }
         apply(projection)
         #if DEBUG
-          if
-            let productRuntime = productLoopRuntime,
+          if let productRuntime = productLoopRuntime,
             productLoopProfileScope == projection.profileScope
           {
             let generation = productLoopGeneration
@@ -1607,12 +1624,16 @@ final class PhoneAppStore: ObservableObject {
   private func applySelectedDataSource(
     requestAccessIfNeeded: Bool
   ) async {
+    movementSceneTask?.cancel()
+    movementSceneTask = nil
+    movementScene = nil
     if selectedDataSource.isMock {
       #if DEBUG
         model = PhonePresentationModel.demo(selectedDataSource)
         await loadMockExperience()
         phase = .ready
         statusMessage = "\(selectedDataSource.displayName) 已载入"
+        startMovementSceneIfNeeded()
       #else
         selectedDataSource = .healthKit
         await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
@@ -1630,6 +1651,35 @@ final class PhoneAppStore: ObservableObject {
     }
     await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
   }
+
+  #if DEBUG
+    private func startMovementSceneIfNeeded() {
+      movementSceneTask?.cancel()
+      movementSceneTask = nil
+      movementScene = nil
+      guard
+        model.mockScenario?.id == CompanionDataSource.mock4.fixtureID,
+        let timeline = model.mockScenario?.reactiveSceneTimeline
+      else {
+        return
+      }
+
+      let startedAt = Date()
+      movementSceneTask = Task { [weak self] in
+        while !Task.isCancelled {
+          guard let self else { return }
+          let telemetry = timeline.telemetry(
+            at: Date().timeIntervalSince(startedAt)
+          )
+          let next = MovementScenePresentation(telemetry: telemetry)
+          if self.movementScene != next {
+            self.movementScene = next
+          }
+          try? await Task.sleep(for: .milliseconds(250))
+        }
+      }
+    }
+  #endif
 
   private func loadMockExperience() async {
     #if DEBUG
@@ -1851,8 +1901,7 @@ final class PhoneAppStore: ObservableObject {
     }
     do {
       var authority = try await globalPreferenceRuntime.currentChatAuthority()
-      if
-        conversationUsesRemoteAI,
+      if conversationUsesRemoteAI,
         authority.profile.isMock == false,
         authority.remoteChatIsAuthorized == false
       {
@@ -1956,7 +2005,7 @@ final class PhoneAppStore: ObservableObject {
         )
       }
     #else
-      .standard
+      return .standard
     #endif
   }
 
