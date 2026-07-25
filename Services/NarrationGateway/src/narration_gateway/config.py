@@ -73,7 +73,7 @@ class GatewayConfig:
                 "NARRATION_UPSTREAM_BASE_URL must be an HTTPS origin without credentials"
             )
 
-        model = env.get("NARRATION_UPSTREAM_MODEL", "step-3.5-flash").strip()
+        model = env.get("NARRATION_UPSTREAM_MODEL", "step-1o-turbo-vision").strip()
         if not re.fullmatch(r"[A-Za-z0-9._:/-]{1,128}", model):
             raise ValueError("NARRATION_UPSTREAM_MODEL contains unsupported characters")
 

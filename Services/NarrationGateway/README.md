@@ -206,7 +206,7 @@ stream that attempts to exceed the wall-clock deadline.
 | --- | --- | --- |
 | `NARRATION_BIND_PORT` | `8790` | 1024–65535, localhost bind only |
 | `NARRATION_UPSTREAM_BASE_URL` | `https://api.stepfun.com` | HTTPS origin, no embedded credentials |
-| `NARRATION_UPSTREAM_MODEL` | `step-3.5-flash` | 1–128 characters |
+| `NARRATION_UPSTREAM_MODEL` | `step-1o-turbo-vision` | 1–128 characters |
 | `NARRATION_UPSTREAM_API_KEY` | unset | Read only from process environment |
 | `NARRATION_GATEWAY_ACCESS_TOKEN` | unset | Required for narration requests; 24–4096 visible characters |
 | `NARRATION_UPSTREAM_TIMEOUT_SECONDS` | `8.0` | 0.25–8.0 seconds |
