@@ -30,6 +30,7 @@ struct WatchGlancePresentation: Equatable, Identifiable {
   let id: String
   let message: String
   let reaction: WatchCharacterAnimation
+  let shouldPlayHaptic: Bool
 }
 
 extension WatchPresentationModel {
@@ -66,7 +67,4 @@ extension WatchPresentationModel {
     return "昨晚的睡眠记录是 \(homeSleepText)。"
   }
 
-  /// The G5 Mock task is an explicit, controllable action. It is never derived
-  /// from step or sleep outcomes.
-  var mockTaskCoinReward: Int { 1 }
 }

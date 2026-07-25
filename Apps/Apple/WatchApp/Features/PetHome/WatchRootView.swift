@@ -234,7 +234,7 @@ struct WatchRootView: View {
     guard bubbleMessage != glance.message else { return }
     showBubble(glance.message, duration: .seconds(8))
     triggerSceneReaction(glance.reaction)
-    if store.reminderMode == .gentleHaptic, !store.isQuietHoursActive {
+    if glance.shouldPlayHaptic {
       WKInterfaceDevice.current().play(.click)
     }
   }

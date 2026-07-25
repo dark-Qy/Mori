@@ -7,6 +7,7 @@ public enum ProductLoopAppRuntimeError:
 {
   case invalidOriginDeviceID
   case profileScopeMismatch
+  case missingPassiveEvent(EventID)
 }
 
 public enum ProductLoopBootstrapOutcome: Equatable, Sendable {
@@ -82,6 +83,9 @@ public actor ProductLoopAppRuntime {
   private let syncRuntime: SyncRuntime
   private let settlementRuntime: TaskSettlementRuntime<SyncRuntime>
   private let collectionRuntime: CollectionMutationRuntime<SyncRuntime>
+  private let glanceClock: DeterministicMockExperienceClock
+  private let glanceRuntime:
+    PendingGlanceRuntime<DeterministicMockExperienceClock>
   #if DEBUG
     private let mockBootstrap: MockProductLoopBootstrap?
   #endif
@@ -126,6 +130,19 @@ public actor ProductLoopAppRuntime {
     self.originDeviceID = origin
     self.ledger = ledger
     self.syncRuntime = syncRuntime
+    let glanceClock = DeterministicMockExperienceClock(now: Date())
+    self.glanceClock = glanceClock
+    glanceRuntime = PendingGlanceRuntime(
+      clock: glanceClock,
+      storage: FilePendingGlancePresentationFenceStorage(
+        fileURL: namespace.rootURL
+          .appendingPathComponent("cache", isDirectory: true)
+          .appendingPathComponent(
+            "pending-glance-presentation-fence-v1.json",
+            isDirectory: false
+          )
+      )
+    )
     settlementRuntime = TaskSettlementRuntime(
       originDeviceID: origin,
       store: syncRuntime
@@ -197,6 +214,52 @@ public actor ProductLoopAppRuntime {
     await acquireOperation()
     defer { releaseOperation() }
     return try await snapshotUnlocked()
+  }
+
+  /// Consumes the newest eligible pending event for one foreground activation.
+  ///
+  /// The profile-scoped presentation fence is committed before a presentation
+  /// can escape. Every terminal decision is then recorded through the same
+  /// ledger-first, durable-outbox path as the rest of the product loop.
+  public func foregroundGlance(
+    at date: Date,
+    reminderMode: CompanionReminderMode,
+    quietHours: CompanionQuietHours,
+    timeZone: TimeZone
+  ) async throws -> PendingGlancePresentation? {
+    await acquireOperation()
+    defer { releaseOperation() }
+
+    let current = try await ledger.currentLedger()
+    guard current.initialState.runtimeProfile == profile else {
+      throw ProductLoopAppRuntimeError.profileScopeMismatch
+    }
+    let state = current.replay().state
+    await glanceClock.set(date)
+    let plan = try await glanceRuntime.foregroundActivation(
+      events: state.passiveEvents,
+      activeProfile: profile,
+      currentSensingEpoch: state.currentSensingEpoch,
+      reminderMode: reminderMode,
+      quietHours: quietHours,
+      timeZone: timeZone
+    )
+    for decision in plan.terminalDecisions {
+      guard
+        let event = state.passiveEvents.first(where: {
+          $0.header.recordID == decision.eventID
+        })
+      else {
+        throw ProductLoopAppRuntimeError.missingPassiveEvent(
+          decision.eventID
+        )
+      }
+      try await recordGlanceDecision(
+        decision,
+        event: event
+      )
+    }
+    return plan.presentation
   }
 
   private func snapshotUnlocked() async throws
@@ -333,6 +396,72 @@ public actor ProductLoopAppRuntime {
     await acquireOperation()
     defer { releaseOperation() }
     return try await syncRuntime.pendingEventCount()
+  }
+
+  private func recordGlanceDecision(
+    _ decision: PendingGlanceTerminalDecision,
+    event: PassiveCompanionEvent
+  ) async throws {
+    let current = try await syncRuntime.currentLedger()
+    let metadata = try ProductLoopEventSupport.nextMetadata(
+      in: current,
+      originDeviceID: originDeviceID,
+      minimumCounter: event.reminderRevision.counter
+    )
+    let authoredAt = Self.decisionDate(decision.state)
+    let transition = try PendingGlanceTransitionAssembler().assemble(
+      decision,
+      for: event,
+      activeProfile: profile,
+      identity: PendingGlanceTransitionIdentity(
+        transitionID: EventTransitionID(
+          ProductLoopEventSupport.stableID(
+            prefix: "glance-transition",
+            profile: profile,
+            components: [
+              decision.eventID.rawValue,
+              Self.decisionIdentity(decision.state),
+            ]
+          )
+        ),
+        revision: metadata.revision
+      )
+    )
+    let envelope = ProductLoopEventSupport.envelope(
+      payload: .passiveEventTransition(transition),
+      profile: profile,
+      originDeviceID: originDeviceID,
+      metadata: metadata,
+      observedAt: nil,
+      authoredAt: authoredAt
+    )
+    try await syncRuntime.recordLocal(envelope)
+  }
+
+  private static func decisionDate(_ state: ReminderState) -> Date {
+    switch state {
+    case .pending:
+      Date(timeIntervalSince1970: 0)
+    case .presented(let date), .expired(let date):
+      date
+    case .replaced(_, let date):
+      date
+    }
+  }
+
+  private static func decisionIdentity(
+    _ state: ReminderState
+  ) -> String {
+    switch state {
+    case .pending:
+      "pending"
+    case .presented:
+      "presented"
+    case .expired:
+      "expired"
+    case .replaced(let eventID, _):
+      "replaced-\(eventID.rawValue)"
+    }
   }
 
   private func acquireOperation() async {

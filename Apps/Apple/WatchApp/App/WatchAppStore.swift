@@ -2,6 +2,8 @@ import AppRuntime
 import Combine
 import Domain
 import Foundation
+import MoriDomain
+import MoriPersistence
 import MoriRuntime
 import SwiftUI
 
@@ -14,10 +16,9 @@ enum WatchAppPhase: Equatable {
 
 @MainActor
 final class WatchAppStore: ObservableObject {
-  private struct MockGlanceCandidate {
-    let presentation: WatchGlancePresentation
+  private struct MockGlanceSeed {
+    let values: [String]
     let age: TimeInterval
-    let supersededIDs: [String]
   }
 
   @Published private(set) var model: WatchPresentationModel
@@ -28,6 +29,9 @@ final class WatchAppStore: ObservableObject {
   @Published private(set) var statusMessage: String?
   @Published private(set) var isCompletingAction = false
   @Published private(set) var actionCompleted = false
+  @Published private(set) var hasSuggestedAction = false
+  @Published private(set) var suggestedActionReward = 0
+  @Published private(set) var coinBalance = 0
   @Published private(set) var selectedDataSource: CompanionDataSource
   @Published private(set) var notificationDestination: RuntimeNotificationDestination? = nil
   @Published private(set) var companionSensingEnabled = true
@@ -63,6 +67,7 @@ final class WatchAppStore: ObservableObject {
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private let usesE2EOfflineRuntime: Bool
   private let hasLaunchScenarioOverride: Bool
+  private let applicationSupportURL: URL
   private var hasStarted = false
   private var latestHealth: HealthSnapshot?
   private var latestPeerValues: [String: String]?
@@ -71,13 +76,14 @@ final class WatchAppStore: ObservableObject {
   private var notificationRouteTask: Task<Void, Never>?
   private var peerSyncRetryTask: Task<Void, Never>?
   private var mockCareTask: Task<Void, Never>?
-  private let mockGlanceCandidate: MockGlanceCandidate?
-  private var hasConsumedMockGlance = false
+  private let mockGlanceSeed: MockGlanceSeed?
+  private var hasSeededMockGlance = false
   private var companionPreferenceWritesInFlight = 0
   private var authoritativeProfileSource: MoriGlobalProfileSource?
-  #if DEBUG
-    private let mockExperienceRepository: WatchMockExperienceRepository
-  #endif
+  private var productLoopRuntime: ProductLoopAppRuntime?
+  private var productLoopGeneration: UInt64 = 0
+  private var suggestedTaskID: TaskID?
+  private var suggestedTaskCompletionDate: Date?
 
   var touchExchangeLocalCard: TouchExchangeLocalCard {
     TouchExchangeLocalCard(
@@ -121,9 +127,12 @@ final class WatchAppStore: ObservableObject {
     #endif
     selectedDataSource = initialDataSource
     #if DEBUG
-      let initialGlobalProfileSource =
-        initialModel.mockScenario.map {
-          MoriGlobalProfileSource.mock(scenarioID: $0.id)
+    let initialGlobalProfileSource =
+      initialModel.mockScenario.map {
+        MoriGlobalProfileSource.mock(scenarioID: $0.id)
+      }
+        ?? initialModel.invalidMockID.map {
+          MoriGlobalProfileSource.mock(scenarioID: $0)
         }
         ?? (initialDataSource.isMock
           ? .mock(scenarioID: initialDataSource.rawValue)
@@ -152,13 +161,14 @@ final class WatchAppStore: ObservableObject {
     }
     #if DEBUG
       let runtimeConfiguration = Self.runtimeConfiguration(arguments: arguments)
-      mockGlanceCandidate = Self.mockGlanceCandidate(from: arguments)
+      mockGlanceSeed = Self.mockGlanceSeed(from: arguments)
       launchProductRoute = Self.productRoute(from: arguments)
     #else
       let runtimeConfiguration = Self.productionRuntimeConfiguration()
-      mockGlanceCandidate = nil
+      mockGlanceSeed = nil
       launchProductRoute = nil
     #endif
+    applicationSupportURL = runtimeConfiguration.storageDirectory
     runtime = AppleCompanionRuntime(
       source: .watch,
       storageDirectory: runtimeConfiguration.storageDirectory,
@@ -172,12 +182,6 @@ final class WatchAppStore: ObservableObject {
       originDeviceID: "watch",
       initialProfileSource: initialGlobalProfileSource
     )
-    #if DEBUG
-      mockExperienceRepository = WatchMockExperienceRepository(
-        fileURL: runtimeConfiguration.storageDirectory
-          .appendingPathComponent("mock-experience-preview-v1.json")
-      )
-    #endif
     notificationRouteObserver =
       hasLaunchScenarioOverride ? nil : RuntimeNotificationRouteObserver()
     #if DEBUG
@@ -193,7 +197,7 @@ final class WatchAppStore: ObservableObject {
     guard !hasStarted else { return }
     hasStarted = true
     await loadGlobalPreferences()
-    await loadMockTaskReceipt()
+    await rebuildProductLoopRuntime(activateMock: true)
     guard !hasLaunchScenarioOverride else { return }
     observeNotificationRoutes()
     if let launchNotificationRoute {
@@ -233,32 +237,37 @@ final class WatchAppStore: ObservableObject {
 
   func handleForegroundActivation() async {
     guard
-      !hasConsumedMockGlance,
-      let candidate = mockGlanceCandidate
-    else {
-      return
-    }
-    #if DEBUG
+      companionSensingEnabled,
+      model.allowsInteraction,
+      let productLoopRuntime,
+      productLoopRuntime.profile.isMock
+    else { return }
+    do {
+      #if DEBUG
+        try await seedMockGlancesIfNeeded(
+          runtime: productLoopRuntime
+        )
+      #endif
+      let snapshot = try await productLoopRuntime.snapshot()
+      let date = foregroundDate(from: snapshot.localState)
       guard
-        let shouldPresent = try? await mockExperienceRepository.consumeGlanceBatch(
-          supersededIDs: candidate.supersededIDs.map {
-            "\(mockProfileKey):glance:\($0)"
-          },
-          candidateID: "\(mockProfileKey):glance:\(candidate.presentation.id)",
-          candidateIsEligible: companionSensingEnabled
-            && model.allowsInteraction
-            && candidate.age <= 2 * 60
+        let presentation = try await productLoopRuntime.foregroundGlance(
+          at: date,
+          reminderMode: reminderMode,
+          quietHours: quietHours,
+          timeZone: .current
         )
       else {
+        await refreshProductLoopSnapshot(
+          from: productLoopRuntime
+        )
         return
       }
-      hasConsumedMockGlance = true
-      if shouldPresent {
-        activeGlance = candidate.presentation
-      }
-    #else
-      hasConsumedMockGlance = true
-    #endif
+      activeGlance = Self.watchGlance(from: presentation)
+      await refreshProductLoopSnapshot(from: productLoopRuntime)
+    } catch {
+      statusMessage = "Mori 这次保持安静"
+    }
   }
 
   func dismissActiveGlance() {
@@ -290,6 +299,10 @@ final class WatchAppStore: ObservableObject {
           enabled: enabled
         )
         apply(projection)
+        try await reconcileProductLoopSensing(
+          projection,
+          effectiveAt: Date()
+        )
       } catch {
         companionSensingEnabled = previous
         statusMessage = "随行设置暂时没能保存"
@@ -381,9 +394,36 @@ final class WatchAppStore: ObservableObject {
     quietHours = projection.quietHours
   }
 
+  private static func sensingPreference(
+    from projection: MoriGlobalPreferenceProjection
+  ) -> CompanionSensingPreference {
+    CompanionSensingPreference(
+      enabled: projection.sensingScope.enabled,
+      epoch: SensingEpoch(
+        LamportRevision(
+          counter: projection.sensingScope.epochCounter,
+          originDeviceID:
+            projection.sensingScope.epochOriginDeviceID
+        )
+      )
+    )
+  }
+
+  private func reconcileProductLoopSensing(
+    _ projection: MoriGlobalPreferenceProjection,
+    effectiveAt date: Date
+  ) async throws {
+    guard let productLoopRuntime else { return }
+    _ = try await productLoopRuntime.reconcileSensing(
+      Self.sensingPreference(from: projection),
+      effectiveAt: date
+    )
+    await refreshProductLoopSnapshot(from: productLoopRuntime)
+  }
+
   private func selectGlobalProfile(
     for source: CompanionDataSource
-  ) async throws {
+  ) async throws -> MoriGlobalPreferenceProjection {
     guard let globalPreferenceRuntime else {
       throw MoriGlobalPreferenceRuntimeError.rejectedPreference
     }
@@ -393,6 +433,7 @@ final class WatchAppStore: ObservableObject {
         : .real
     )
     apply(projection)
+    return projection
   }
 
   private static func dataSource(
@@ -458,8 +499,12 @@ final class WatchAppStore: ObservableObject {
 
   func selectDataSource(_ source: CompanionDataSource) async {
     guard !hasLaunchScenarioOverride else { return }
+    let previousRuntime = productLoopRuntime
     do {
-      try await selectGlobalProfile(for: source)
+      _ = try await selectGlobalProfile(for: source)
+      stopProductLoopRuntime()
+      try removeRetiredMockNamespace(previousRuntime)
+      await rebuildProductLoopRuntime(activateMock: source.isMock)
     } catch {
       statusMessage = "数据模式暂时没能保存"
       return
@@ -478,13 +523,16 @@ final class WatchAppStore: ObservableObject {
 
   func resetCurrentMockState() async {
     guard selectedDataSource.isMock, dataSourceSelectionAvailable else { return }
+    let previousRuntime = productLoopRuntime
     do {
-      try await selectGlobalProfile(for: selectedDataSource)
+      _ = try await selectGlobalProfile(for: selectedDataSource)
+      stopProductLoopRuntime()
+      try removeRetiredMockNamespace(previousRuntime)
+      await rebuildProductLoopRuntime(activateMock: true)
     } catch {
       statusMessage = "Mock 状态暂时没能重置"
       return
     }
-    await resetMockExperiencePreview()
     await applySelectedDataSource(requestAccessIfNeeded: false)
   }
 
@@ -556,71 +604,32 @@ final class WatchAppStore: ObservableObject {
     guard
       !isCompletingAction,
       model.allowsInteraction,
-      !model.isLive
+      !model.isLive,
+      let productLoopRuntime,
+      productLoopRuntime.profile.isMock,
+      let suggestedTaskID,
+      let suggestedTaskCompletionDate
     else {
       return false
     }
-    #if DEBUG
-      isCompletingAction = true
-      defer { isCompletingAction = false }
-      do {
-        let receipt = try await mockExperienceRepository.settleTask(
-          id: mockTaskID,
-          reward: model.mockTaskCoinReward
-        )
-        actionCompleted = true
-        statusMessage =
-          receipt.wasAlreadySettled
-          ? "这件 Mock 小事已经记下，金币不会重复增加"
-          : "Mock 小事已经记下，预览余额 \(receipt.balance) 枚金币"
-        return true
-      } catch {
-        statusMessage = "Mock 小事暂时没能保存"
-        return false
-      }
-    #else
+    isCompletingAction = true
+    defer { isCompletingAction = false }
+    do {
+      let receipt = try await productLoopRuntime.completeTask(
+        taskID: suggestedTaskID,
+        method: .userConfirmed,
+        at: suggestedTaskCompletionDate
+      )
+      await refreshProductLoopSnapshot(from: productLoopRuntime)
+      statusMessage =
+        (!receipt.didRecordCompletion && !receipt.didRecordReward)
+        ? "这件 Mock 小事已经记下，金币不会重复增加"
+        : "Mock 小事已经记下，当前有 \(receipt.balance) 枚金币"
+      return true
+    } catch {
+      statusMessage = "Mock 小事暂时没能保存"
       return false
-    #endif
-  }
-
-  private var mockTaskID: String {
-    #if DEBUG
-      return "\(mockProfileKey):task:today"
-    #else
-      return "unavailable"
-    #endif
-  }
-
-  private var mockProfileKey: String {
-    #if DEBUG
-      model.mockScenario?.id ?? selectedDataSource.rawValue
-    #else
-      "unavailable"
-    #endif
-  }
-
-  private func loadMockTaskReceipt() async {
-    #if DEBUG
-      guard !model.isLive else {
-        actionCompleted = false
-        return
-      }
-      actionCompleted =
-        (try? await mockExperienceRepository.isTaskCompleted(id: mockTaskID))
-        ?? false
-    #endif
-  }
-
-  private func resetMockExperiencePreview() async {
-    #if DEBUG
-      do {
-        try await mockExperienceRepository.reset(profileKey: mockProfileKey)
-        actionCompleted = false
-        hasConsumedMockGlance = false
-      } catch {
-        statusMessage = "Mock 状态暂时没能重置"
-      }
-    #endif
+    }
   }
 
   func interact(with animation: WatchCharacterAnimation) async {
@@ -628,7 +637,6 @@ final class WatchAppStore: ObservableObject {
       #if DEBUG
         if model.mockScenario?.id == CompanionDataSource.mock2.fixtureID {
           model = model.resolvingMockRelationship()
-          actionCompleted = true
         }
       #endif
       statusMessage = animation == .touchHead ? "Mori 开心地眨了眨眼" : "Mori 转过身回应了你"
@@ -653,9 +661,6 @@ final class WatchAppStore: ObservableObject {
     guard let runtime else { return }
     do {
       let state = try await runtime.currentState()
-      actionCompleted = state.completedHabitDays.contains(
-        LocalDay.containing(Date(), in: .current)
-      )
       model = .live(
         companion: state,
         health: latestHealth,
@@ -669,9 +674,6 @@ final class WatchAppStore: ObservableObject {
   private func loadLocalExperience() async throws {
     guard let runtime else { return }
     let state = try await runtime.currentState()
-    actionCompleted = state.completedHabitDays.contains(
-      LocalDay.containing(Date(), in: .current)
-    )
     model = .live(
       companion: state,
       health: latestHealth,
@@ -685,7 +687,11 @@ final class WatchAppStore: ObservableObject {
     if selectedDataSource.isMock {
       #if DEBUG
         model = WatchPresentationModel.demo(selectedDataSource)
-        await loadMockTaskReceipt()
+        if productLoopRuntime == nil {
+          await rebuildProductLoopRuntime(activateMock: true)
+        } else if let productLoopRuntime {
+          await refreshProductLoopSnapshot(from: productLoopRuntime)
+        }
         phase = .ready
         statusMessage = "\(selectedDataSource.displayName) 已载入"
         scheduleMockCareIfNeeded()
@@ -705,7 +711,303 @@ final class WatchAppStore: ObservableObject {
     await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
   }
 
+  private func rebuildProductLoopRuntime(
+    activateMock: Bool
+  ) async {
+    productLoopGeneration &+= 1
+    let generation = productLoopGeneration
+    clearProductLoopPresentation()
+    guard let globalPreferenceRuntime else { return }
+
+    do {
+      let projection = try await globalPreferenceRuntime.current()
+      let authority =
+        try await globalPreferenceRuntime.currentChatAuthority()
+      apply(projection)
+      let facade = try ProductLoopAppRuntime(
+        applicationSupportURL: applicationSupportURL,
+        profile: authority.profile,
+        sensing: Self.sensingPreference(from: projection),
+        originDeviceID: "watch"
+      )
+      guard generation == productLoopGeneration else { return }
+      productLoopRuntime = facade
+      guard
+        activateMock,
+        authority.profile.isMock,
+        model.allowsInteraction
+      else {
+        return
+      }
+      _ = try await facade.reconcileSensing(
+        Self.sensingPreference(from: projection),
+        effectiveAt: Date()
+      )
+      _ = try await facade.activate()
+      guard generation == productLoopGeneration else { return }
+      await refreshProductLoopSnapshot(from: facade)
+    } catch {
+      guard generation == productLoopGeneration else { return }
+      productLoopRuntime = nil
+      clearProductLoopPresentation()
+      if model.invalidMockID != nil {
+        statusMessage = "Mock 场景无效，Mori 不会生成任务或提醒"
+      } else {
+        statusMessage = "Mori 的本地记录暂时无法载入"
+      }
+    }
+  }
+
+  private func stopProductLoopRuntime() {
+    productLoopGeneration &+= 1
+    productLoopRuntime = nil
+    activeGlance = nil
+    hasSeededMockGlance = false
+    clearProductLoopPresentation()
+  }
+
+  private func clearProductLoopPresentation() {
+    suggestedTaskID = nil
+    suggestedTaskCompletionDate = nil
+    hasSuggestedAction = false
+    suggestedActionReward = 0
+    actionCompleted = false
+    coinBalance = 0
+  }
+
+  private func refreshProductLoopSnapshot(
+    from runtime: ProductLoopAppRuntime
+  ) async {
+    let generation = productLoopGeneration
+    do {
+      let snapshot = try await runtime.snapshot()
+      guard
+        generation == productLoopGeneration,
+        productLoopRuntime?.profile == runtime.profile
+      else { return }
+      applyProductLoopSnapshot(snapshot)
+    } catch {
+      guard generation == productLoopGeneration else { return }
+      clearProductLoopPresentation()
+      statusMessage = "Mori 的本地记录暂时无法显示"
+    }
+  }
+
+  private func applyProductLoopSnapshot(
+    _ snapshot: ProductLoopAppSnapshot
+  ) {
+    let tasks = snapshot.localState.tasks.sorted {
+      let lhsActive = Self.isActive($0.lifecycle)
+      let rhsActive = Self.isActive($1.lifecycle)
+      if lhsActive != rhsActive {
+        return lhsActive && !rhsActive
+      }
+      if $0.recommendationPriority != $1.recommendationPriority {
+        return $0.recommendationPriority > $1.recommendationPriority
+      }
+      if $0.issuedRevision != $1.issuedRevision {
+        return $0.issuedRevision > $1.issuedRevision
+      }
+      return $0.header.recordID < $1.header.recordID
+    }
+    let task = tasks.first
+    suggestedTaskID = task?.header.recordID
+    suggestedTaskCompletionDate = task?.issuedAt
+    suggestedActionReward = task?.rewardTier.rawValue ?? 0
+    hasSuggestedAction =
+      task?.completionPolicy == .userConfirmation
+    actionCompleted = task?.lifecycle.isCompleted ?? false
+    coinBalance = snapshot.localState.coinLedger.balance
+  }
+
+  private static func isActive(
+    _ lifecycle: TaskLifecycleState
+  ) -> Bool {
+    if case .active = lifecycle { return true }
+    return false
+  }
+
+  private func removeRetiredMockNamespace(
+    _ runtime: ProductLoopAppRuntime?
+  ) throws {
+    guard let runtime, runtime.profile.isMock else { return }
+    let layout = try RuntimeStorageLayout(
+      applicationSupportURL: applicationSupportURL
+    )
+    let expected = try layout.namespace(for: runtime.profile)
+    guard
+      expected.rootURL.standardizedFileURL
+        == runtime.namespaceRootURL.standardizedFileURL
+    else {
+      throw RuntimeStorageError.targetOutsideOwnedNamespace
+    }
+    let fileManager = FileManager()
+    guard fileManager.fileExists(atPath: expected.rootURL.path) else {
+      return
+    }
+    try fileManager.removeItem(at: expected.rootURL)
+  }
+
+  private func foregroundDate(
+    from state: ProfileState
+  ) -> Date {
+    let newestObservedAt =
+      state.passiveEvents
+      .filter {
+        if case .pending = $0.reminderState { return true }
+        return false
+      }
+      .map(\.observedAt)
+      .max()
+    #if DEBUG
+      if let newestObservedAt {
+        return newestObservedAt.addingTimeInterval(
+          mockGlanceSeed?.age ?? 0
+        )
+      }
+    #endif
+    return newestObservedAt ?? Date()
+  }
+
+  private static func watchGlance(
+    from value: PendingGlancePresentation
+  ) -> WatchGlancePresentation {
+    let message: String
+    let reaction: WatchCharacterAnimation
+    switch value.eventKind {
+    case .sharedWalk:
+      message = "我们已经一起走了 3,250 步。"
+      reaction = .idleLively
+    case .fastPace:
+      message = "刚才那段路走得好快，我差点跟不上。"
+      reaction = .idleCurious
+    case .pausedTogether:
+      message = "你停下来的时候，我也坐了一会儿。"
+      reaction = .idleResting
+    case .arrivedAtApprovedPlace:
+      message = "我们到了一个熟悉的地方。"
+      reaction = .idleCurious
+    case .sleepReflection:
+      message = "昨晚我们一起休息了一段时间。"
+      reaction = .idleResting
+    case .foregroundGreeting:
+      message = "我在这里，今天也可以慢慢来。"
+      reaction = .idleLively
+    }
+    return WatchGlancePresentation(
+      id: value.eventID.rawValue,
+      message: message,
+      reaction: reaction,
+      shouldPlayHaptic: value.shouldPlayHaptic
+    )
+  }
+
   #if DEBUG
+    private func seedMockGlancesIfNeeded(
+      runtime: ProductLoopAppRuntime
+    ) async throws {
+      guard
+        !hasSeededMockGlance,
+        let mockGlanceSeed,
+        mockGlanceSeed.values.isEmpty == false
+      else { return }
+      let snapshot = try await runtime.snapshot()
+      let state = snapshot.localState
+      guard
+        let fact = state.derivedFacts.first(where: {
+          $0.authorizesCompanionUse(
+            in: state.currentSensingEpoch
+          )
+        })
+      else { return }
+      let base =
+        state.passiveEvents.map(\.observedAt).max()
+        ?? fact.observedAt
+      let profile = runtime.profile
+      let origin = "watch-ui-test"
+      let envelopeCodec = ExperienceEnvelopeCodec()
+      let envelopes = mockGlanceSeed.values.enumerated().map {
+        index,
+        value -> ExperienceSyncEnvelope in
+        let observedAt = base.addingTimeInterval(
+          TimeInterval(index + 1)
+        )
+        let revision = LamportRevision(
+          counter: UInt64(10_000 + index),
+          originDeviceID: origin
+        )
+        let event = PassiveCompanionEvent(
+          header: ProfileScopedRecordHeader(
+            recordID: EventID(
+              "watch-ui-glance-\(index)-\(value)"
+            ),
+            profileID: profile.id,
+            profileEpoch: profile.epoch,
+            deletionEpoch: profile.deletionEpoch
+          ),
+          sensingEpoch: state.currentSensingEpoch,
+          kind: Self.mockGlanceKind(value),
+          observedAt: observedAt,
+          confidence: .exact,
+          evidence: [
+            EvidenceReference(
+              id: fact.header.recordID,
+              kind: fact.value.kind
+            )
+          ],
+          presentationDeadline:
+            observedAt.addingTimeInterval(2 * 60),
+          replacementKey: "watch-ui-latest",
+          taskCooldownKey: nil,
+          memoryEligibility: .ineligible,
+          sceneID: nil,
+          moriActionID: "watch-ui.\(value)",
+          reminderRevision: revision
+        )
+        return ExperienceSyncEnvelope(
+          eventID: ExperienceEventID(
+            "watch-ui-glance-envelope-\(index)-\(value)"
+          ),
+          eventType: .passiveEvent,
+          profileID: profile.id,
+          profileEpoch: profile.epoch,
+          deletionEpoch: profile.deletionEpoch,
+          profileSource: profile.source,
+          originDeviceID: origin,
+          originSequence: UInt64(index + 1),
+          revision: revision,
+          observedAt: observedAt,
+          authoredAt: observedAt,
+          privacyClass: .approvedDerived,
+          tombstone: nil,
+          sourceEventID: nil,
+          settlementID: nil,
+          payload: .passiveEvent(event)
+        )
+      }
+      let transfer = ExperienceSyncTransfer(
+        scope: ExperienceSyncScope(profile: profile),
+        envelopeBytes: try envelopes.map(envelopeCodec.encode)
+      )
+      _ = try await runtime.receive(
+        ExperienceSyncWireCodec().encode(transfer)
+      )
+      hasSeededMockGlance = true
+    }
+
+    private static func mockGlanceKind(
+      _ value: String
+    ) -> PassiveEventKind {
+      switch value {
+      case "shared-walk":
+        .sharedWalk
+      case "paused":
+        .pausedTogether
+      default:
+        .fastPace
+      }
+    }
+
     private func scheduleMockCareIfNeeded() {
       guard selectedDataSource == .mock2 else { return }
       mockCareTask = Task { [weak self] in
@@ -824,16 +1126,16 @@ final class WatchAppStore: ObservableObject {
         .flatMap(WatchProductRoute.init(rawValue:))
     }
 
-    private static func mockGlanceCandidate(
+    private static func mockGlanceSeed(
       from arguments: [String]
-    ) -> MockGlanceCandidate? {
+    ) -> MockGlanceSeed? {
       guard arguments.contains("-UITesting") else { return nil }
       let eventValues =
         arguments.first(where: { $0.hasPrefix("--mock-glance=") })?
         .replacingOccurrences(of: "--mock-glance=", with: "")
         .split(separator: ",")
         .map(String.init) ?? []
-      guard let newest = eventValues.last else { return nil }
+      guard eventValues.isEmpty == false else { return nil }
       let age =
         arguments.first(where: { $0.hasPrefix("--mock-glance-age=") })
         .flatMap {
@@ -841,40 +1143,10 @@ final class WatchAppStore: ObservableObject {
             $0.replacingOccurrences(of: "--mock-glance-age=", with: "")
           )
         } ?? 0
-      let presentation = mockGlancePresentation(for: newest)
-      let supersededIDs = eventValues.dropLast().map {
-        mockGlancePresentation(for: $0).id
-      }
-      return MockGlanceCandidate(
-        presentation: presentation,
-        age: max(0, age),
-        supersededIDs: supersededIDs
+      return MockGlanceSeed(
+        values: eventValues,
+        age: max(0, age)
       )
-    }
-
-    private static func mockGlancePresentation(
-      for value: String
-    ) -> WatchGlancePresentation {
-      switch value {
-      case "shared-walk":
-        WatchGlancePresentation(
-          id: value,
-          message: "我们已经一起走了 3,250 步。",
-          reaction: .idleLively
-        )
-      case "paused":
-        WatchGlancePresentation(
-          id: value,
-          message: "你停下来的时候，我也坐了一会儿。",
-          reaction: .idleResting
-        )
-      default:
-        WatchGlancePresentation(
-          id: "fast-pace",
-          message: "刚才那段路走得好快，我差点跟不上。",
-          reaction: .idleCurious
-        )
-      }
     }
 
     private static func notificationRoute(from arguments: [String]) -> RuntimeNotificationRoute? {

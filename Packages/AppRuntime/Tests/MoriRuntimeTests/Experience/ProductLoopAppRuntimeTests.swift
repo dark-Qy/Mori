@@ -279,6 +279,135 @@
         Set(bootstrapSequences).count == bootstrapSequences.count
       )
     }
+
+    @Test("Foreground glance terminalizes replacement through ledger and outbox")
+    func foregroundGlancePersistsReplacement() async throws {
+      let root = temporaryRoot()
+      defer { try? FileManager.default.removeItem(at: root) }
+      let profile = ExperienceTestFixtures.profile()
+      let runtime = try ProductLoopAppRuntime(
+        applicationSupportURL: root,
+        profile: profile,
+        sensing: testFacadeSensing(),
+        originDeviceID: "watch"
+      )
+      _ = try await runtime.activate()
+      let initial = try await runtime.snapshot()
+      let older = try #require(
+        initial.localState.passiveEvents.first
+      )
+      let newerFixture = try makeNewerGlance(
+        from: older,
+        profile: profile,
+        ledger: persistedLedger(for: runtime)
+      )
+      try await receive(
+        newerFixture.envelope,
+        in: runtime,
+        profile: profile
+      )
+      let pendingBefore =
+        try await runtime.pendingSyncEventCount()
+      let now =
+        newerFixture.event.observedAt.addingTimeInterval(1)
+
+      let presentation = try await runtime.foregroundGlance(
+        at: now,
+        reminderMode: .gentleHaptic,
+        quietHours: CompanionQuietHours(
+          startMinute: 1,
+          endMinute: 2
+        ),
+        timeZone: TimeZone(secondsFromGMT: 0)!
+      )
+
+      #expect(
+        presentation?.eventID
+          == newerFixture.event.header.recordID
+      )
+      #expect(presentation?.shouldPlayHaptic == true)
+      let after = try await runtime.snapshot()
+      #expect(
+        after.localState.passiveEvents.first {
+          $0.header.recordID == older.header.recordID
+        }?.reminderState
+          == .replaced(
+            by: newerFixture.event.header.recordID,
+            at: now
+          )
+      )
+      #expect(
+        after.localState.passiveEvents.first {
+          $0.header.recordID
+            == newerFixture.event.header.recordID
+        }?.reminderState == .presented(at: now)
+      )
+      #expect(
+        try await runtime.pendingSyncEventCount()
+          == pendingBefore + 2
+      )
+
+      let relaunched = try ProductLoopAppRuntime(
+        applicationSupportURL: root,
+        profile: profile,
+        sensing: testFacadeSensing(),
+        originDeviceID: "watch"
+      )
+      #expect(
+        try await relaunched.foregroundGlance(
+          at: now,
+          reminderMode: .gentleHaptic,
+          quietHours: CompanionQuietHours(
+            startMinute: 1,
+            endMinute: 2
+          ),
+          timeZone: TimeZone(secondsFromGMT: 0)!
+        ) == nil
+      )
+      #expect(
+        try await relaunched.pendingSyncEventCount()
+          == pendingBefore + 2
+      )
+    }
+
+    @Test("Expired foreground glance writes one terminal envelope")
+    func foregroundGlancePersistsExpiry() async throws {
+      let root = temporaryRoot()
+      defer { try? FileManager.default.removeItem(at: root) }
+      let runtime = try ProductLoopAppRuntime(
+        applicationSupportURL: root,
+        profile: ExperienceTestFixtures.profile(),
+        sensing: testFacadeSensing(),
+        originDeviceID: "watch"
+      )
+      _ = try await runtime.activate()
+      let event = try #require(
+        try await runtime.snapshot().localState.passiveEvents.first
+      )
+      let pendingBefore =
+        try await runtime.pendingSyncEventCount()
+      let now = event.observedAt.addingTimeInterval(121)
+
+      #expect(
+        try await runtime.foregroundGlance(
+          at: now,
+          reminderMode: .wristRaise,
+          quietHours: CompanionQuietHours(
+            startMinute: 1,
+            endMinute: 2
+          ),
+          timeZone: TimeZone(secondsFromGMT: 0)!
+        ) == nil
+      )
+      #expect(
+        try await runtime.snapshot().localState.passiveEvents.first?
+          .reminderState == .expired(at: now)
+      )
+      #expect(
+        try await runtime.pendingSyncEventCount()
+          == pendingBefore + 1
+      )
+    }
   }
 
   private func testFacadeSensing() -> CompanionSensingPreference {
@@ -311,6 +440,77 @@
       )
     return try ProfileLedgerCodec().decode(
       Data(contentsOf: fileURL)
+    )
+  }
+
+  private func makeNewerGlance(
+    from older: PassiveCompanionEvent,
+    profile: RuntimeProfile,
+    ledger: ProfileLedger
+  ) throws -> (
+    event: PassiveCompanionEvent,
+    envelope: ExperienceSyncEnvelope
+  ) {
+    let origin = "paired-test"
+    let counter =
+      (ledger.envelopes.map(\.revision.counter).max() ?? 0) + 1
+    let revision = LamportRevision(
+      counter: counter,
+      originDeviceID: origin
+    )
+    let event = PassiveCompanionEvent(
+      header: ExperienceTestFixtures.header(
+        EventID("facade-newer-glance"),
+        profile: profile
+      ),
+      sensingEpoch: older.sensingEpoch,
+      kind: .pausedTogether,
+      observedAt: older.observedAt.addingTimeInterval(10),
+      confidence: .exact,
+      evidence: older.evidence,
+      presentationDeadline:
+        older.observedAt.addingTimeInterval(130),
+      replacementKey: "facade-latest",
+      taskCooldownKey: nil,
+      memoryEligibility: .ineligible,
+      sceneID: nil,
+      moriActionID: "facade.pause",
+      reminderRevision: revision
+    )
+    let envelope = ExperienceSyncEnvelope(
+      eventID: ExperienceEventID("facade-newer-envelope"),
+      eventType: .passiveEvent,
+      profileID: profile.id,
+      profileEpoch: profile.epoch,
+      deletionEpoch: profile.deletionEpoch,
+      profileSource: profile.source,
+      originDeviceID: origin,
+      originSequence: 1,
+      revision: revision,
+      observedAt: event.observedAt,
+      authoredAt: event.observedAt,
+      privacyClass: .approvedDerived,
+      tombstone: nil,
+      sourceEventID: nil,
+      settlementID: nil,
+      payload: .passiveEvent(event)
+    )
+    return (event, envelope)
+  }
+
+  private func receive(
+    _ envelope: ExperienceSyncEnvelope,
+    in runtime: ProductLoopAppRuntime,
+    profile: RuntimeProfile
+  ) async throws {
+    let transfer = ExperienceSyncTransfer(
+      scope: ExperienceSyncScope(profile: profile),
+      envelopeBytes: [
+        try ExperienceEnvelopeCodec().encode(envelope)
+      ]
+    )
+    _ = try await runtime.receive(
+      ExperienceSyncWireCodec().encode(transfer)
     )
   }
 #endif

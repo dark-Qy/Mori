@@ -8,14 +8,26 @@ struct WatchTodayView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 12) {
-        Text("Mori 推荐")
-          .font(.caption2)
-          .foregroundStyle(.secondary)
+        HStack {
+          Text("Mori 推荐")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+          Spacer()
+          HStack(spacing: 3) {
+            MoriCoinMark()
+            Text("\(store.coinBalance)")
+          }
+          .font(.caption2.weight(.semibold))
+          .foregroundStyle(AdventurePalette.gold)
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel("金币余额 \(store.coinBalance)")
+          .accessibilityIdentifier("watch.today.balance")
+        }
 
-        if model.isLive {
-          noRecommendation
-        } else {
+        if store.hasSuggestedAction {
           recommendation
+        } else {
+          noRecommendation
         }
 
         if let steps = model.stepCount, steps > 0 {
@@ -54,12 +66,12 @@ struct WatchTodayView: View {
         Spacer(minLength: 6)
         HStack(spacing: 3) {
           MoriCoinMark()
-          Text("\(model.mockTaskCoinReward)")
+          Text("\(store.suggestedActionReward)")
         }
         .font(.caption2.weight(.bold))
         .foregroundStyle(AdventurePalette.gold)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("奖励 \(model.mockTaskCoinReward) 枚金币")
+        .accessibilityLabel("奖励 \(store.suggestedActionReward) 枚金币")
         .accessibilityRespondsToUserInteraction(false)
         .accessibilityIdentifier("watch.today.reward")
       }

@@ -30,6 +30,11 @@ struct WatchPresentationModel {
     return scenario
   }
 
+  var invalidMockID: String? {
+    guard case .invalidMock(let value) = dataMode else { return nil }
+    return value
+  }
+
   var isLive: Bool { dataMode == .live }
   var allowsInteraction: Bool {
     if case .invalidMock = dataMode { return false }

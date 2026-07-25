@@ -219,6 +219,10 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(element("watch.today", in: app).waitForExistence(timeout: 8))
     XCTAssertTrue(element("watch.today.recommendation", in: app).exists)
     XCTAssertEqual(element("watch.today.reward", in: app).label, "奖励 1 枚金币")
+    XCTAssertEqual(
+      element("watch.today.balance", in: app).label,
+      "金币余额 18"
+    )
     XCTAssertFalse(
       element("watch.today.detected-walk", in: app).label.contains("奖励")
     )
@@ -226,6 +230,10 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(complete.exists)
     complete.tap()
     XCTAssertTrue(waitForLabel("已经记下", on: complete, timeout: 3))
+    XCTAssertEqual(
+      element("watch.today.balance", in: app).label,
+      "金币余额 19"
+    )
   }
 
   func testMockTaskRewardSettlesOnceAcrossRelaunch() {
@@ -254,6 +262,71 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(settled.waitForExistence(timeout: 8))
     XCTAssertEqual(settled.label, "已经记下")
     XCTAssertFalse(settled.isEnabled)
+    XCTAssertEqual(
+      element("watch.today.balance", in: relaunched).label,
+      "金币余额 19"
+    )
+  }
+
+  func testResetMockCreatesFreshTaskAndCoinNamespace() {
+    let storageID = "task-reset-\(UUID().uuidString)"
+    let first = launchDefaultApp(
+      storageID: storageID,
+      reset: true,
+      additionalArguments: [
+        "--e2e-data-source=mock3",
+        "--watch-route=today",
+      ]
+    )
+    let complete = first.buttons[
+      "watch.today.complete-recommendation"
+    ]
+    if element("watch.onboarding", in: first)
+      .waitForExistence(timeout: 3)
+    {
+      let onboarding = first.buttons["watch.onboarding.complete"]
+      scrollToElement(onboarding, in: first)
+      onboarding.tap()
+    }
+    XCTAssertTrue(complete.waitForExistence(timeout: 8))
+    complete.tap()
+    XCTAssertTrue(waitForLabel("已经记下", on: complete, timeout: 3))
+    XCTAssertEqual(
+      element("watch.today.balance", in: first).label,
+      "金币余额 19"
+    )
+    first.terminate()
+
+    let settings = launchDefaultApp(
+      storageID: storageID,
+      reset: false,
+      additionalArguments: ["--watch-route=settings"]
+    )
+    XCTAssertTrue(
+      element("watch.settings", in: settings)
+        .waitForExistence(timeout: 8)
+    )
+    let reset = settings.buttons["watch.settings.reset-mock"]
+    scrollToElement(reset, in: settings)
+    XCTAssertTrue(reset.isEnabled)
+    reset.tap()
+    settings.terminate()
+
+    let fresh = launchDefaultApp(
+      storageID: storageID,
+      reset: false,
+      additionalArguments: ["--watch-route=today"]
+    )
+    let freshTask = fresh.buttons[
+      "watch.today.complete-recommendation"
+    ]
+    XCTAssertTrue(freshTask.waitForExistence(timeout: 8))
+    XCTAssertEqual(freshTask.label, "完成这件事")
+    XCTAssertTrue(freshTask.isEnabled)
+    XCTAssertEqual(
+      element("watch.today.balance", in: fresh).label,
+      "金币余额 18"
+    )
   }
 
   func testDailyMemoryUsesStoryCopyAndKnownFacts() {
@@ -574,8 +647,28 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertEqual(element("watch.home.sleep", in: app).label, "睡眠待记录")
     XCTAssertEqual(element("watch.home.steps", in: app).label, "步数待记录")
     let scene = app.buttons["watch.pet-home"]
-    scene.tap()
-    XCTAssertTrue(element("watch.event-bubble", in: app).label.contains("Mock 场景无效"))
+    scene.coordinate(
+      withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+    ).tap()
+    let invalidBubble = element("watch.event-bubble", in: app)
+    XCTAssertTrue(invalidBubble.waitForExistence(timeout: 3))
+    XCTAssertTrue(invalidBubble.label.contains("Mock 场景无效"))
+    app.terminate()
+
+    let today = launchApp(
+      scenario: "not_allowlisted",
+      additionalArguments: ["--watch-route=today"]
+    )
+    XCTAssertTrue(
+      element("watch.today", in: today).waitForExistence(timeout: 8)
+    )
+    XCTAssertFalse(
+      element("watch.today.recommendation", in: today).exists
+    )
+    XCTAssertEqual(
+      element("watch.today.balance", in: today).label,
+      "金币余额 0"
+    )
   }
 
   func testNotificationRouteOpensAQuietMessageAndReturnsHome() {
