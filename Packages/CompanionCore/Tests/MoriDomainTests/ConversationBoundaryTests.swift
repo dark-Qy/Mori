@@ -107,6 +107,79 @@ struct ConversationBoundaryTests {
     #expect(
       ConversationBoundary.acceptsCandidate(.replyText(" \n"), approvedEvents: []) == false
     )
+    #expect(
+      ConversationBoundary.acceptsCandidate(
+        .replyText(String(repeating: "太", count: 2_001)),
+        approvedEvents: []
+      ) == false
+    )
+  }
+
+  @Test("Remote recent window rejects local-system, mixed, and unordered records")
+  func recentWindowShapeIsStrict() {
+    let profile = MoriTestFixtures.profile()
+    let base = MoriTestFixtures.conversation("first", profile: profile)
+    let local = ConversationRecord(
+      header: base.header,
+      conversationID: base.conversationID,
+      role: .localSystem,
+      content: "local fallback",
+      localTime: base.localTime,
+      referencedMemoryIDs: [],
+      revision: base.revision
+    )
+    let app = AppAddedChatContext(
+      identity: .penguin,
+      tone: .gentle,
+      approvedEventIDs: [],
+      memoryReferences: [],
+      selectedMemoryExcerpt: nil
+    )
+    #expect(
+      ConversationBoundary.validate(
+        userContext: UserConversationContext(
+          explicitMessage: "hello",
+          recentMessages: [local]
+        ),
+        appContext: app,
+        profile: profile
+      ) == .invalidRecord
+    )
+
+    let laterFixture = MoriTestFixtures.conversation(
+      "second",
+      profile: profile,
+      revision: MoriTestFixtures.revision(90)
+    )
+    let otherConversation = ConversationRecord(
+      header: laterFixture.header,
+      conversationID: ConversationID("other"),
+      role: .mori,
+      content: laterFixture.content,
+      localTime: laterFixture.localTime,
+      referencedMemoryIDs: [],
+      revision: laterFixture.revision
+    )
+    #expect(
+      ConversationBoundary.validate(
+        userContext: UserConversationContext(
+          explicitMessage: "hello",
+          recentMessages: [base, otherConversation]
+        ),
+        appContext: app,
+        profile: profile
+      ) == .invalidRecord
+    )
+    #expect(
+      ConversationBoundary.validate(
+        userContext: UserConversationContext(
+          explicitMessage: "hello",
+          recentMessages: [laterFixture, base]
+        ),
+        appContext: app,
+        profile: profile
+      ) == .invalidRecord
+    )
   }
 
   @Test("Conversation is not an Experience event type or decodable payload")
@@ -138,7 +211,19 @@ struct ConversationBoundaryTests {
   func deletionScrubsContent() {
     let profile = MoriTestFixtures.profile()
     var state = MoriTestFixtures.state(profile: profile)
-    let record = MoriTestFixtures.conversation("private", profile: profile)
+    let memory = MoriTestFixtures.memory(profile: profile)
+    #expect(ProfileReducer.apply(.memory(memory), to: &state) == .applied)
+    let memoryID = memory.header.recordID
+    let fixture = MoriTestFixtures.conversation("private", profile: profile)
+    let record = ConversationRecord(
+      header: fixture.header,
+      conversationID: fixture.conversationID,
+      role: fixture.role,
+      content: fixture.content,
+      localTime: fixture.localTime,
+      referencedMemoryIDs: [memoryID],
+      revision: fixture.revision
+    )
     #expect(ProfileReducer.apply(.conversation(record), to: &state) == .applied)
 
     let deletion = ConversationTransition(
@@ -154,6 +239,7 @@ struct ConversationBoundaryTests {
       ProfileReducer.apply(.conversationTransition(deletion), to: &state) == .applied
     )
     #expect(state.conversation.first?.content == "")
+    #expect(state.conversation.first?.referencedMemoryIDs.isEmpty == true)
     #expect(ProfileQueries.chatContext(from: state).recentMessages.isEmpty)
   }
 }

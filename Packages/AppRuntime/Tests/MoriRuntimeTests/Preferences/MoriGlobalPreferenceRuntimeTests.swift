@@ -244,4 +244,88 @@ struct MoriGlobalPreferenceRuntimeTests {
     )
     #expect(realAfterMock.profileScope.storageKey != before.profileScope.storageKey)
   }
+
+  @Test("Phone-authored conversation consents persist independently")
+  func conversationConsentPersists() async throws {
+    let storageURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "MoriGlobalPreferenceRuntimeTests-\(UUID().uuidString).json"
+    )
+    defer { try? FileManager.default.removeItem(at: storageURL) }
+    let runtime = try MoriGlobalPreferenceRuntime(
+      storageURL: storageURL,
+      originDeviceID: "phone",
+      initialProfileSource: .real
+    )
+
+    let remote = try await runtime.setConsent(
+      .remoteChat,
+      enabled: true
+    )
+    #expect(remote.remoteChatIsAuthorized)
+    #expect(!remote.memoryContextIsAuthorized)
+
+    let memory = try await runtime.setConsent(
+      .memoryContext,
+      enabled: true
+    )
+    #expect(memory.remoteChatIsAuthorized)
+    #expect(memory.memoryContextIsAuthorized)
+
+    let reopened = try MoriGlobalPreferenceRuntime(
+      storageURL: storageURL,
+      originDeviceID: "phone"
+    )
+    let persisted = try await reopened.currentChatAuthority()
+    #expect(persisted.remoteChatIsAuthorized)
+    #expect(persisted.memoryContextIsAuthorized)
+
+    let revokedMemory = try await reopened.setConsent(
+      .memoryContext,
+      enabled: false
+    )
+    #expect(revokedMemory.remoteChatIsAuthorized)
+    #expect(!revokedMemory.memoryContextIsAuthorized)
+  }
+
+  @Test("Watch cannot expand Chat consent and old disclosure versions fail")
+  func conversationConsentExpansionIsPhoneOnly() async throws {
+    let storageURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "MoriGlobalPreferenceRuntimeTests-\(UUID().uuidString).json"
+    )
+    defer { try? FileManager.default.removeItem(at: storageURL) }
+    let watch = try MoriGlobalPreferenceRuntime(
+      storageURL: storageURL,
+      originDeviceID: "watch",
+      initialProfileSource: .real
+    )
+
+    await #expect(
+      throws:
+        MoriGlobalPreferenceRuntimeError.consentExpansionRequiresPhone
+    ) {
+      _ = try await watch.setConsent(.remoteChat, enabled: true)
+    }
+
+    let phoneURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "MoriGlobalPreferenceRuntimeTests-\(UUID().uuidString).json"
+    )
+    defer { try? FileManager.default.removeItem(at: phoneURL) }
+    let phone = try MoriGlobalPreferenceRuntime(
+      storageURL: phoneURL,
+      originDeviceID: "phone",
+      initialProfileSource: .real
+    )
+    await #expect(
+      throws: MoriGlobalPreferenceRuntimeError.invalidDisclosureVersion
+    ) {
+      _ = try await phone.setConsent(
+        .remoteChat,
+        enabled: true,
+        disclosureVersion: 0
+      )
+    }
+    #expect(
+      !(try await phone.currentChatAuthority().remoteChatIsAuthorized)
+    )
+  }
 }

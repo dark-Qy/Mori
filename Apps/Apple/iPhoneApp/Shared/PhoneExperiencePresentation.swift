@@ -88,25 +88,6 @@ nonisolated struct PhoneCollectionItem: Identifiable, Equatable, Sendable {
   ]
 }
 
-nonisolated struct PhoneConversationMessage: Codable, Equatable, Identifiable,
-  Sendable
-{
-  enum Role: String, Codable, Sendable {
-    case user
-    case mori
-  }
-
-  let id: UUID
-  let role: Role
-  let text: String
-
-  init(id: UUID = UUID(), role: Role, text: String) {
-    self.id = id
-    self.role = role
-    self.text = text
-  }
-}
-
 nonisolated struct PhoneMockSensingAuthorization: Codable, Equatable, Sendable {
   let enabled: Bool
   let epochCounter: UInt64
@@ -194,14 +175,13 @@ nonisolated struct PhoneMockExperienceProjection: Codable, Equatable, Sendable {
   var equippedItemID: String
   var equippedAccessoryID: String?
   var selectedSceneID: String
-  var conversation: [PhoneConversationMessage]
-  var usesMemoryContext: Bool
   var recommendedTask: PhoneRecommendedTask?
   var generatedTaskSourceEventIDs: Set<String>?
   var taskCooldownUntilByKey: [String: Date]?
   var proactiveMessagesEnabled: Bool?
   var socialSharingEnabled: Bool?
   var publicPetSocialStateRawValue: String?
+  var conversationMemoryContextEnabled: Bool?
   var sensingAuthorization: PhoneMockSensingAuthorization?
 
   static let empty = PhoneMockExperienceProjection(
@@ -211,14 +191,13 @@ nonisolated struct PhoneMockExperienceProjection: Codable, Equatable, Sendable {
     equippedItemID: "default",
     equippedAccessoryID: nil,
     selectedSceneID: "spring_meadow_stream",
-    conversation: [],
-    usesMemoryContext: false,
     recommendedTask: nil,
     generatedTaskSourceEventIDs: nil,
     taskCooldownUntilByKey: nil,
     proactiveMessagesEnabled: nil,
     socialSharingEnabled: nil,
     publicPetSocialStateRawValue: nil,
+    conversationMemoryContextEnabled: nil,
     sensingAuthorization: nil
   )
 
@@ -229,19 +208,13 @@ nonisolated struct PhoneMockExperienceProjection: Codable, Equatable, Sendable {
     equippedItemID: "default",
     equippedAccessoryID: nil,
     selectedSceneID: "spring_meadow_stream",
-    conversation: [
-      PhoneConversationMessage(
-        role: .mori,
-        text: "我在这里。今天想和我说什么？"
-      )
-    ],
-    usesMemoryContext: false,
     recommendedTask: nil,
     generatedTaskSourceEventIDs: nil,
     taskCooldownUntilByKey: nil,
     proactiveMessagesEnabled: nil,
     socialSharingEnabled: nil,
     publicPetSocialStateRawValue: nil,
+    conversationMemoryContextEnabled: nil,
     sensingAuthorization: nil
   )
 

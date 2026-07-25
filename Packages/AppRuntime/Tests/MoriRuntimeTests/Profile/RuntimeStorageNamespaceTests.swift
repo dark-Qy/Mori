@@ -195,6 +195,34 @@ struct RuntimeStorageNamespaceTests {
     }
   }
 
+  @Test("Advancing a Mock generation can remove the old namespace")
+  func selectedMockGenerationDeletion() async throws {
+    let temporaryRoot = makeTemporaryRoot()
+    defer { try? FileManager.default.removeItem(at: temporaryRoot) }
+    let layout = try RuntimeStorageLayout(applicationSupportURL: temporaryRoot)
+    let selection = try MockProfileDerivation.selection(
+      scenarioID: MockScenarioID("selected"),
+      revision: LamportRevision(counter: 8, originDeviceID: "phone")
+    )
+    let namespace = try layout.namespace(for: selection.profile)
+    try namespace.prepare()
+    try Data("private conversation".utf8).write(
+      to: namespace.url(for: .conversation),
+      options: [.atomic]
+    )
+    let authority = try ProfileSelectionAuthority(initial: selection)
+    let resetter = SelectedMockResetService(
+      layout: layout,
+      selectionAuthority: authority
+    )
+
+    try await resetter.deleteSelectedMockNamespace(namespace: namespace)
+
+    #expect(
+      FileManager.default.fileExists(atPath: namespace.rootURL.path) == false
+    )
+  }
+
   @Test("Preparing a namespace refuses an existing symlink outside owned storage")
   func prepareRejectsEscapingSymlink() throws {
     let temporaryRoot = makeTemporaryRoot()
@@ -254,6 +282,46 @@ struct RuntimeStorageNamespaceTests {
       try namespace.prepare()
     }
     #expect(try FileManager.default.contentsOfDirectory(atPath: outside.path).isEmpty)
+  }
+
+  @Test("Global profile deletion removes every namespace but preserves sibling authority")
+  func globalProfileDeletionIsBounded() throws {
+    let temporaryRoot = makeTemporaryRoot()
+    defer { try? FileManager.default.removeItem(at: temporaryRoot) }
+    let layout = try RuntimeStorageLayout(applicationSupportURL: temporaryRoot)
+    let real = try layout.namespace(
+      for: realProfile(
+        id: "real",
+        revision: LamportRevision(counter: 1, originDeviceID: "phone")
+      )
+    )
+    let mock = try layout.namespace(
+      for: MockProfileDerivation.selection(
+        scenarioID: MockScenarioID("mock1"),
+        revision: LamportRevision(counter: 2, originDeviceID: "phone")
+      ).profile
+    )
+    try real.prepare()
+    try mock.prepare()
+    try Data("private-real-chat".utf8).write(
+      to: real.url(for: .conversation)
+    )
+    try Data("private-mock-chat".utf8).write(
+      to: mock.url(for: .conversation)
+    )
+    let authorityURL = temporaryRoot.appendingPathComponent(
+      "mori-global-authority-v1.json"
+    )
+    let authorityBytes = Data("content-free-fence".utf8)
+    try authorityBytes.write(to: authorityURL)
+
+    try layout.removeAllOwnedProfileData()
+
+    #expect(!FileManager.default.fileExists(atPath: real.rootURL.path))
+    #expect(!FileManager.default.fileExists(atPath: mock.rootURL.path))
+    #expect(try Data(contentsOf: authorityURL) == authorityBytes)
+    try layout.removeAllOwnedProfileData()
+    #expect(try Data(contentsOf: authorityURL) == authorityBytes)
   }
 }
 

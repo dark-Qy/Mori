@@ -97,6 +97,16 @@
       return .initial
     }
 
+    func remove(
+      profile: MoriGlobalProfileScope
+    ) throws {
+      lock.lock()
+      defer { lock.unlock() }
+      var snapshot = try loadValidated(profile)
+      snapshot.profiles.removeValue(forKey: profile.storageKey)
+      try save(snapshot)
+    }
+
     func deleteAll(fence: MoriGlobalProfileScope) throws {
       lock.lock()
       defer { lock.unlock() }
@@ -295,54 +305,6 @@
       return profile
     }
 
-    func appendConversation(
-      profile profileScope: MoriGlobalProfileScope,
-      userText: String,
-      moriText: String
-    ) throws -> PhoneMockExperienceProjection {
-      lock.lock()
-      defer { lock.unlock() }
-      var snapshot = try loadValidated(profileScope)
-      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
-      profile.conversation.append(
-        PhoneConversationMessage(role: .user, text: String(userText.prefix(500)))
-      )
-      profile.conversation.append(
-        PhoneConversationMessage(role: .mori, text: String(moriText.prefix(500)))
-      )
-      profile.conversation = Array(profile.conversation.suffix(40))
-      snapshot.profiles[profileScope.storageKey] = profile
-      try save(snapshot)
-      return profile
-    }
-
-    func clearConversation(
-      profile profileScope: MoriGlobalProfileScope
-    ) throws -> PhoneMockExperienceProjection {
-      lock.lock()
-      defer { lock.unlock() }
-      var snapshot = try loadValidated(profileScope)
-      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
-      profile.conversation = PhoneMockExperienceProjection.initial.conversation
-      snapshot.profiles[profileScope.storageKey] = profile
-      try save(snapshot)
-      return profile
-    }
-
-    func setMemoryContext(
-      profile profileScope: MoriGlobalProfileScope,
-      enabled: Bool
-    ) throws -> PhoneMockExperienceProjection {
-      lock.lock()
-      defer { lock.unlock() }
-      var snapshot = try loadValidated(profileScope)
-      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
-      profile.usesMemoryContext = enabled
-      snapshot.profiles[profileScope.storageKey] = profile
-      try save(snapshot)
-      return profile
-    }
-
     func setAppPreferences(
       profile profileScope: MoriGlobalProfileScope,
       proactiveMessagesEnabled: Bool,
@@ -362,6 +324,20 @@
       profile.proactiveMessagesEnabled = proactiveMessagesEnabled
       profile.socialSharingEnabled = socialSharingEnabled
       profile.publicPetSocialStateRawValue = publicPetSocialStateRawValue
+      snapshot.profiles[profileScope.storageKey] = profile
+      try save(snapshot)
+      return profile
+    }
+
+    func setConversationMemoryContext(
+      profile profileScope: MoriGlobalProfileScope,
+      enabled: Bool
+    ) throws -> PhoneMockExperienceProjection {
+      lock.lock()
+      defer { lock.unlock() }
+      var snapshot = try loadValidated(profileScope)
+      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
+      profile.conversationMemoryContextEnabled = enabled
       snapshot.profiles[profileScope.storageKey] = profile
       try save(snapshot)
       return profile
@@ -405,7 +381,10 @@
       guard snapshot.schemaVersion == Snapshot.currentSchemaVersion else {
         throw CocoaError(.coderReadCorrupt)
       }
-      cached = snapshot
+      // G6 stored preview conversation text and memory consent in this
+      // Debug-only file. G7 owns both in profile-scoped authoritative stores,
+      // so rewrite the decoded projection to remove those deprecated fields.
+      try save(snapshot)
       return snapshot
     }
 

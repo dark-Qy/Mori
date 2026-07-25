@@ -8,6 +8,8 @@ public enum MoriGlobalPreferenceRuntimeError: Error, Equatable, Sendable {
   case rejectedPreference
   case staleDeletionScope
   case staleSensingScope
+  case consentExpansionRequiresPhone
+  case invalidDisclosureVersion
 }
 
 public enum MoriGlobalProfileSource: Equatable, Sendable {
@@ -126,6 +128,69 @@ public actor MoriGlobalPreferenceRuntime {
 
   public func current() async throws -> MoriGlobalPreferenceProjection {
     projection(from: try await repository.current().preferences)
+  }
+
+  public func currentChatAuthority() async throws -> ChatAuthoritySnapshot {
+    let current = try await repository.current()
+    return ChatAuthoritySnapshot(
+      profile: current.preferences.profileSelection.profile,
+      remoteChatConsent: current.consent.remoteChat,
+      memoryContextConsent: current.consent.memoryContext
+    )
+  }
+
+  @discardableResult
+  public func setConsent(
+    _ kind: MoriConsentKind,
+    enabled: Bool,
+    disclosureVersion: UInt16? = nil
+  ) async throws -> ChatAuthoritySnapshot {
+    let author: ConsentAuthorDevice =
+      originDeviceID == "phone" ? .phone : .watch
+    if enabled, author != .phone {
+      throw MoriGlobalPreferenceRuntimeError.consentExpansionRequiresPhone
+    }
+    let version =
+      enabled
+      ? disclosureVersion ?? kind.requiredDisclosureVersion
+      : 0
+    guard !enabled || version >= kind.requiredDisclosureVersion else {
+      throw MoriGlobalPreferenceRuntimeError.invalidDisclosureVersion
+    }
+
+    let current = try await repository.current()
+    let maximumConsentCounter =
+      MoriConsentKind.allCases
+      .map { current.consent[$0].revision.counter }
+      .max() ?? 0
+    let revision = LamportRevision(
+      counter: max(
+        current.preferences.maximumCounter,
+        maximumConsentCounter
+      ) &+ 1,
+      originDeviceID: originDeviceID
+    )
+    let record = MoriConsentRecord(
+      enabled: enabled,
+      disclosureVersion: version,
+      revision: revision,
+      authorDevice: author
+    )
+    let candidate = current.consent.replacing(kind, with: record)
+    let result = try await repository.merge(consent: candidate)
+    let consent: GlobalConsentState
+    switch result {
+    case .applied(let value), .duplicate(let value):
+      consent = value
+    case .rejected:
+      throw MoriGlobalPreferenceRuntimeError.rejectedPreference
+    }
+    let latest = try await repository.current().preferences
+    return ChatAuthoritySnapshot(
+      profile: latest.profileSelection.profile,
+      remoteChatConsent: consent.remoteChat,
+      memoryContextConsent: consent.memoryContext
+    )
   }
 
   /// Executes one synchronous mutation while the captured profile and sensing
@@ -443,3 +508,5 @@ public actor MoriGlobalPreferenceRuntime {
     return current
   }
 }
+
+extension MoriGlobalPreferenceRuntime: ChatAuthorityProviding {}

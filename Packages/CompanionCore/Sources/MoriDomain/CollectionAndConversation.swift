@@ -451,7 +451,7 @@ public struct ConversationRecord: Hashable, Codable, Sendable {
   public let role: ConversationRole
   public private(set) var content: String
   public let localTime: Date
-  public let referencedMemoryIDs: [MemoryID]
+  public private(set) var referencedMemoryIDs: [MemoryID]
   public let revision: LamportRevision
   public private(set) var deletedAt: Date?
   public private(set) var deletionRevision: LamportRevision?
@@ -533,6 +533,7 @@ public struct ConversationRecord: Hashable, Codable, Sendable {
     deletionRevision = transition.revision
     deletionTransitionID = transition.header.recordID
     content = ""
+    referencedMemoryIDs = []
     return .applied
   }
 }
@@ -613,21 +614,41 @@ public enum ConversationBoundary {
     guard
       userContext.recentMessages.allSatisfy({
         $0.header.scopeMatches(profile)
-          && $0.isDeleted == false
-          && $0.content.unicodeScalars.count <= maximumMessageScalars
       })
     else {
       return .profileMismatch
     }
+    guard
+      userContext.recentMessages.allSatisfy({
+        $0.validate(in: profile) == nil
+          && ($0.role == .user || $0.role == .mori)
+          && $0.isDeleted == false
+          && $0.content.unicodeScalars.count <= maximumMessageScalars
+      })
+    else {
+      return .invalidRecord
+    }
+    guard
+      Set(userContext.recentMessages.map(\.conversationID)).count <= 1,
+      Set(userContext.recentMessages.map(\.header.recordID)).count
+        == userContext.recentMessages.count,
+      userContext.recentMessages.map(\.revision)
+        == userContext.recentMessages.map(\.revision).sorted()
+    else {
+      return .invalidRecord
+    }
     return nil
   }
 
-  public static func acceptsCandidate(_ candidate: ChatCandidate, approvedEvents: Set<EventID>)
-    -> Bool
-  {
+  public static func acceptsCandidate(
+    _ candidate: ChatCandidate,
+    approvedEvents: Set<EventID>,
+    maximumReplyScalars: Int = 2_000
+  ) -> Bool {
     switch candidate {
     case .replyText(let text):
       return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        && text.unicodeScalars.count <= maximumReplyScalars
     case .taskProposal(_, let sourceEventID):
       // This remains untrusted input. The task issuance policy must still create
       // the actual TaskInstance.

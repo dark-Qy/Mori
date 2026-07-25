@@ -229,6 +229,60 @@ final class AppSmokeTests: XCTestCase {
       XCTAssertEqual(mock2.coinBalance, 18)
     }
 
+    func testMockRepositoryScrubsDeprecatedConversationFieldsOnLoad()
+      async throws
+    {
+      let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+      try FileManager.default.createDirectory(
+        at: directory,
+        withIntermediateDirectories: true
+      )
+      let fileURL = directory.appendingPathComponent("experience.json")
+      let profile = try await makeMockProfile(
+        scenarioID: "mock1",
+        directory: directory
+      )
+      var projection = try XCTUnwrap(
+        JSONSerialization.jsonObject(
+          with: JSONEncoder().encode(PhoneMockExperienceProjection.initial)
+        ) as? [String: Any]
+      )
+      projection["conversation"] = [
+        [
+          "id": UUID().uuidString,
+          "role": "user",
+          "text": "deprecated private text",
+        ]
+      ]
+      projection["usesMemoryContext"] = true
+      let snapshot: [String: Any] = [
+        "schemaVersion": 1,
+        "profiles": [profile.storageKey: projection],
+      ]
+      try JSONSerialization.data(
+        withJSONObject: snapshot,
+        options: [.sortedKeys]
+      ).write(to: fileURL, options: [.atomic])
+
+      let repository = PhoneMockExperienceRepository(fileURL: fileURL)
+      _ = try repository.projection(profile: profile)
+
+      let rewritten = try XCTUnwrap(
+        JSONSerialization.jsonObject(
+          with: Data(contentsOf: fileURL)
+        ) as? [String: Any]
+      )
+      let profiles = try XCTUnwrap(
+        rewritten["profiles"] as? [String: Any]
+      )
+      let scrubbed = try XCTUnwrap(
+        profiles[profile.storageKey] as? [String: Any]
+      )
+      XCTAssertNil(scrubbed["conversation"])
+      XCTAssertNil(scrubbed["usesMemoryContext"])
+    }
+
     func testRepeatedSelectionOfSameScenarioUsesFreshExperience() async throws {
       let directory = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -479,6 +533,58 @@ final class AppSmokeTests: XCTestCase {
         secondProjection.appPreferenceState.publicPetSocialStateRawValue,
         PublicPetSocialStateV1.greeting.rawValue
       )
+    }
+
+    func testMockConversationMemoryConsentIsProfileLocal() async throws {
+      let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+      let repository = PhoneMockExperienceRepository(
+        fileURL: directory.appendingPathComponent("experience.json")
+      )
+      let authority = try MoriGlobalPreferenceRuntime(
+        storageURL: directory.appendingPathComponent("authority.json"),
+        originDeviceID: "phone",
+        initialProfileSource: .mock(scenarioID: "mock1")
+      )
+      let first = try await authority.current().profileScope
+      let second = try await authority.selectProfile(
+        .mock(scenarioID: "mock2")
+      ).profileScope
+
+      let firstProjection =
+        try repository.setConversationMemoryContext(
+          profile: first,
+          enabled: true
+        )
+      let secondProjection = try repository.projection(profile: second)
+
+      XCTAssertEqual(
+        firstProjection.conversationMemoryContextEnabled,
+        true
+      )
+      XCTAssertNil(secondProjection.conversationMemoryContextEnabled)
+      let globalAuthority = try await authority.currentChatAuthority()
+      XCTAssertFalse(globalAuthority.memoryContextIsAuthorized)
+    }
+
+    func testMockChatAuthorityDoesNotExpandGlobalConsent() async throws {
+      let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+      let global = try MoriGlobalPreferenceRuntime(
+        storageURL: directory.appendingPathComponent("authority.json"),
+        originDeviceID: "phone",
+        initialProfileSource: .mock(scenarioID: "mock1")
+      )
+      let profile = try await global.currentChatAuthority().profile
+      let local = PhoneMockChatAuthority(
+        profile: profile,
+        memoryContextEnabled: false
+      )
+
+      let localAuthority = await local.setMemoryContext(true)
+      let globalAuthority = try await global.currentChatAuthority()
+      XCTAssertTrue(localAuthority.memoryContextIsAuthorized)
+      XCTAssertFalse(globalAuthority.memoryContextIsAuthorized)
     }
 
     func testClothingAndAccessoryEquipmentRemainIndependent() async throws {

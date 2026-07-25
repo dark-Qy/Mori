@@ -2,6 +2,7 @@ import AppRuntime
 import Combine
 import Domain
 import Foundation
+import MoriDomain
 import MoriRuntime
 import SwiftUI
 
@@ -9,6 +10,12 @@ enum PhoneAppPhase: Equatable {
   case loading
   case onboarding
   case ready
+}
+
+private struct PendingConversationWarning {
+  let text: String
+  let requestID: String
+  let clientTurnID: String
 }
 
 @MainActor
@@ -35,12 +42,17 @@ final class PhoneAppStore: ObservableObject {
   @Published private(set) var isSavingCompanionPreferences = false
   @Published private(set) var isShowingDeleteAllConfirmation = false
   @Published private(set) var isDeletingAllMoriData = false
+  @Published private(set) var isSwitchingDataSource = false
+  @Published private(set) var isShowingClearConversationConfirmation = false
+  @Published private(set) var conversation = PhoneConversationPresentation.empty
 
   var dataMode: PhoneDataMode { model.dataMode }
   var dataSourceSelectionAvailable: Bool { !hasLaunchScenarioOverride }
   var companionExperienceAvailable: Bool {
     #if DEBUG
-      selectedDataSource.isMock && model.allowsInteraction
+      selectedDataSource.isMock
+        && model.allowsInteraction
+        && isSwitchingDataSource == false
     #else
       false
     #endif
@@ -63,6 +75,7 @@ final class PhoneAppStore: ObservableObject {
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private let usesE2EOfflineRuntime: Bool
   private let hasLaunchScenarioOverride: Bool
+  private let runtimeStorageDirectory: URL
   private var hasStarted = false
   private var latestHealth: HealthSnapshot?
   private var authoritativeProfileSource: MoriGlobalProfileSource?
@@ -75,8 +88,23 @@ final class PhoneAppStore: ObservableObject {
   private var companionPreferenceWritesInFlight = 0
   private var pendingDeletionProfileScope: MoriGlobalProfileScope?
   private var pendingDeletionRequestID: String?
+  private var conversationProcessor: ConversationProcessor?
+  private var conversationProfileScope: MoriGlobalProfileScope?
+  #if DEBUG
+    private var mockChatAuthority: PhoneMockChatAuthority?
+  #endif
+  private var conversationSendTask:
+    Task<
+      ConversationPresentationState,
+      Never
+    >?
+  private var activeConversationRequestID: String?
+  private var pendingConversationWarning: PendingConversationWarning?
+  private var memoryContextWriteTask: Task<Void, Never>?
+  private var memoryContextWriteRevision: UInt64 = 0
   #if DEBUG
     private let mockExperienceRepository: PhoneMockExperienceRepository
+    private let mockChatBehavior: DeterministicMockChatBehavior
   #endif
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
@@ -126,6 +154,7 @@ final class PhoneAppStore: ObservableObject {
     #else
       let runtimeConfiguration = Self.productionRuntimeConfiguration()
     #endif
+    runtimeStorageDirectory = runtimeConfiguration.storageDirectory
     runtime = AppleCompanionRuntime(
       source: .phone,
       storageDirectory: runtimeConfiguration.storageDirectory,
@@ -144,6 +173,7 @@ final class PhoneAppStore: ObservableObject {
         fileURL: runtimeConfiguration.storageDirectory
           .appendingPathComponent("phone-mock-experience-v1.json")
       )
+      mockChatBehavior = Self.mockChatBehavior(arguments: arguments)
     #endif
     notificationRouteObserver =
       hasLaunchScenarioOverride ? nil : RuntimeNotificationRouteObserver()
@@ -162,6 +192,7 @@ final class PhoneAppStore: ObservableObject {
     guard !hasStarted else { return }
     hasStarted = true
     await loadGlobalPreferences()
+    await configureConversation()
     await loadMockExperience()
     guard !hasLaunchScenarioOverride else { return }
     observeNotificationRoutes()
@@ -237,10 +268,20 @@ final class PhoneAppStore: ObservableObject {
   }
 
   func selectDataSource(_ source: CompanionDataSource) async {
-    guard !hasLaunchScenarioOverride else { return }
+    guard
+      !hasLaunchScenarioOverride,
+      !isSwitchingDataSource,
+      source != selectedDataSource
+    else {
+      return
+    }
+    isSwitchingDataSource = true
+    defer { isSwitchingDataSource = false }
+    await stopConversationRuntime(clearPresentation: true)
     do {
       try await selectGlobalProfile(for: source)
     } catch {
+      await configureConversation()
       statusMessage = "数据模式暂时没能保存"
       return
     }
@@ -249,6 +290,7 @@ final class PhoneAppStore: ObservableObject {
       _ = await runtime.saveDataSourceSelection(source)
     }
     await applySelectedDataSource(requestAccessIfNeeded: source == .healthKit)
+    await configureConversation()
   }
 
   func refreshHealth(requestAccessIfNeeded: Bool = false) async {
@@ -406,87 +448,337 @@ final class PhoneAppStore: ObservableObject {
     #endif
   }
 
-  func sendConversationMessage(_ rawText: String) async {
+  func setConversationDraft(_ value: String) {
+    // Chat drafts remain presentation-only. Persisting arbitrary text before
+    // the credential scanner runs would retain blocked secrets across launch.
+    conversation.draft = value
+  }
+
+  func sendConversationMessage(
+    _ rawText: String,
+    confirmedWarnings: Bool = false,
+    requestID: String? = nil,
+    clientTurnID: String? = nil
+  ) async {
     let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard text.isEmpty == false else { return }
-    guard !model.isLive, model.allowsInteraction else {
-      statusMessage = "正式对话运行时将在 G7 接入"
+    guard let processor = conversationProcessor else {
+      statusMessage =
+        model.isLive
+        ? "正式对话服务尚未接入"
+        : "本机对话暂时无法载入"
       return
     }
-    #if DEBUG
-      guard let profile = activeMockProfile else {
-        statusMessage = "当前 Mock profile 不可用"
-        return
-      }
-      isSavingMockExperience = true
-      defer { isSavingMockExperience = false }
-      let reply = localMoriReply(to: text)
-      do {
-        let projection = try mockExperienceRepository.appendConversation(
-          profile: profile,
-          userText: text,
-          moriText: reply
+    guard
+      conversation.phase.isBusy == false,
+      activeConversationRequestID == nil,
+      isSwitchingDataSource == false
+    else {
+      return
+    }
+    let capturedProfile = conversationProfileScope
+    let actualRequestID = requestID ?? UUID().uuidString.lowercased()
+    let actualClientTurnID =
+      clientTurnID ?? UUID().uuidString.lowercased()
+    activeConversationRequestID = actualRequestID
+    let context = conversationContext()
+    let task = Task {
+      await processor.send(
+        text,
+        appContext: context,
+        mode: conversationTransportMode,
+        confirmedWarnings: confirmedWarnings,
+        requestID: actualRequestID,
+        clientTurnID: actualClientTurnID
+      ) { [weak self] state in
+        await self?.applyConversation(
+          state,
+          expectedProfile: capturedProfile,
+          requestID: actualRequestID
         )
-        _ = applyMockExperience(projection, for: profile)
-      } catch {
-        guard activeMockProfile == profile else { return }
-        statusMessage = "本机对话暂时没能保存"
       }
-    #endif
+    }
+    conversationSendTask = task
+    let result = await task.value
+    guard
+      conversationProfileScope == capturedProfile,
+      activeConversationRequestID == actualRequestID
+    else {
+      return
+    }
+    applyConversation(result)
+    conversationSendTask = nil
+    activeConversationRequestID = nil
+    if result.phase == .warningConfirmationRequired {
+      pendingConversationWarning = PendingConversationWarning(
+        text: text,
+        requestID: actualRequestID,
+        clientTurnID: actualClientTurnID
+      )
+    } else {
+      pendingConversationWarning = nil
+    }
+  }
+
+  func confirmConversationWarning() async {
+    guard let warning = pendingConversationWarning else { return }
+    await sendConversationMessage(
+      warning.text,
+      confirmedWarnings: true,
+      requestID: warning.requestID,
+      clientTurnID: warning.clientTurnID
+    )
+  }
+
+  func cancelConversationWarning() {
+    pendingConversationWarning = nil
+    if case .warningConfirmationRequired = conversation.phase {
+      conversation.phase = .idle
+      conversation.warningText = nil
+    }
+  }
+
+  func cancelConversationResponse() {
+    guard
+      let requestID = activeConversationRequestID,
+      let processor = conversationProcessor
+    else {
+      return
+    }
+    Task {
+      await processor.cancel(requestID: requestID)
+    }
+    conversationSendTask?.cancel()
+  }
+
+  func retryConversation() async {
+    guard
+      let requestID = conversation.pendingRetryRequestID,
+      let processor = conversationProcessor,
+      conversation.phase.isBusy == false,
+      activeConversationRequestID == nil,
+      isSwitchingDataSource == false
+    else {
+      return
+    }
+    let capturedProfile = conversationProfileScope
+    activeConversationRequestID = requestID
+    let task = Task {
+      await processor.retry(
+        requestID: requestID,
+        appContext: conversationContext(),
+        mode: conversationTransportMode
+      ) { [weak self] state in
+        await self?.applyConversation(
+          state,
+          expectedProfile: capturedProfile,
+          requestID: requestID
+        )
+      }
+    }
+    conversationSendTask = task
+    let result = await task.value
+    guard
+      conversationProfileScope == capturedProfile,
+      activeConversationRequestID == requestID
+    else {
+      return
+    }
+    applyConversation(result)
+    conversationSendTask = nil
+    activeConversationRequestID = nil
+  }
+
+  func requestClearConversation() {
+    guard companionExperienceAvailable else { return }
+    isShowingClearConversationConfirmation = true
+  }
+
+  func cancelClearConversation() {
+    isShowingClearConversationConfirmation = false
   }
 
   func clearConversation() async {
-    guard !model.isLive else {
-      statusMessage = "真实对话记录尚未接入"
+    guard let processor = conversationProcessor else {
+      statusMessage = "对话记录暂时无法清除"
       return
     }
-    #if DEBUG
-      guard let profile = activeMockProfile else {
-        statusMessage = "当前 Mock profile 不可用"
-        return
-      }
-      do {
-        let projection = try mockExperienceRepository.clearConversation(
-          profile: profile
-        )
-        guard applyMockExperience(projection, for: profile) else { return }
-        statusMessage = "Mock 对话记录已清除"
-      } catch {
-        guard activeMockProfile == profile else { return }
-        statusMessage = "Mock 对话暂时没能清除"
-      }
-    #endif
+    isShowingClearConversationConfirmation = false
+    let capturedProfile = conversationProfileScope
+    if let requestID = activeConversationRequestID {
+      await processor.cancel(requestID: requestID)
+    }
+    let sendTask = conversationSendTask
+    sendTask?.cancel()
+    _ = await sendTask?.value
+    guard conversationProfileScope == capturedProfile else { return }
+    pendingConversationWarning = nil
+    let state = await processor.clear(
+      requestID: "clear-\(UUID().uuidString.lowercased())"
+    )
+    guard conversationProfileScope == capturedProfile else { return }
+    applyConversation(state)
+    conversationSendTask = nil
+    activeConversationRequestID = nil
+    if case .failed = state.phase {
+      statusMessage = "对话记录暂时没能清除"
+    } else {
+      statusMessage = "对话记录已清除；共同回忆仍然保留"
+    }
   }
 
   func setMemoryContext(_ enabled: Bool) {
-    guard !model.isLive else { return }
-    #if DEBUG
-      guard let profile = activeMockProfile else { return }
-      Task { [weak self] in
-        guard let self else { return }
-        do {
-          let projection = try mockExperienceRepository.setMemoryContext(
-            profile: profile,
-            enabled: enabled
-          )
-          _ = applyMockExperience(projection, for: profile)
-        } catch {
-          guard activeMockProfile == profile else { return }
-          statusMessage = "对话记忆设置暂时没能保存"
-        }
+    let previous = conversation.memoryContextIsEnabled
+    conversation.memoryContextIsEnabled = enabled
+    let capturedProfile = conversationProfileScope
+    memoryContextWriteRevision &+= 1
+    let revision = memoryContextWriteRevision
+    let previousTask = memoryContextWriteTask
+    memoryContextWriteTask = Task { [weak self] in
+      _ = await previousTask?.value
+      guard
+        let self,
+        revision == memoryContextWriteRevision,
+        conversationProfileScope == capturedProfile
+      else {
+        return
       }
-    #endif
+      do {
+        if enabled == false,
+          let requestID = activeConversationRequestID,
+          let processor = conversationProcessor
+        {
+          await processor.cancel(requestID: requestID)
+          let sendTask = conversationSendTask
+          sendTask?.cancel()
+          _ = await sendTask?.value
+          guard
+            revision == memoryContextWriteRevision,
+            conversationProfileScope == capturedProfile
+          else {
+            return
+          }
+          conversationSendTask = nil
+          activeConversationRequestID = nil
+        }
+        #if DEBUG
+          if selectedDataSource.isMock {
+            guard
+              let profile = activeMockProfile,
+              profile == capturedProfile,
+              let mockChatAuthority
+            else {
+              throw PhoneMockExperienceError.invalidProfile
+            }
+            let projection =
+              try mockExperienceRepository.setConversationMemoryContext(
+                profile: profile,
+                enabled: enabled
+              )
+            let authority = await mockChatAuthority.setMemoryContext(enabled)
+            guard
+              revision == memoryContextWriteRevision,
+              conversationProfileScope == capturedProfile
+            else {
+              return
+            }
+            _ = applyMockExperience(projection, for: profile)
+            if enabled == false, let processor = conversationProcessor {
+              applyConversation(
+                await processor.clearMemoryContextIndex()
+              )
+            } else {
+              conversation.memoryContextIsEnabled =
+                authority.memoryContextIsAuthorized
+            }
+            return
+          }
+        #endif
+        guard let globalPreferenceRuntime else {
+          throw MoriGlobalPreferenceRuntimeError.rejectedPreference
+        }
+        let authority = try await globalPreferenceRuntime.setConsent(
+          .memoryContext,
+          enabled: enabled
+        )
+        guard
+          revision == memoryContextWriteRevision,
+          conversationProfileScope == capturedProfile
+        else {
+          return
+        }
+        if enabled == false, let processor = conversationProcessor {
+          applyConversation(
+            await processor.clearMemoryContextIndex()
+          )
+        } else {
+          conversation.memoryContextIsEnabled =
+            authority.memoryContextIsAuthorized
+        }
+      } catch {
+        guard
+          revision == memoryContextWriteRevision,
+          conversationProfileScope == capturedProfile
+        else {
+          return
+        }
+        conversation.memoryContextIsEnabled = previous
+        statusMessage = "对话记忆设置暂时没能保存"
+      }
+    }
   }
 
   func resetCurrentMockState() async {
-    guard selectedDataSource.isMock, dataSourceSelectionAvailable else { return }
-    do {
-      try await selectGlobalProfile(for: selectedDataSource)
-    } catch {
-      statusMessage = "Mock profile 暂时没能重置"
-      return
-    }
     #if DEBUG
+      guard
+        selectedDataSource.isMock,
+        dataSourceSelectionAvailable,
+        isSwitchingDataSource == false,
+        let globalPreferenceRuntime,
+        let oldScope = activeMockProfile
+      else {
+        return
+      }
+      isSwitchingDataSource = true
+      defer { isSwitchingDataSource = false }
+      await stopConversationRuntime(clearPresentation: true)
+      var removedOldConversationNamespace = false
+      do {
+        let authority = try await globalPreferenceRuntime.currentChatAuthority()
+        let layout = try RuntimeStorageLayout(
+          applicationSupportURL: runtimeStorageDirectory
+        )
+        let namespace = try layout.namespace(for: authority.profile)
+        guard
+          namespace.namespaceID == oldScope.storageKey,
+          authority.profile.isMock
+        else {
+          throw RuntimeStorageError.selectionMismatch
+        }
+        let selection = ProfileSelectionRecord(
+          profile: authority.profile,
+          revision: authority.profile.epoch.revision
+        )
+        let selectionAuthority = try ProfileSelectionAuthority(
+          initial: selection
+        )
+        try await SelectedMockResetService(
+          layout: layout,
+          selectionAuthority: selectionAuthority
+        ).deleteSelectedMockNamespace(namespace: namespace)
+        removedOldConversationNamespace = true
+        try mockExperienceRepository.remove(profile: oldScope)
+        try await selectGlobalProfile(for: selectedDataSource)
+      } catch {
+        if removedOldConversationNamespace == false {
+          await configureConversation()
+        }
+        statusMessage =
+          removedOldConversationNamespace
+          ? "旧 Mock 对话已清空；新 Mock profile 暂时没能载入，请重试"
+          : "Mock profile 暂时没能重置"
+        return
+      }
       guard let profile = activeMockProfile else {
         statusMessage = "新的 Mock profile 不可用"
         return
@@ -497,6 +789,7 @@ final class PhoneAppStore: ObservableObject {
         )
         guard applyMockExperience(projection, for: profile) else { return }
         model = PhonePresentationModel.demo(selectedDataSource)
+        await configureConversation()
         await loadMockExperience()
         statusMessage = "当前 Mock 状态已重置；真实记录未改变"
       } catch {
@@ -560,6 +853,8 @@ final class PhoneAppStore: ObservableObject {
     notificationRouteTask = nil
     peerSyncRetryTask?.cancel()
     peerSyncRetryTask = nil
+    let retiringConversationProcessor = conversationProcessor
+    await stopConversationRuntime(clearPresentation: false)
 
     var localDeletionFailed = false
     do {
@@ -576,9 +871,20 @@ final class PhoneAppStore: ObservableObject {
         localDeletionFailed = true
       }
     #endif
+    do {
+      try await retiringConversationProcessor?.removeAllContent()
+      try RuntimeStorageLayout(
+        applicationSupportURL: runtimeStorageDirectory
+      ).removeAllOwnedProfileData()
+    } catch {
+      localDeletionFailed = true
+    }
 
     preferences = AppPreferences()
     mockExperience = .empty
+    conversation = .empty
+    conversationProcessor = nil
+    conversationProfileScope = nil
     selectedDataSource = .healthKit
     model = .liveNoData()
     latestHealth = nil
@@ -809,16 +1115,6 @@ final class PhoneAppStore: ObservableObject {
     #endif
   }
 
-  private func localMoriReply(to text: String) -> String {
-    if text.contains("难过") || text.contains("累") {
-      return "听起来今天有点不容易。你不用马上变好，我可以先陪你待一会儿。"
-    }
-    if text.contains("散步") || text.contains("出去") {
-      return "好呀。你想出门时我会在这里，但这条本机回复不会假装知道你已经走了多远。"
-    }
-    return "我听见了。你想继续说，我就在这里。"
-  }
-
   private func persistPreferences(
     successPrefix: String = "设置已保存在本机"
   ) {
@@ -913,6 +1209,194 @@ final class PhoneAppStore: ObservableObject {
       companionPreferenceWritesInFlight - 1
     )
     isSavingCompanionPreferences = companionPreferenceWritesInFlight > 0
+  }
+
+  private func stopConversationRuntime(
+    clearPresentation: Bool
+  ) async {
+    memoryContextWriteRevision &+= 1
+    let memoryTask = memoryContextWriteTask
+    memoryContextWriteTask?.cancel()
+    memoryContextWriteTask = nil
+
+    let processor = conversationProcessor
+    let sendTask = conversationSendTask
+    if let requestID = activeConversationRequestID, let processor {
+      await processor.cancel(requestID: requestID)
+    }
+    sendTask?.cancel()
+    _ = await sendTask?.value
+    _ = await memoryTask?.value
+
+    conversationSendTask = nil
+    activeConversationRequestID = nil
+    pendingConversationWarning = nil
+    conversationProcessor = nil
+    conversationProfileScope = nil
+    #if DEBUG
+      mockChatAuthority = nil
+    #endif
+    if clearPresentation {
+      conversation = .empty
+    }
+  }
+
+  private func configureConversation() async {
+    await stopConversationRuntime(clearPresentation: true)
+
+    guard
+      let globalPreferenceRuntime,
+      let expectedScope = authoritativeProfileScope
+    else {
+      return
+    }
+    do {
+      let authority = try await globalPreferenceRuntime.currentChatAuthority()
+      let layout = try RuntimeStorageLayout(
+        applicationSupportURL: runtimeStorageDirectory
+      )
+      let namespace = try layout.namespace(for: authority.profile)
+      guard namespace.namespaceID == expectedScope.storageKey else {
+        throw ConversationFailure.staleAuthority
+      }
+      try namespace.prepare()
+      let repository = try ConversationRepository(
+        storage: FileConversationRepositoryStorage(
+          fileURL: namespace.url(for: .conversation)
+        ),
+        profile: authority.profile,
+        originDeviceID: "phone-chat",
+        configuration: conversationConfiguration
+      )
+      let transport: any ChatTransport
+      #if DEBUG
+        transport =
+          authority.profile.isMock
+          ? DeterministicMockChatTransport(
+            behavior: mockChatBehavior,
+            configuration: conversationConfiguration
+          )
+          : UnavailableRemoteChatTransport()
+      #else
+        transport = UnavailableRemoteChatTransport()
+      #endif
+      let chatAuthority: any ChatAuthorityProviding
+      #if DEBUG
+        if authority.profile.isMock {
+          let projection = try mockExperienceRepository.projection(
+            profile: expectedScope
+          )
+          let localAuthority = PhoneMockChatAuthority(
+            profile: authority.profile,
+            memoryContextEnabled:
+              projection.conversationMemoryContextEnabled ?? false
+          )
+          mockChatAuthority = localAuthority
+          chatAuthority = localAuthority
+        } else {
+          mockChatAuthority = nil
+          chatAuthority = globalPreferenceRuntime
+        }
+      #else
+        chatAuthority = globalPreferenceRuntime
+      #endif
+      let processor = try ConversationProcessor(
+        profile: authority.profile,
+        repository: repository,
+        authority: chatAuthority,
+        transport: transport,
+        configuration: conversationConfiguration
+      )
+      guard authoritativeProfileScope == expectedScope else { return }
+      // G7 never persists arbitrary composer text. This also removes drafts
+      // written by pre-G7 development builds before applying presentation.
+      let draftClearState = await processor.setDraft("")
+      if case .failed = draftClearState.phase {
+        throw ConversationFailure.persistenceFailure
+      }
+      conversationProcessor = processor
+      conversationProfileScope = expectedScope
+      applyConversation(await processor.load())
+    } catch {
+      guard authoritativeProfileScope == expectedScope else { return }
+      conversation = .empty
+      statusMessage = "本机对话暂时无法载入"
+    }
+  }
+
+  private var conversationConfiguration: ConversationRuntimeConfiguration {
+    #if DEBUG
+      if mockChatBehavior == .slowStream {
+        ConversationRuntimeConfiguration(
+          requestTimeout: 20,
+          streamChunkDelay: 1
+        )
+      } else {
+        ConversationRuntimeConfiguration(
+          requestTimeout: 1,
+          streamChunkDelay: 0.04
+        )
+      }
+    #else
+      .standard
+    #endif
+  }
+
+  private var conversationTransportMode: ChatTransportMode {
+    #if DEBUG
+      if selectedDataSource.isMock {
+        return .localMock
+      }
+    #endif
+    return .remote
+  }
+
+  private func conversationContext() -> ConversationAppContextInput {
+    guard
+      conversation.memoryContextIsEnabled,
+      let memory = model.sharedMemories.first,
+      let scope = authoritativeProfileScope
+    else {
+      return ConversationAppContextInput(
+        identity: .penguin,
+        tone: .gentle
+      )
+    }
+    let excerpt = String(
+      memory.narrative.unicodeScalars.prefix(500)
+    )
+    return ConversationAppContextInput(
+      identity: .penguin,
+      tone: .gentle,
+      selectedMemoryExcerpt: SelectedMemoryExcerpt(
+        memoryID: MemoryID(memory.id),
+        text: excerpt
+      ),
+      selectedMemoryRevision: LamportRevision(
+        counter: scope.profileEpochCounter,
+        originDeviceID: scope.profileEpochOriginDeviceID
+      )
+    )
+  }
+
+  private func applyConversation(
+    _ state: ConversationPresentationState
+  ) {
+    conversation = PhoneConversationPresentation(state)
+  }
+
+  private func applyConversation(
+    _ state: ConversationPresentationState,
+    expectedProfile: MoriGlobalProfileScope?,
+    requestID: String
+  ) {
+    guard
+      conversationProfileScope == expectedProfile,
+      activeConversationRequestID == requestID
+    else {
+      return
+    }
+    applyConversation(state)
   }
 
   private func loadGlobalPreferences() async {
@@ -1069,6 +1553,22 @@ final class PhoneAppStore: ObservableObject {
   }
 
   #if DEBUG
+    private static func mockChatBehavior(
+      arguments: [String]
+    ) -> DeterministicMockChatBehavior {
+      guard
+        let rawValue = arguments.first(
+          where: { $0.hasPrefix("--chat-behavior=") }
+        )?.replacingOccurrences(
+          of: "--chat-behavior=",
+          with: ""
+        )
+      else {
+        return .normal
+      }
+      return DeterministicMockChatBehavior(rawValue: rawValue) ?? .normal
+    }
+
     private static func notificationRoute(
       from arguments: [String]
     ) -> RuntimeNotificationRoute? {

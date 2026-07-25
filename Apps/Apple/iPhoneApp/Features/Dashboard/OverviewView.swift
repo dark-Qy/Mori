@@ -1,9 +1,13 @@
+import MoriRuntime
 import SwiftUI
 
 struct MoriHomeView: View {
   @ObservedObject var store: PhoneAppStore
-  @State private var draft = ""
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @FocusState private var isComposerFocused: Bool
+  @State private var conversationIsAtBottom = true
+  @State private var followsConversationBottom = true
+  @State private var isUserScrollingConversation = false
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -21,20 +25,55 @@ struct MoriHomeView: View {
         }
       }
       .background(CompanionPalette.background.ignoresSafeArea())
+      .onScrollGeometryChange(for: Bool.self) { geometry in
+        geometry.contentOffset.y + geometry.containerSize.height
+          >= geometry.contentSize.height - 36
+      } action: { _, isAtBottom in
+        conversationIsAtBottom = isAtBottom
+      }
+      .onScrollPhaseChange { _, newPhase, _ in
+        if newPhase == .interacting {
+          isUserScrollingConversation = true
+        } else if newPhase == .idle, isUserScrollingConversation {
+          followsConversationBottom = conversationIsAtBottom
+          isUserScrollingConversation = false
+        }
+      }
       .safeAreaInset(edge: .bottom) {
         composer
       }
-      .onChange(of: store.mockExperience.conversation.count) {
-        guard let lastID = store.mockExperience.conversation.last?.id else {
-          return
-        }
-        withAnimation(.easeOut(duration: 0.25)) {
-          proxy.scrollTo(lastID, anchor: .bottom)
-        }
+      .onChange(of: store.conversation.messages.last?.id) {
+        scrollToConversationBottom(proxy)
+      }
+      .onChange(of: streamingText) {
+        scrollToConversationBottom(proxy)
       }
     }
     .navigationTitle("Mori")
     .navigationBarTitleDisplayMode(.inline)
+    .alert(
+      "发送前确认",
+      isPresented: Binding(
+        get: {
+          store.conversation.phase
+            == .warningConfirmationRequired
+        },
+        set: { _ in }
+      )
+    ) {
+      Button("取消", role: .cancel) {
+        store.cancelConversationWarning()
+      }
+      Button("仍要发送") {
+        Task { await store.confirmConversationWarning() }
+      }
+      .accessibilityIdentifier("phone.mori.warning-confirm")
+    } message: {
+      Text(
+        store.conversation.warningText
+          ?? "这段话可能包含敏感内容，仍要发送吗？"
+      )
+    }
   }
 
   @ViewBuilder
@@ -74,10 +113,40 @@ struct MoriHomeView: View {
         .padding(.vertical, 30)
         .accessibilityIdentifier("phone.mori.invalid-mock")
       } else {
-        ForEach(store.mockExperience.conversation) { message in
+        if store.conversation.messages.isEmpty {
+          MoriMessageRow(
+            message: PhoneConversationDisplayMessage(
+              id: "welcome",
+              role: .mori,
+              text: "我在这里。今天想和我说什么？"
+            )
+          )
+        }
+
+        ForEach(store.conversation.messages) { message in
           MoriMessageRow(message: message)
             .id(message.id)
         }
+
+        if case .streaming(let text) = store.conversation.phase {
+          MoriMessageRow(
+            message: PhoneConversationDisplayMessage(
+              id: "streaming",
+              role: .mori,
+              text: text
+            ),
+            isStreaming: true
+          )
+          .id("streaming")
+        }
+
+        conversationStatus
+
+        Color.clear
+          .frame(height: 1)
+          .id("phone.mori.conversation-bottom")
+          .accessibilityHidden(true)
+
         Text("本机回复不会完成任务、发放金币或声称知道没有感知到的事实。")
           .font(.caption)
           .foregroundStyle(CompanionPalette.secondaryText)
@@ -87,42 +156,127 @@ struct MoriHomeView: View {
     }
   }
 
+  @ViewBuilder
+  private var conversationStatus: some View {
+    switch store.conversation.phase {
+    case .scanning:
+      ConversationProgressRow(text: "正在检查这段话")
+        .accessibilityIdentifier("phone.mori.chat-scanning")
+    case .sending:
+      ConversationProgressRow(text: "Mori 正在听")
+        .accessibilityIdentifier("phone.mori.chat-sending")
+    case .failed(let failure):
+      VStack(alignment: .leading, spacing: CompanionSpacing.small) {
+        Label(
+          failure == .cancelled ? "已停止" : failure.phoneMessage,
+          systemImage:
+            failure == .cancelled
+            ? "stop.circle"
+            : "exclamationmark.circle"
+        )
+        .font(.footnote)
+        .foregroundStyle(CompanionPalette.secondaryText)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityLabel(failure.phoneMessage)
+        .accessibilityIdentifier("phone.mori.chat-failure")
+
+        if store.conversation.canRetry {
+          Button("重试刚才的话") {
+            Task { await store.retryConversation() }
+          }
+          .buttonStyle(.borderless)
+          .font(.footnote.weight(.semibold))
+          .accessibilityIdentifier("phone.mori.retry")
+        }
+      }
+      .accessibilityElement(children: .contain)
+    case .idle, .warningConfirmationRequired, .streaming:
+      EmptyView()
+    }
+  }
+
   private var composer: some View {
     HStack(alignment: .bottom, spacing: CompanionSpacing.small) {
-      TextField("给 Mori 留句话", text: $draft, axis: .vertical)
-        .lineLimit(1...4)
-        .textFieldStyle(.plain)
-        .focused($isComposerFocused)
-        .submitLabel(.send)
-        .onSubmit(send)
-        .accessibilityIdentifier("phone.mori.composer")
-
-      Button(action: send) {
-        Image(systemName: "arrow.up.circle.fill")
-          .font(.title2)
-      }
-      .disabled(
-        draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-          || store.companionExperienceAvailable == false
-          || store.isSavingMockExperience
+      TextField(
+        composerPlaceholder,
+        text: Binding(
+          get: { store.conversation.draft },
+          set: store.setConversationDraft
+        ),
+        axis: .vertical
       )
-      .accessibilityLabel("发送")
-      .accessibilityIdentifier("phone.mori.send")
+      .lineLimit(1...4)
+      .textFieldStyle(.plain)
+      .focused($isComposerFocused)
+      .submitLabel(.send)
+      .onSubmit(send)
+      .disabled(store.companionExperienceAvailable == false)
+      .accessibilityIdentifier("phone.mori.composer")
+
+      if store.conversation.phase.isBusy {
+        Button(action: store.cancelConversationResponse) {
+          Image(systemName: "stop.circle.fill")
+            .font(.title2)
+        }
+        .accessibilityLabel("停止回复")
+        .accessibilityIdentifier("phone.mori.cancel")
+      } else {
+        Button(action: send) {
+          Image(systemName: "arrow.up.circle.fill")
+            .font(.title2)
+        }
+        .disabled(canSend == false)
+        .accessibilityLabel("发送")
+        .accessibilityIdentifier("phone.mori.send")
+      }
     }
     .padding(.horizontal, CompanionSpacing.page)
     .padding(.vertical, 11)
     .background(.regularMaterial)
   }
 
+  private var canSend: Bool {
+    store.conversation.draft
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .isEmpty == false
+      && store.companionExperienceAvailable
+      && store.conversation.phase.isBusy == false
+  }
+
+  private var streamingText: String? {
+    if case .streaming(let text) = store.conversation.phase {
+      return text
+    }
+    return nil
+  }
+
+  private var composerPlaceholder: String {
+    store.model.isLive
+      ? "正式对话尚未开放"
+      : "给 Mori 留句话"
+  }
+
   private func send() {
-    let value = draft
+    let value = store.conversation.draft
     guard value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
     else {
       return
     }
-    draft = ""
     Task {
       await store.sendConversationMessage(value)
+    }
+  }
+
+  private func scrollToConversationBottom(
+    _ proxy: ScrollViewProxy
+  ) {
+    guard followsConversationBottom else { return }
+    if reduceMotion {
+      proxy.scrollTo("phone.mori.conversation-bottom", anchor: .bottom)
+    } else {
+      withAnimation(.easeOut(duration: 0.2)) {
+        proxy.scrollTo("phone.mori.conversation-bottom", anchor: .bottom)
+      }
     }
   }
 }
@@ -174,36 +328,73 @@ struct MoriSceneHero: View {
 }
 
 private struct MoriMessageRow: View {
-  let message: PhoneConversationMessage
+  let message: PhoneConversationDisplayMessage
+  var isStreaming = false
+
+  @ViewBuilder
+  var body: some View {
+    if message.role == .localSystem {
+      Text(message.text)
+        .font(.footnote)
+        .foregroundStyle(CompanionPalette.secondaryText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityIdentifier(
+          "phone.mori.message.\(message.id)"
+        )
+        .accessibilityLabel("本机提示：\(message.text)")
+    } else {
+      HStack(alignment: .bottom) {
+        if message.role == .user {
+          Spacer(minLength: 54)
+        }
+        Text(message.text)
+          .font(.body)
+          .foregroundStyle(
+            message.role == .user ? Color.white : CompanionPalette.ink
+          )
+          .padding(.horizontal, 14)
+          .padding(.vertical, 10)
+          .background(
+            message.role == .user
+              ? CompanionPalette.mint
+              : CompanionPalette.surface,
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+          )
+          .overlay(alignment: .bottomTrailing) {
+            if isStreaming {
+              ProgressView()
+                .controlSize(.mini)
+                .padding(6)
+                .accessibilityHidden(true)
+            }
+          }
+          .accessibilityLabel(
+            "\(message.role == .user ? "你" : "Mori")：\(message.text)"
+          )
+          .accessibilityIdentifier(
+            "phone.mori.message.\(message.id)"
+          )
+        if message.role == .mori {
+          Spacer(minLength: 54)
+        }
+      }
+      .frame(maxWidth: .infinity)
+    }
+  }
+}
+
+private struct ConversationProgressRow: View {
+  let text: String
 
   var body: some View {
-    HStack {
-      if message.role == .user {
-        Spacer(minLength: 54)
-      }
-      Text(message.text)
-        .font(.body)
-        .foregroundStyle(
-          message.role == .user ? Color.white : CompanionPalette.ink
-        )
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(
-          message.role == .user
-            ? CompanionPalette.mint
-            : CompanionPalette.surface,
-          in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-        )
-        .accessibilityLabel(
-          "\(message.role == .user ? "你" : "Mori")：\(message.text)"
-        )
-        .accessibilityIdentifier(
-          "phone.mori.message.\(message.id.uuidString)"
-        )
-      if message.role == .mori {
-        Spacer(minLength: 54)
-      }
+    HStack(spacing: CompanionSpacing.small) {
+      ProgressView()
+        .controlSize(.small)
+      Text(text)
+        .font(.footnote)
+        .foregroundStyle(CompanionPalette.secondaryText)
     }
-    .frame(maxWidth: .infinity)
+    .accessibilityElement(children: .combine)
   }
 }

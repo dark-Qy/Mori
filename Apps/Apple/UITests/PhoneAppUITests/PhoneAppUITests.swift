@@ -70,11 +70,16 @@ final class PhoneAppUITests: XCTestCase {
       app.staticTexts["Mori：我听见了。你想继续说，我就在这里。"]
         .waitForExistence(timeout: 5)
     )
+    let sentMessage = app.staticTexts.matching(
+      NSPredicate(format: "label BEGINSWITH %@", "你：")
+    ).firstMatch
+    XCTAssertTrue(sentMessage.waitForExistence(timeout: 5))
+    let persistedLabel = sentMessage.label
     app.terminate()
 
     let relaunched = launchMock(storageID: storageID, reset: false)
     XCTAssertTrue(
-      relaunched.staticTexts["你：hello Mori"].waitForExistence(timeout: 8)
+      relaunched.staticTexts[persistedLabel].waitForExistence(timeout: 8)
     )
     relaunched.tabBars.buttons["今天"].tap()
     XCTAssertTrue(
@@ -84,6 +89,173 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(
       relaunched.buttons["phone.today.complete-recommended"].isEnabled
     )
+  }
+
+  func testConversationWarnsBeforeSendingContactDetails() {
+    let app = launchMock(
+      storageID: "phone-conversation-warning",
+      reset: true
+    )
+
+    send("hello@example.com", in: app)
+
+    let alert = app.alerts["发送前确认"]
+    XCTAssertTrue(alert.waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      alert.staticTexts.element(
+        matching: NSPredicate(
+          format: "label CONTAINS %@",
+          "可能包含联系方式"
+        )
+      ).exists)
+    XCTAssertFalse(app.staticTexts["你：hello@example.com"].exists)
+    alert.buttons.matching(identifier: "phone.mori.warning-confirm")
+      .firstMatch.tap()
+    XCTAssertTrue(
+      app.staticTexts["你：hello@example.com"].waitForExistence(timeout: 5)
+    )
+    XCTAssertTrue(
+      app.staticTexts["Mori：我听见了。你想继续说，我就在这里。"]
+        .waitForExistence(timeout: 5)
+    )
+  }
+
+  func testConversationBlocksCredentialWithoutPersistence() {
+    let storageID = "phone-conversation-credential"
+    let app = launchMock(storageID: storageID, reset: true)
+    let credential =
+      "sk-" + "proj-" + String(repeating: "a", count: 24)
+
+    send(credential, in: app)
+
+    let failure = element("phone.mori.chat-failure", in: app)
+    XCTAssertTrue(failure.waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.staticTexts["这段话看起来包含密钥或凭证，因此没有发送。"].exists
+    )
+    XCTAssertFalse(app.staticTexts["你：\(credential)"].exists)
+    app.terminate()
+
+    let relaunched = launchMock(storageID: storageID, reset: false)
+    XCTAssertTrue(
+      relaunched.staticTexts["Mori：我在这里。今天想和我说什么？"]
+        .waitForExistence(timeout: 8)
+    )
+    XCTAssertFalse(relaunched.staticTexts["你：\(credential)"].exists)
+    let relaunchedComposer = element("phone.mori.composer", in: relaunched)
+    XCTAssertTrue(relaunchedComposer.exists)
+    XCTAssertNotEqual(relaunchedComposer.value as? String, credential)
+  }
+
+  func testOfflineConversationFallsBackLocallyAndRetryDoesNotDuplicateTurn() {
+    let app = launchMock(
+      storageID: "phone-conversation-offline",
+      reset: true,
+      chatBehavior: "offline"
+    )
+
+    send("今天有点累", in: app)
+
+    XCTAssertTrue(
+      app.staticTexts.matching(
+        NSPredicate(
+          format: "label CONTAINS %@",
+          "现在没有连上服务，但我还在这里"
+        )
+      ).firstMatch.waitForExistence(timeout: 5)
+    )
+    let retry = app.buttons["phone.mori.retry"]
+    XCTAssertTrue(retry.waitForExistence(timeout: 5))
+    retry.tap()
+    XCTAssertTrue(retry.waitForExistence(timeout: 5))
+    XCTAssertEqual(
+      app.staticTexts.matching(
+        NSPredicate(format: "label == %@", "你：今天有点累")
+      ).count,
+      1
+    )
+  }
+
+  func testMalformedAndOversizedConversationResponsesFailClosed() {
+    for (behavior, expectedMessage) in [
+      ("malformedResponse", "回复格式不完整"),
+      ("oversizedResponse", "回复超过安全长度"),
+    ] {
+      let app = launchMock(
+        storageID: "phone-conversation-\(behavior)",
+        reset: true,
+        chatBehavior: behavior
+      )
+
+      send("测试异常回复", in: app)
+
+      let failure = element("phone.mori.chat-failure", in: app)
+      XCTAssertTrue(failure.waitForExistence(timeout: 5))
+      XCTAssertTrue(failure.label.contains(expectedMessage))
+      XCTAssertFalse(
+        app.staticTexts.matching(
+          NSPredicate(format: "label BEGINSWITH %@", "Mori：")
+        ).allElementsBoundByIndex.contains(where: {
+          $0.label.contains("我听见了")
+        })
+      )
+      app.terminate()
+    }
+  }
+
+  func testSlowConversationCanBeStoppedWithoutSavingPartialReply() {
+    let app = launchMock(
+      storageID: "phone-conversation-cancel",
+      reset: true,
+      chatBehavior: "slowStream"
+    )
+
+    send("请慢慢回复", in: app)
+
+    let cancel = app.buttons["phone.mori.cancel"]
+    XCTAssertTrue(cancel.waitForExistence(timeout: 5))
+    cancel.tap()
+    let failure = element("phone.mori.chat-failure", in: app)
+    XCTAssertTrue(failure.waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.staticTexts.matching(
+        NSPredicate(format: "label CONTAINS %@", "已停止")
+      ).firstMatch.waitForExistence(timeout: 5)
+    )
+    XCTAssertFalse(element("phone.mori.message.streaming", in: app).exists)
+  }
+
+  func testClearConversationRemovesDraftMessagesAndCacheButKeepsHomeUsable() {
+    let app = launchMock(
+      storageID: "phone-conversation-clear",
+      reset: true
+    )
+    send("准备清除", in: app)
+    XCTAssertTrue(
+      app.staticTexts["你：准备清除"].waitForExistence(timeout: 5)
+    )
+
+    app.buttons["phone.open-settings"].tap()
+    let clear = app.buttons["phone.settings.clear-conversation"]
+    scrollToElement(clear, in: app)
+    clear.tap()
+    let confirmation = app.alerts["清除对话记录？"]
+    XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+    confirmation.buttons
+      .matching(identifier: "phone.settings.clear-conversation-confirm")
+      .firstMatch.tap()
+    app.buttons["phone.settings.done"].tap()
+
+    XCTAssertTrue(
+      app.staticTexts["Mori：我在这里。今天想和我说什么？"]
+        .waitForExistence(timeout: 5)
+    )
+    XCTAssertFalse(app.staticTexts["你：准备清除"].exists)
+    let composer = element("phone.mori.composer", in: app)
+    XCTAssertTrue(composer.exists)
+    composer.tap()
+    composer.typeText("清除后还能说")
+    XCTAssertTrue(app.buttons["phone.mori.send"].isEnabled)
   }
 
   func testMemoryTimelineDoesNotPresentUnsealedCurrentFacts() {
@@ -224,7 +396,8 @@ final class PhoneAppUITests: XCTestCase {
 
   private func launchMock(
     storageID: String,
-    reset: Bool
+    reset: Bool,
+    chatBehavior: String? = nil
   ) -> XCUIApplication {
     let app = XCUIApplication()
     app.launchArguments = [
@@ -236,8 +409,28 @@ final class PhoneAppUITests: XCTestCase {
     if reset {
       app.launchArguments.append("--reset-e2e-storage")
     }
+    if let chatBehavior {
+      app.launchArguments.append("--chat-behavior=\(chatBehavior)")
+    }
     app.launch()
     return app
+  }
+
+  private func send(
+    _ text: String,
+    in app: XCUIApplication
+  ) {
+    let composer = element("phone.mori.composer", in: app)
+    XCTAssertTrue(composer.waitForExistence(timeout: 8))
+    composer.tap()
+    composer.typeText(text)
+    let send = app.buttons["phone.mori.send"]
+    expectation(
+      for: NSPredicate(format: "enabled == true"),
+      evaluatedWith: send
+    )
+    waitForExpectations(timeout: 3)
+    send.tap()
   }
 
   private func launchInvalidMock() -> XCUIApplication {

@@ -78,6 +78,24 @@ public struct RuntimeStorageLayout: Sendable {
     )
   }
 
+  /// Removes only Mori-owned profile namespaces after a global deletion fence
+  /// has already become authoritative. The global authority file and its
+  /// content-free deletion epoch live outside this directory and are preserved.
+  public func removeAllOwnedProfileData(
+    fileManager: FileManager = FileManager()
+  ) throws {
+    guard
+      Self.isWithin(ownedProfilesURL, parent: applicationSupportURL),
+      ownedProfilesURL.standardizedFileURL != applicationSupportURL.standardizedFileURL
+    else {
+      throw RuntimeStorageError.targetOutsideOwnedNamespace
+    }
+    guard fileManager.fileExists(atPath: ownedProfilesURL.path) else {
+      return
+    }
+    try fileManager.removeItem(at: ownedProfilesURL)
+  }
+
   fileprivate func owns(_ namespace: RuntimeStorageNamespace) -> Bool {
     namespace.ownedProfilesURL.standardizedFileURL == ownedProfilesURL.standardizedFileURL
       && Self.isWithin(namespace.rootURL, parent: ownedProfilesURL)
@@ -266,6 +284,17 @@ public actor SelectedMockResetService {
     try namespace.assertOwns(namespace.rootURL)
     try fileManager.removeItem(at: namespace.rootURL)
     try namespace.prepare(fileManager: fileManager)
+  }
+
+  /// Removes the selected Mock namespace without recreating it. Use this when
+  /// the caller will immediately advance to a fresh Mock profile generation.
+  public func deleteSelectedMockNamespace(
+    namespace: RuntimeStorageNamespace
+  ) async throws {
+    try await validateSelectedMock(namespace: namespace)
+    try namespace.verifyOwnershipMarker(fileManager: fileManager)
+    try namespace.assertOwns(namespace.rootURL)
+    try fileManager.removeItem(at: namespace.rootURL)
   }
 
   /// A guarded primitive for deleting an individual owned Mock artifact. It is

@@ -30,6 +30,27 @@ struct PhoneSettingsView: View {
       }
     }
     .accessibilityIdentifier("phone.settings")
+    .alert(
+      "清除对话记录？",
+      isPresented: Binding(
+        get: { store.isShowingClearConversationConfirmation },
+        set: { isPresented in
+          if isPresented == false {
+            store.cancelClearConversation()
+          }
+        }
+      )
+    ) {
+      Button("取消", role: .cancel) {
+        store.cancelClearConversation()
+      }
+      Button("清除", role: .destructive) {
+        Task { await store.clearConversation() }
+      }
+      .accessibilityIdentifier("phone.settings.clear-conversation-confirm")
+    } message: {
+      Text("只清除本机对话和草稿；共同回忆仍会保留。")
+    }
     .sheet(
       isPresented: Binding(
         get: { store.isShowingDeleteAllConfirmation },
@@ -67,6 +88,7 @@ struct PhoneSettingsView: View {
           }
         }
         .accessibilityIdentifier("phone.settings.data-mode")
+        .disabled(store.isSwitchingDataSource)
       }
 
       if store.selectedDataSource == .healthKit {
@@ -163,7 +185,7 @@ struct PhoneSettingsView: View {
       Toggle(
         "允许使用共同回忆",
         isOn: Binding(
-          get: { store.mockExperience.usesMemoryContext },
+          get: { store.conversation.memoryContextIsEnabled },
           set: store.setMemoryContext
         )
       )
@@ -171,7 +193,7 @@ struct PhoneSettingsView: View {
       .accessibilityIdentifier("phone.settings.memory-context")
 
       Button("清除对话记录", role: .destructive) {
-        Task { await store.clearConversation() }
+        store.requestClearConversation()
       }
       .disabled(store.companionExperienceAvailable == false)
       .accessibilityIdentifier("phone.settings.clear-conversation")
@@ -181,7 +203,7 @@ struct PhoneSettingsView: View {
       Text(
         store.model.isLive
           ? "正式对话运行时尚未接入。"
-          : "当前是本机 Mock 预览，不发送到服务器；清除对话不会删除共同回忆。"
+          : "当前是本机 Mock 预览，不发送到服务器。开启后，每次最多使用一段 500 字以内的共同回忆；清除对话不会删除回忆本身。"
       )
     }
   }

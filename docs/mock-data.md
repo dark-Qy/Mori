@@ -167,3 +167,38 @@ Fault cases such as duplicate, delayed, reordered, missing, corrupted, revoked,
 offline, time-zone, and restart behavior belong in deterministic tests. They
 must change delivery conditions, not bypass domain admission or settlement
 rules.
+
+## Conversation Fault Harness
+
+G7 adds a Debug-only, local conversation transport. UI tests may select one
+deterministic transport behavior with `--chat-behavior=`:
+
+- `normal`;
+- `offline`;
+- `timedOut`;
+- `rateLimited`;
+- `providerFailure`;
+- `malformedResponse`;
+- `oversizedResponse`;
+- `slowStream`.
+
+The selector is accepted only by Debug app composition and is not shown as a
+product setting. `Scripts/test-release-boundaries` rejects the selector from
+Release executables. None of these modes makes a network request or constructs
+a production Chat adapter.
+
+G6 stored preview conversation text and its memory toggle inside the older
+Mock-experience file. On first G7 load, that file is rewritten without either
+deprecated field. Conversation text now lives only in the active
+profile-scoped conversation repository. The Mock memory-context choice is also
+profile-local and never expands the global consent used by a future production
+transport. Composer drafts are presentation-only: arbitrary text is scanned
+before any turn is persisted, so a blocked credential is not restored after
+relaunch.
+
+Conversation clear and global deletion use storage revisions and content-free
+retirement fences outside the removable profile directories. A stale
+repository instance cannot disclose cached text, recreate a cleared file, or
+write an inactive profile back after global deletion. Resetting the selected
+Mock advances to a fresh profile generation and removes the old owned
+namespace; it never deletes real-profile bytes.
