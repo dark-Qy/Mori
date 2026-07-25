@@ -408,26 +408,15 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts["这块手表不支持精确近距离测量"].waitForExistence(timeout: 2)
     )
-    XCTAssertFalse(element("watch.touch-exchange.cancel-unconfirmed", in: app).exists)
 
     let retryButton = app.buttons["watch.touch-exchange.retry"]
     scrollToElement(retryButton, in: app)
     retryButton.tap()
 
-    let cancellationLoop = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "exists == true"),
-      object: element("watch.touch-exchange.cancel-unconfirmed", in: app)
-    )
-    cancellationLoop.isInverted = true
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [cancellationLoop], timeout: 1),
-      .completed
-    )
     XCTAssertTrue(failedState.waitForExistence(timeout: 5))
     XCTAssertTrue(
       app.staticTexts["这块手表不支持精确近距离测量"].waitForExistence(timeout: 2)
     )
-    XCTAssertFalse(element("watch.touch-exchange.cancel-unconfirmed", in: app).exists)
   }
 
   func testTouchExchangeDemoAutomaticallyCompletesAfterProximity() {
@@ -447,10 +436,11 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertFalse(app.buttons["watch.touch-exchange.start"].exists)
     XCTAssertFalse(app.buttons["watch.touch-exchange.confirm"].exists)
     XCTAssertTrue(app.staticTexts["遇见卡交换成功"].exists)
-    let persistenceStatus = app.descendants(matching: .any).matching(
+    // 完成 6 秒后会自动回到主页，不能用表冠滚动去找文案，
+    // 存在性检查对屏幕外元素同样成立。
+    let persistenceStatus = app.staticTexts.matching(
       NSPredicate(format: "label CONTAINS %@", "相遇记录已保存")
     ).firstMatch
-    scrollToElement(persistenceStatus, in: app)
     XCTAssertTrue(
       persistenceStatus.waitForExistence(timeout: 5)
     )
@@ -578,7 +568,7 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertFalse(app.buttons["watch.touch-exchange.confirm"].exists)
   }
 
-  func testTouchExchangeCancellationIgnoresOldDemoCallbacks() {
+  func testTouchExchangeCancelReturnsHomeAndReentryStartsFreshSession() {
     let app = launchApp(
       scenario: "activity_high",
       additionalArguments: [
@@ -596,21 +586,12 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 5))
     openTouchExchange(in: app)
     XCTAssertTrue(
-      app.buttons["watch.touch-exchange.retry"].waitForExistence(timeout: 5)
-    )
-    let latePreview = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "exists == true"),
-      object: element("watch.touch-exchange.peer-card", in: app)
-    )
-    latePreview.isInverted = true
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [latePreview], timeout: 1),
-      .completed
+      element("watch.touch-exchange.peer-card", in: app).waitForExistence(timeout: 5)
     )
     XCTAssertFalse(element("watch.touch-exchange.completed", in: app).exists)
   }
 
-  func testTouchExchangeCancelFailureRetriesCleanupBeforeNewSession() {
+  func testTouchExchangeCancelFailureDoesNotBlockFreshSession() {
     let app = launchApp(
       scenario: "activity_high",
       additionalArguments: [
@@ -632,24 +613,8 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(cancelButton.waitForExistence(timeout: 2))
     cancelButton.tap()
     XCTAssertTrue(
-      element("watch.touch-exchange.cancel-unconfirmed", in: app)
+      element("watch.touch-exchange.cancelled", in: app)
         .waitForExistence(timeout: 5)
-    )
-    XCTAssertFalse(element("watch.touch-exchange.cancelled", in: app).exists)
-    XCTAssertTrue(
-      app.staticTexts.matching(
-        NSPredicate(format: "label CONTAINS %@", "不会开始新的交换")
-      ).firstMatch.exists
-    )
-
-    let prematureNewCandidate = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "exists == true"),
-      object: element("watch.touch-exchange.peer-card", in: app)
-    )
-    prematureNewCandidate.isInverted = true
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [prematureNewCandidate], timeout: 0.8),
-      .completed
     )
 
     let retryButton = app.buttons["watch.touch-exchange.retry"]
@@ -658,12 +623,9 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(
       element("watch.touch-exchange.peer-card", in: app).waitForExistence(timeout: 5)
     )
-    XCTAssertFalse(
-      element("watch.touch-exchange.cancel-unconfirmed", in: app).exists
-    )
   }
 
-  func testTouchExchangeServerCompletionWinsCancelConfirmRace() {
+  func testTouchExchangeCancellationWinsLateConfirmCallback() {
     let app = launchApp(
       scenario: "activity_high",
       additionalArguments: [
@@ -686,15 +648,21 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(cancelButton.waitForExistence(timeout: 5))
     cancelButton.tap()
 
-    XCTAssertTrue(
-      element("watch.touch-exchange.completed", in: app).waitForExistence(timeout: 5)
+    XCTAssertTrue(element("watch.pet-home", in: app).waitForExistence(timeout: 5))
+    let lateCompletion = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "exists == true"),
+      object: element("watch.touch-exchange.completed", in: app)
     )
-    XCTAssertFalse(element("watch.touch-exchange.cancelled", in: app).exists)
-    let persistenceStatus = app.descendants(matching: .any).matching(
-      NSPredicate(format: "label CONTAINS %@", "相遇记录已保存")
-    ).firstMatch
-    scrollToElement(persistenceStatus, in: app)
-    XCTAssertTrue(persistenceStatus.waitForExistence(timeout: 5))
+    lateCompletion.isInverted = true
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [lateCompletion], timeout: 2.5),
+      .completed
+    )
+
+    openTouchExchange(in: app)
+    XCTAssertTrue(
+      element("watch.touch-exchange.peer-card", in: app).waitForExistence(timeout: 5)
+    )
   }
 
   func testTouchExchangeAccessibilityAcrossConsentStates() throws {

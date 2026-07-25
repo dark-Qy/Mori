@@ -4,7 +4,9 @@ import WatchKit
 struct TouchExchangeView: View {
   @ObservedObject private var exchange: TouchExchangeViewModel
   private let socialSharingEnabled: Bool
+  private let dismissesAfterCancellation: Bool
   @State private var successPulse = false
+  @Environment(\.dismiss) private var dismiss
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   private var automaticallyConfirmsExchange: Bool {
@@ -17,10 +19,12 @@ struct TouchExchangeView: View {
 
   init(
     exchange: TouchExchangeViewModel,
-    socialSharingEnabled: Bool
+    socialSharingEnabled: Bool,
+    dismissesAfterCancellation: Bool = false
   ) {
     self.exchange = exchange
     self.socialSharingEnabled = socialSharingEnabled
+    self.dismissesAfterCancellation = dismissesAfterCancellation
   }
 
   var body: some View {
@@ -37,6 +41,21 @@ struct TouchExchangeView: View {
       .background(AdventurePalette.background.ignoresSafeArea())
       .navigationTitle("触碰交换")
       .navigationBarTitleDisplayMode(.inline)
+      .navigationBarBackButtonHidden(dismissesAfterCancellation)
+      // 主页隐藏导航栏的设置会延续到推入页面，
+      // 与 WatchDailyMemoryView 一样显式恢复，保证有返回按钮可离开。
+      .toolbar(.visible, for: .navigationBar)
+      .toolbar {
+        if dismissesAfterCancellation {
+          ToolbarItem(placement: .cancellationAction) {
+            Button(action: cancelAndDismiss) {
+              Image(systemName: "chevron.left")
+                .accessibilityLabel("返回并取消交换")
+            }
+            .accessibilityIdentifier("watch.touch-exchange.back")
+          }
+        }
+      }
       .accessibilityIdentifier("watch.touch-exchange")
       .onChange(of: exchange.phase) { _, phase in
         if phase == .approaching {
@@ -68,7 +87,10 @@ struct TouchExchangeView: View {
       }
       .task {
         await exchange.runVisualDemoIfRequested()
-        guard exchange.phase == .idle, exchange.socialSharingEnabled else { return }
+        guard
+          exchange.phase == .idle || exchange.phase == .cancelled,
+          exchange.socialSharingEnabled
+        else { return }
         exchange.start()
       }
     }
@@ -157,12 +179,6 @@ struct TouchExchangeView: View {
       }
       cancelButton
 
-    case .cancelling:
-      progressCard(
-        title: "正在确认取消结果",
-        detail: exchange.statusText
-      )
-
     case .completed:
       VStack(alignment: .leading, spacing: 5) {
         Label("遇见卡交换成功", systemImage: "checkmark.seal.fill")
@@ -195,23 +211,6 @@ struct TouchExchangeView: View {
       }
       .accessibilityIdentifier("watch.touch-exchange.failed")
       primaryButton("重新尝试", systemImage: "arrow.clockwise") {
-        exchange.retry()
-      }
-      .accessibilityIdentifier("watch.touch-exchange.retry")
-
-    case .cancellationUnconfirmed:
-      VStack(alignment: .leading, spacing: 5) {
-        Label("取消状态未确认", systemImage: "wifi.exclamationmark")
-          .font(.headline)
-          .foregroundStyle(AdventurePalette.rose)
-        Text(exchange.statusText)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .padding(.top, 4)
-          .fixedSize(horizontal: false, vertical: true)
-      }
-      .accessibilityIdentifier("watch.touch-exchange.cancel-unconfirmed")
-      primaryButton("重新确认", systemImage: "arrow.clockwise") {
         exchange.retry()
       }
       .accessibilityIdentifier("watch.touch-exchange.retry")
@@ -332,9 +331,16 @@ struct TouchExchangeView: View {
 
   private var cancelButton: some View {
     Button("取消", role: .cancel) {
-      exchange.cancel()
+      cancelAndDismiss()
     }
     .buttonStyle(.bordered)
     .accessibilityIdentifier("watch.touch-exchange.cancel")
+  }
+
+  private func cancelAndDismiss() {
+    exchange.cancel()
+    if dismissesAfterCancellation {
+      dismiss()
+    }
   }
 }

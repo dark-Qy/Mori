@@ -41,10 +41,8 @@ enum TouchExchangeViewPhase: Equatable, Sendable {
   case approaching
   case preview
   case awaitingPeer
-  case cancelling
   case completed
   case failed
-  case cancellationUnconfirmed
   case cancelled
 }
 
@@ -72,13 +70,13 @@ final class TouchExchangeViewModel: ObservableObject {
   private let encounterRepository: TouchExchangeEncounterRepository
   private let defaults: UserDefaults
   private var operationTask: Task<Void, Never>?
+  private var cleanupTask: Task<Void, Never>?
   private var operationGeneration: UInt = 0
   private var coordinator: TouchExchangeCoordinator?
   private var rangingClient: AppleNearbyRangingClient?
   private var didRevealCard = false
   private var didSubmitConfirmation = false
   private var shouldFailNextDemoCancellation = false
-  private var demoCancellationPending = false
   private var currentJoinRequestID: String?
   private var presentedTransferEventIDs: Set<String> = []
 
@@ -249,110 +247,49 @@ final class TouchExchangeViewModel: ObservableObject {
   }
 
   func cancel() {
-    guard phase != .idle, phase != .cancelling, phase != .completed,
-      phase != .cancellationUnconfirmed, phase != .cancelled
+    guard phase != .idle, phase != .completed, phase != .cancelled
     else { return }
     let revealedCard = didRevealCard
     let oldCoordinator = coordinator
     let oldRangingClient = rangingClient
-    let generation = replaceOperation()
     #if DEBUG
-      let shouldSimulateRemoteCompletion =
-        isCancelConfirmRaceDemo && didSubmitConfirmation && revealedCard
-      let shouldSimulateCancellationFailure =
-        shouldFailNextDemoCancellation && revealedCard
-      if shouldSimulateCancellationFailure {
+      let skipsRemoteCancellation = shouldFailNextDemoCancellation && revealedCard
+      if skipsRemoteCancellation {
         shouldFailNextDemoCancellation = false
       }
+    #else
+      let skipsRemoteCancellation = false
     #endif
+
+    replaceOperation()
+    coordinator = nil
+    rangingClient = nil
     canConfirm = false
-    phase = .cancelling
-    statusText = "正在向服务确认取消结果"
+    phase = .cancelled
+    statusText =
+      revealedCard
+      ? "已退出本次交换；已经显示的公开遇见卡无法撤回。"
+      : "已停止寻找，本次交换已取消。"
+    rotateJoinRequestID()
 
-    operationTask = Task { [weak self] in
-      #if DEBUG
-        if shouldSimulateRemoteCompletion {
-          try? await Task.sleep(for: .milliseconds(120))
-          guard let self,
-            let completedState = self.makeDemoCompletedState()
-          else { return }
-          _ = self.applyRemoteCompletionIfCurrent(
-            completedState,
-            generation: generation
-          )
-          return
-        }
-        if shouldSimulateCancellationFailure {
-          try? await Task.sleep(for: .milliseconds(120))
-          guard let self, isCurrent(generation) else { return }
-          demoCancellationPending = true
-          markCancellationUnconfirmed(
-            coordinator: oldCoordinator,
-            rangingClient: oldRangingClient,
-            generation: generation
-          )
-          return
-        }
-      #endif
-
-      do {
-        let terminalState = try await Self.shutdown(
-          coordinator: oldCoordinator,
-          rangingClient: oldRangingClient
-        )
-        guard let self else { return }
-        if applyRemoteCompletionIfCurrent(
-          terminalState,
-          generation: generation
-        ) {
-          return
-        }
-        guard isCurrent(generation) else { return }
-        guard oldCoordinator == nil || terminalState?.phase == .cancelled else {
-          markCancellationUnconfirmed(
-            coordinator: oldCoordinator,
-            rangingClient: oldRangingClient,
-            generation: generation
-          )
-          return
-        }
-        coordinator = nil
-        rangingClient = nil
-        if let terminalState {
-          apply(terminalState)
-        } else {
-          phase = .cancelled
-          statusText =
-            revealedCard
-            ? "公开遇见卡预览可能已经显示，已经显示的内容无法撤回；本次交换没有完成。"
-            : "已停止寻找，本次没有显示遇见卡，也没有完成交换。"
-        }
-        rotateJoinRequestID()
-      } catch {
-        guard let self else { return }
-        markCancellationUnconfirmed(
-          coordinator: oldCoordinator,
-          rangingClient: oldRangingClient,
-          generation: generation
-        )
-      }
-    }
+    scheduleBestEffortShutdown(
+      coordinator: oldCoordinator,
+      rangingClient: oldRangingClient,
+      skipsRemoteCancellation: skipsRemoteCancellation
+    )
   }
 
   func cancelIfNeeded() {
     switch phase {
     case .joining, .approaching, .preview, .awaitingPeer, .failed:
       cancel()
-    case .idle, .cancelling, .completed, .cancellationUnconfirmed, .cancelled:
+    case .idle, .completed, .cancelled:
       break
     }
   }
 
   func retry() {
-    guard
-      phase == .failed || phase == .cancellationUnconfirmed
-        || phase == .cancelled
-    else { return }
+    guard phase == .failed || phase == .cancelled else { return }
     beginAttempt()
   }
 
@@ -376,90 +313,30 @@ final class TouchExchangeViewModel: ObservableObject {
   private func beginAttempt() {
     let oldCoordinator = coordinator
     let oldRangingClient = rangingClient
-    #if DEBUG
-      let shouldRetryDemoCancellation = demoCancellationPending
-    #else
-      let shouldRetryDemoCancellation = false
-    #endif
-    let needsCleanup =
-      oldCoordinator != nil || oldRangingClient != nil
-      || shouldRetryDemoCancellation
     let generation = replaceOperation()
+    coordinator = nil
+    rangingClient = nil
     canConfirm = false
-    if needsCleanup {
-      phase = .cancelling
-      statusText = "正在重新确认上次交换是否已取消"
-    } else if socialSharingEnabled {
-      resetForStart()
-    } else {
+
+    if oldCoordinator != nil || oldRangingClient != nil {
+      rotateJoinRequestID()
+      scheduleBestEffortShutdown(
+        coordinator: oldCoordinator,
+        rangingClient: oldRangingClient
+      )
+    }
+    let cleanupBarrier = cleanupTask
+
+    guard socialSharingEnabled else {
       phase = .idle
       statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
       return
     }
+    resetForStart()
 
     operationTask = Task { [weak self] in
-      #if DEBUG
-        if shouldRetryDemoCancellation {
-          try? await Task.sleep(for: .milliseconds(180))
-          guard let self, isCurrent(generation) else { return }
-          demoCancellationPending = false
-          coordinator = nil
-          rangingClient = nil
-          rotateJoinRequestID()
-          guard socialSharingEnabled else {
-            phase = .idle
-            statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
-            return
-          }
-          resetForStart()
-          await runDemo(generation: generation)
-          return
-        }
-      #endif
-
-      if needsCleanup {
-        do {
-          let terminalState = try await Self.shutdown(
-            coordinator: oldCoordinator,
-            rangingClient: oldRangingClient
-          )
-          guard let self else { return }
-          if applyRemoteCompletionIfCurrent(
-            terminalState,
-            generation: generation
-          ) {
-            return
-          }
-          guard isCurrent(generation) else { return }
-          guard oldCoordinator == nil || terminalState?.phase == .cancelled else {
-            markCancellationUnconfirmed(
-              coordinator: oldCoordinator,
-              rangingClient: oldRangingClient,
-              generation: generation
-            )
-            return
-          }
-          coordinator = nil
-          rangingClient = nil
-          rotateJoinRequestID()
-          guard socialSharingEnabled else {
-            phase = .idle
-            statusText = "好友分享已关闭，可稍后在 iPhone 隐私设置中重新开启"
-            return
-          }
-          resetForStart()
-        } catch {
-          guard let self else { return }
-          markCancellationUnconfirmed(
-            coordinator: oldCoordinator,
-            rangingClient: oldRangingClient,
-            generation: generation
-          )
-          return
-        }
-      }
-
       guard let self else { return }
+      await cleanupBarrier?.value
       guard isCurrent(generation) else { return }
       guard socialSharingEnabled else {
         phase = .idle
@@ -700,36 +577,15 @@ final class TouchExchangeViewModel: ObservableObject {
       return
     }
 
-    do {
-      let terminalState = try await Self.shutdown(
-        coordinator: coordinator,
-        rangingClient: rangingClient
-      )
-      if applyRemoteCompletionIfCurrent(
-        terminalState,
-        generation: generation
-      ) {
-        return
-      }
-      guard isCurrent(generation) else { return }
-      guard terminalState?.phase == .cancelled else {
-        markCancellationUnconfirmed(
-          coordinator: coordinator,
-          rangingClient: rangingClient,
-          generation: generation
-        )
-        return
-      }
-      self.coordinator = nil
-      self.rangingClient = nil
-      rotateJoinRequestID()
-    } catch {
-      markCancellationUnconfirmed(
-        coordinator: coordinator,
-        rangingClient: rangingClient,
-        generation: generation
-      )
-    }
+    guard isCurrent(generation) else { return }
+    self.coordinator = nil
+    self.rangingClient = nil
+    rotateJoinRequestID()
+    apply(state)
+    scheduleBestEffortShutdown(
+      coordinator: coordinator,
+      rangingClient: rangingClient
+    )
   }
 
   private func fail(
@@ -738,76 +594,31 @@ final class TouchExchangeViewModel: ObservableObject {
     rangingClient: AppleNearbyRangingClient,
     generation: UInt
   ) async {
-    do {
-      let terminalState = try await Self.shutdown(
-        coordinator: coordinator,
-        rangingClient: rangingClient
-      )
-      if applyRemoteCompletionIfCurrent(
-        terminalState,
-        generation: generation
-      ) {
-        return
-      }
-      guard isCurrent(generation) else { return }
-      guard terminalState?.phase == .cancelled else {
-        markCancellationUnconfirmed(
-          coordinator: coordinator,
-          rangingClient: rangingClient,
-          generation: generation
-        )
-        return
-      }
-      self.coordinator = nil
-      self.rangingClient = nil
-      rotateJoinRequestID()
-      canConfirm = false
-      phase = .failed
-      statusText = message
-    } catch {
-      markCancellationUnconfirmed(
-        coordinator: coordinator,
-        rangingClient: rangingClient,
-        generation: generation
-      )
-    }
+    guard isCurrent(generation) else { return }
+    self.coordinator = nil
+    self.rangingClient = nil
+    rotateJoinRequestID()
+    canConfirm = false
+    phase = .failed
+    statusText = message
+    scheduleBestEffortShutdown(
+      coordinator: coordinator,
+      rangingClient: rangingClient
+    )
   }
 
-  private static func shutdown(
-    coordinator: TouchExchangeCoordinator?,
-    rangingClient: AppleNearbyRangingClient?
-  ) async throws -> EncounterState? {
-    await rangingClient?.stop()
-    guard let coordinator else { return nil }
-    return try await coordinator.cancel()
-  }
-
-  private func markCancellationUnconfirmed(
+  private func scheduleBestEffortShutdown(
     coordinator: TouchExchangeCoordinator?,
     rangingClient: AppleNearbyRangingClient?,
-    generation: UInt
+    skipsRemoteCancellation: Bool = false
   ) {
-    guard isCurrent(generation) else { return }
-    self.coordinator = coordinator
-    self.rangingClient = rangingClient
-    canConfirm = false
-    phase = .cancellationUnconfirmed
-    statusText = "无法确认上次交换是否已取消，请重试。重试时会先处理旧会话，不会开始新的交换。"
-  }
-
-  @discardableResult
-  private func applyRemoteCompletionIfCurrent(
-    _ state: EncounterState?,
-    generation: UInt
-  ) -> Bool {
-    guard isCurrent(generation), let state, state.phase == .completed else {
-      return false
+    let precedingCleanup = cleanupTask
+    cleanupTask = Task {
+      await precedingCleanup?.value
+      await rangingClient?.stop()
+      guard !skipsRemoteCancellation, let coordinator else { return }
+      _ = try? await coordinator.cancel()
     }
-    coordinator = nil
-    rangingClient = nil
-    apply(state)
-    rotateJoinRequestID()
-    return true
   }
 
   private func apply(_ state: EncounterState) {

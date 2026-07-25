@@ -13,7 +13,6 @@ struct WatchRootView: View {
   @State private var bubbleToken = 0
   @State private var sceneReactionSequence = 0
   @State private var sceneReaction: WatchSceneReaction?
-  @State private var restartsExchangeAfterCancellation = false
 
   init(store: WatchAppStore) {
     self.store = store
@@ -53,9 +52,9 @@ struct WatchRootView: View {
   }
 
   private var showsAutomaticTouchExchange: Bool {
-    switch exchange.phase {
-    case .idle, .joining, .cancelling, .failed, .cancellationUnconfirmed,
-      .cancelled:
+    guard navigationPath.last != .touchExchange else { return false }
+    return switch exchange.phase {
+    case .idle, .joining, .failed, .cancelled:
       false
     case .approaching, .preview, .awaitingPeer, .completed:
       true
@@ -115,19 +114,7 @@ struct WatchRootView: View {
     }
     .onChange(of: store.isTouchExchangeSharingEnabled) { _, enabled in
       exchange.updateSocialSharingEnabled(enabled)
-      guard enabled else {
-        restartsExchangeAfterCancellation = false
-        return
-      }
-      if exchange.phase == .cancelling {
-        restartsExchangeAfterCancellation = true
-        return
-      }
-      startAutomaticTouchExchangeIfAllowed()
-    }
-    .onChange(of: exchange.phase) { _, phase in
-      guard phase == .cancelled, restartsExchangeAfterCancellation else { return }
-      restartsExchangeAfterCancellation = false
+      guard enabled else { return }
       startAutomaticTouchExchangeIfAllowed()
     }
     .onChange(of: exchange.canConfirm) { _, canConfirm in
@@ -145,16 +132,10 @@ struct WatchRootView: View {
         if store.phase == .ready {
           activateExperience()
         }
-        if exchange.phase == .cancelling {
-          restartsExchangeAfterCancellation = true
-        } else {
-          startAutomaticTouchExchangeIfAllowed()
-        }
+        startAutomaticTouchExchangeIfAllowed()
       case .inactive, .background:
-        restartsExchangeAfterCancellation = false
         exchange.cancelIfNeeded()
       @unknown default:
-        restartsExchangeAfterCancellation = false
         exchange.cancelIfNeeded()
       }
     }
@@ -178,6 +159,12 @@ struct WatchRootView: View {
         .navigationDestination(for: WatchProductRoute.self) { route in
           destination(for: route)
         }
+    }
+    .onChange(of: navigationPath) { oldPath, newPath in
+      guard oldPath.last == .touchExchange,
+        newPath.last != .touchExchange
+      else { return }
+      exchange.cancelIfNeeded()
     }
     .tint(AdventurePalette.mint)
   }
@@ -317,7 +304,8 @@ struct WatchRootView: View {
     case .touchExchange:
       TouchExchangeView(
         exchange: exchange,
-        socialSharingEnabled: store.isTouchExchangeSharingEnabled
+        socialSharingEnabled: store.isTouchExchangeSharingEnabled,
+        dismissesAfterCancellation: true
       )
     case .settings:
       WatchSettingsView(store: store)
