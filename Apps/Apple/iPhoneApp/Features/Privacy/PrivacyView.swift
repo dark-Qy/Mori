@@ -333,7 +333,7 @@ struct PhoneSettingsView: View {
       }
       .accessibilityIdentifier("phone.settings.sync-status")
     } footer: {
-      Text("当前设置、Mock 任务、金币与收藏只保存在本机。iPhone 与 Watch 的配对中继尚未接入；接入后会自动同步，这里不提供手动同步或测试按钮。")
+      Text("当前设置与 Mock 任务只保存在本机。iPhone 与 Watch 的配对中继尚未接入；接入后会自动同步，这里不提供手动同步或测试按钮。")
     }
   }
 
@@ -371,8 +371,8 @@ private struct PhoneDeleteAllMoriDataView: View {
       List {
         Section {
           Label("所有真实与 Mock profile", systemImage: "person.2.slash")
-          Label("对话、回忆、任务与金币", systemImage: "text.badge.xmark")
-          Label("收藏、设置与待处理通知", systemImage: "trash")
+          Label("对话、回忆与任务", systemImage: "text.badge.xmark")
+          Label("场景偏好、设置与待处理通知", systemImage: "trash")
           Label("本机缓存与同步待发内容", systemImage: "externaldrive.badge.xmark")
         } header: {
           Text("将从 Mori 删除")

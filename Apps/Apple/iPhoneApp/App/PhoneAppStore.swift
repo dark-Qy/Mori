@@ -1,6 +1,5 @@
 import AppRuntime
 import Combine
-import CryptoKit
 import Domain
 import Foundation
 import MoriDomain
@@ -72,13 +71,8 @@ final class PhoneAppStore: ObservableObject {
       false
     #endif
   }
-  var activeCoinBalance: Int {
-    model.isLive ? 0 : mockExperience.coinBalance
-  }
   var selectedSceneID: String {
-    model.isLive
-      ? preferences.selectedBackgroundID
-      : mockExperience.selectedSceneID
+    preferences.selectedBackgroundID
   }
   var selectedCharacterID: String {
     preferences.selectedCharacterIDs.first ?? CompanionVisualCatalog.defaultCharacterID
@@ -143,7 +137,6 @@ final class PhoneAppStore: ObservableObject {
     private let mockChatBehavior: DeterministicMockChatBehavior
     private var productLoopRuntime: ProductLoopAppRuntime?
     private var productLoopProfileScope: MoriGlobalProfileScope?
-    private var productLoopSnapshot: ProductLoopAppSnapshot?
     private var productLoopGeneration: UInt64 = 0
     private var productCommandTask: Task<Void, Never>?
   #endif
@@ -210,11 +203,11 @@ final class PhoneAppStore: ObservableObject {
         selectedTab = .memories
       } else {
         selectedTab =
-          initialModel.initialScreen == .collection ? .collection : .mori
+          initialModel.initialScreen == .collection ? .scenes : .mori
       }
     #else
       selectedTab =
-        initialModel.initialScreen == .collection ? .collection : .mori
+        initialModel.initialScreen == .collection ? .scenes : .mori
     #endif
     #if DEBUG
       let runtimeConfiguration = Self.runtimeConfiguration(arguments: arguments)
@@ -670,6 +663,19 @@ final class PhoneAppStore: ObservableObject {
     persistPreferences(successPrefix: "角色已更新")
   }
 
+  func selectScene(_ id: String) {
+    guard CompanionVisualCatalog.backgroundIDs.contains(id) else {
+      statusMessage = "无法选择未知场景"
+      return
+    }
+    guard preferences.selectedBackgroundID != id else {
+      statusMessage = "这个场景正在使用"
+      return
+    }
+    preferences.selectedBackgroundID = id
+    persistPreferences(successPrefix: "场景已切换")
+  }
+
   func companionInteraction(_ interaction: PhonePetInteraction) async {
     companionInteractionRevision &+= 1
     let revision = companionInteractionRevision
@@ -747,9 +753,9 @@ final class PhoneAppStore: ObservableObject {
             generation: generation
           )
           self.statusMessage =
-            settlement.didRecordReward
-            ? "已经记下，获得 \(task.reward) 枚金币"
-            : "这件小事已经记下，金币不会重复增加"
+            settlement.didRecordCompletion
+            ? "这件小事已经记下"
+            : "这件小事已经记过了"
         } catch is CancellationError {
           return
         } catch {
@@ -762,169 +768,6 @@ final class PhoneAppStore: ObservableObject {
             return
           }
           self.statusMessage = "这件小事暂时没能保存"
-        }
-      }
-      productCommandTask = command
-      await command.value
-      if productLoopMatches(profile: profile, generation: generation) {
-        productCommandTask = nil
-        isSavingMockExperience = false
-      }
-    #endif
-  }
-
-  func purchase(_ item: PhoneCollectionItem) async {
-    guard !model.isLive, model.allowsInteraction else {
-      statusMessage = "真实收藏账本尚未接入"
-      return
-    }
-    #if DEBUG
-      guard
-        let profile = activeMockProfile,
-        let productRuntime = productLoopRuntime,
-        productLoopProfileScope == profile
-      else {
-        statusMessage = "当前 Mock profile 不可用"
-        return
-      }
-      let generation = productLoopGeneration
-      let operationID = stableCollectionOperationID(
-        kind: "purchase",
-        profile: profile,
-        itemID: item.id
-      )
-      isSavingMockExperience = true
-      let command = Task { [weak self] in
-        guard let self else { return }
-        do {
-          let result = try await productRuntime.purchase(
-            cosmeticID: CosmeticID(item.id),
-            operationID: operationID,
-            at: Date()
-          )
-          try Task.checkCancellation()
-          guard
-            self.productLoopMatches(
-              profile: profile,
-              generation: generation
-            )
-          else {
-            return
-          }
-          try await self.refreshProductLoopSnapshot(
-            productRuntime,
-            profile: profile,
-            generation: generation
-          )
-          self.statusMessage =
-            result.didRecordPurchase
-            ? "已收藏 \(item.title)"
-            : "\(item.title) 已经在收藏中"
-        } catch let error as CollectionMutationRuntimeError {
-          guard
-            self.productLoopMatches(
-              profile: profile,
-              generation: generation
-            )
-          else {
-            return
-          }
-          if case .insufficientBalance(let required, let available) = error {
-            self.statusMessage = "还差 \(max(0, required - available)) 枚金币"
-          } else {
-            self.statusMessage = "购买暂时没能保存"
-          }
-        } catch is CancellationError {
-          return
-        } catch {
-          guard
-            self.productLoopMatches(
-              profile: profile,
-              generation: generation
-            )
-          else {
-            return
-          }
-          self.statusMessage = "购买暂时没能保存"
-        }
-      }
-      productCommandTask = command
-      await command.value
-      if productLoopMatches(profile: profile, generation: generation) {
-        productCommandTask = nil
-        isSavingMockExperience = false
-      }
-    #endif
-  }
-
-  func equip(_ item: PhoneCollectionItem) async {
-    guard !model.isLive, model.allowsInteraction else {
-      statusMessage = "真实收藏账本尚未接入"
-      return
-    }
-    #if DEBUG
-      guard
-        let profile = activeMockProfile,
-        let productRuntime = productLoopRuntime,
-        let snapshot = productLoopSnapshot,
-        productLoopProfileScope == profile
-      else {
-        statusMessage = "当前 Mock profile 不可用"
-        return
-      }
-      let generation = productLoopGeneration
-      let slot = collectionSlot(for: item)
-      let priorTransitionID =
-        snapshot.localState.collection.equipped[slot]?
-        .transitionID.rawValue ?? "none"
-      let operationID = stableCollectionOperationID(
-        kind: "equip",
-        profile: profile,
-        itemID: "\(slot.rawValue).\(priorTransitionID).\(item.id)"
-      )
-      isSavingMockExperience = true
-      let command = Task { [weak self] in
-        guard let self else { return }
-        do {
-          let result = try await productRuntime.equip(
-            cosmeticID: CosmeticID(item.id),
-            operationID: operationID,
-            at: Date()
-          )
-          try Task.checkCancellation()
-          guard
-            self.productLoopMatches(
-              profile: profile,
-              generation: generation
-            )
-          else {
-            return
-          }
-          try await self.refreshProductLoopSnapshot(
-            productRuntime,
-            profile: profile,
-            generation: generation
-          )
-          guard result.isEquipped else {
-            self.statusMessage = "装备状态已经变化，请再试一次"
-            return
-          }
-          self.statusMessage =
-            item.sceneID == nil
-            ? "已装备 \(item.title)"
-            : "场景已切换为 \(item.title)"
-        } catch is CancellationError {
-          return
-        } catch {
-          guard
-            self.productLoopMatches(
-              profile: profile,
-              generation: generation
-            )
-          else {
-            return
-          }
-          self.statusMessage = "请先收藏这件物品"
         }
       }
       productCommandTask = command
@@ -1739,9 +1582,22 @@ final class PhoneAppStore: ObservableObject {
           profile: profile,
           generation: generation
         )
-        let settings = try mockProfileSettingsRepository.settings(
+        let snapshot = try await productRuntime.snapshot()
+        var settings = try mockProfileSettingsRepository.settings(
           profile: profile
         )
+        if
+          settings.selectedBackgroundID == nil,
+          let legacyBackgroundID =
+            snapshot.localState.collection.equipped[.scene]?
+              .cosmeticID.rawValue
+        {
+          settings =
+            try mockProfileSettingsRepository.migrateLegacyBackgroundIfNeeded(
+              profile: profile,
+              legacyBackgroundID: legacyBackgroundID
+            )
+        }
         guard productLoopMatches(profile: profile, generation: generation) else {
           return
         }
@@ -1756,7 +1612,6 @@ final class PhoneAppStore: ObservableObject {
         }
         productLoopRuntime = nil
         productLoopProfileScope = nil
-        productLoopSnapshot = nil
         mockExperience = .empty
         statusMessage = "Mock 体验状态暂时无法载入"
       }
@@ -1793,7 +1648,8 @@ final class PhoneAppStore: ObservableObject {
                 proactiveMessagesEnabled: value.proactiveMessagesEnabled,
                 socialSharingEnabled: value.socialSharingEnabled,
                 publicPetSocialStateRawValue:
-                  value.publicPetSocialState.rawValue
+                  value.publicPetSocialState.rawValue,
+                selectedBackgroundID: value.selectedBackgroundID
               )
             guard revision == self.preferenceRevision else {
               return
@@ -2101,7 +1957,6 @@ final class PhoneAppStore: ObservableObject {
       productCommandTask = nil
       productLoopRuntime = nil
       productLoopProfileScope = nil
-      productLoopSnapshot = nil
     #endif
     isSavingMockExperience = false
     mockExperience = .empty
@@ -2141,7 +1996,6 @@ final class PhoneAppStore: ObservableObject {
       else {
         return
       }
-      productLoopSnapshot = snapshot
       mockExperience = PhoneMockExperienceProjection(
         snapshot: snapshot,
         sensingEnabled: authoritativeSensingScope?.enabled == true
@@ -2162,32 +2016,8 @@ final class PhoneAppStore: ObservableObject {
         PublicPetSocialStateV1(
           rawValue: settings.publicPetSocialStateRawValue
         ) ?? .greeting
-    }
-
-    private func collectionSlot(
-      for item: PhoneCollectionItem
-    ) -> CosmeticSlot {
-      switch item.category {
-      case .clothing:
-        .outfit
-      case .accessories:
-        .accessory
-      case .scenes:
-        .scene
-      }
-    }
-
-    private func stableCollectionOperationID(
-      kind: String,
-      profile: MoriGlobalProfileScope,
-      itemID: String
-    ) -> CollectionOperationID {
-      let input = "phone.\(kind).v1|\(profile.storageKey)|\(itemID)"
-      let digest = SHA256.hash(data: Data(input.utf8))
-        .map { String(format: "%02x", $0) }
-        .joined()
-      return CollectionOperationID(
-        rawValue: "phone.\(kind).\(digest)"
+      preferences.selectedBackgroundID = CompanionVisualCatalog.normalizedBackgroundID(
+        settings.selectedBackgroundID ?? CompanionVisualCatalog.defaultBackgroundID
       )
     }
 

@@ -8,21 +8,9 @@ struct WatchTodayView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 12) {
-        HStack {
-          Text("Mori 推荐")
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-          Spacer()
-          HStack(spacing: 3) {
-            MoriCoinMark()
-            Text("\(store.coinBalance)")
-          }
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(AdventurePalette.gold)
-          .accessibilityElement(children: .ignore)
-          .accessibilityLabel("金币余额 \(store.coinBalance)")
-          .accessibilityIdentifier("watch.today.balance")
-        }
+        Text("Mori 推荐")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
 
         if store.hasSuggestedAction {
           recommendation
@@ -59,22 +47,9 @@ struct WatchTodayView: View {
 
   private var recommendation: some View {
     VStack(alignment: .leading, spacing: 9) {
-      HStack(alignment: .firstTextBaseline) {
-        Text("和 Mori 安静待一分钟")
-          .font(.headline)
-          .fixedSize(horizontal: false, vertical: true)
-        Spacer(minLength: 6)
-        HStack(spacing: 3) {
-          MoriCoinMark()
-          Text("\(store.suggestedActionReward)")
-        }
-        .font(.caption2.weight(.bold))
-        .foregroundStyle(AdventurePalette.gold)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("奖励 \(store.suggestedActionReward) 枚金币")
-        .accessibilityRespondsToUserInteraction(false)
-        .accessibilityIdentifier("watch.today.reward")
-      }
+      Text("和 Mori 安静待一分钟")
+        .font(.headline)
+        .fixedSize(horizontal: false, vertical: true)
 
       Text("这件事由你决定是否完成，不根据步数或睡眠结果判定。")
         .font(.caption)

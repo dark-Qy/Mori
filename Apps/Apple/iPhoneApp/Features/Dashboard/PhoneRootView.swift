@@ -4,7 +4,7 @@ enum PhoneTab: Hashable {
   case mori
   case today
   case memories
-  case collection
+  case scenes
 }
 
 struct PhoneRootView: View {
@@ -62,14 +62,14 @@ struct PhoneRootView: View {
       .tag(PhoneTab.memories)
 
       NavigationStack {
-        PhoneCollectionView(store: store)
+        PhoneScenesView(store: store)
           .phoneSettingsToolbar(action: store.showSettings)
       }
       .tabItem {
-        Label("收藏", systemImage: "heart.fill")
+        Label("场景", systemImage: "photo.on.rectangle.angled")
       }
-      .accessibilityIdentifier("phone.tab.collection")
-      .tag(PhoneTab.collection)
+      .accessibilityIdentifier("phone.tab.scenes")
+      .tag(PhoneTab.scenes)
     }
     .tint(CompanionPalette.mint)
     .accessibilityIdentifier("phone.root")

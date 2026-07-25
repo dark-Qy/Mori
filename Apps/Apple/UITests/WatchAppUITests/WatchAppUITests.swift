@@ -276,18 +276,15 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(persistedGentle.isSelected)
   }
 
-  func testTodayHighlightsOneControllableRecommendationWithoutRewardingHealth() {
+  func testTodayHighlightsOneControllableRecommendationWithoutCurrency() {
     let app = launchApp(
       scenario: "activity_high",
       additionalArguments: ["--watch-route=today"]
     )
     XCTAssertTrue(element("watch.today", in: app).waitForExistence(timeout: 8))
     XCTAssertTrue(element("watch.today.recommendation", in: app).exists)
-    XCTAssertEqual(element("watch.today.reward", in: app).label, "奖励 1 枚金币")
-    XCTAssertEqual(
-      element("watch.today.balance", in: app).label,
-      "金币余额 18"
-    )
+    XCTAssertFalse(element("watch.today.reward", in: app).exists)
+    XCTAssertFalse(element("watch.today.balance", in: app).exists)
     XCTAssertFalse(
       element("watch.today.detected-walk", in: app).label.contains("奖励")
     )
@@ -295,13 +292,10 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(complete.exists)
     complete.tap()
     XCTAssertTrue(waitForLabel("已经记下", on: complete, timeout: 3))
-    XCTAssertEqual(
-      element("watch.today.balance", in: app).label,
-      "金币余额 19"
-    )
+    XCTAssertFalse(element("watch.today.balance", in: app).exists)
   }
 
-  func testMockTaskRewardSettlesOnceAcrossRelaunch() {
+  func testMockTaskCompletionSettlesOnceAcrossRelaunch() {
     let storageID = "task-once-\(UUID().uuidString)"
     let arguments = [
       "--mock-scenario=activity_high",
@@ -327,13 +321,10 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(settled.waitForExistence(timeout: 8))
     XCTAssertEqual(settled.label, "已经记下")
     XCTAssertFalse(settled.isEnabled)
-    XCTAssertEqual(
-      element("watch.today.balance", in: relaunched).label,
-      "金币余额 19"
-    )
+    XCTAssertFalse(element("watch.today.balance", in: relaunched).exists)
   }
 
-  func testResetMockCreatesFreshTaskAndCoinNamespace() {
+  func testResetMockCreatesFreshTaskNamespace() {
     let storageID = "task-reset-\(UUID().uuidString)"
     let first = launchDefaultApp(
       storageID: storageID,
@@ -356,10 +347,7 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(complete.waitForExistence(timeout: 8))
     complete.tap()
     XCTAssertTrue(waitForLabel("已经记下", on: complete, timeout: 3))
-    XCTAssertEqual(
-      element("watch.today.balance", in: first).label,
-      "金币余额 19"
-    )
+    XCTAssertFalse(element("watch.today.balance", in: first).exists)
     first.terminate()
 
     let settings = launchDefaultApp(
@@ -388,10 +376,7 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(freshTask.waitForExistence(timeout: 8))
     XCTAssertEqual(freshTask.label, "完成这件事")
     XCTAssertTrue(freshTask.isEnabled)
-    XCTAssertEqual(
-      element("watch.today.balance", in: fresh).label,
-      "金币余额 18"
-    )
+    XCTAssertFalse(element("watch.today.balance", in: fresh).exists)
   }
 
   func testDailyMemoryUsesStoryCopyAndKnownFacts() {
@@ -838,10 +823,7 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertFalse(
       element("watch.today.recommendation", in: today).exists
     )
-    XCTAssertEqual(
-      element("watch.today.balance", in: today).label,
-      "金币余额 0"
-    )
+    XCTAssertFalse(element("watch.today.balance", in: today).exists)
   }
 
   func testNotificationRouteOpensAQuietMessageAndReturnsHome() {
@@ -858,7 +840,7 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertTrue(
       element("watch.notification.recoveryMessage", in: app).waitForExistence(timeout: 8)
     )
-    XCTAssertTrue(app.staticTexts["打开来信不会领取奖励"].exists)
+    XCTAssertTrue(app.staticTexts["打开来信不会自动完成任务"].exists)
     let dismissButton = app.buttons["watch.notification.dismiss"]
     scrollToElement(dismissButton, in: app)
     dismissButton.tap()

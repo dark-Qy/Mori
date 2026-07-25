@@ -53,7 +53,7 @@ struct PhoneNotificationMessageView: View {
           .multilineTextAlignment(.center)
           .fixedSize(horizontal: false, vertical: true)
 
-        Text("打开来信只负责导航，不会自动完成任务、发放金币或写入健康数据。")
+        Text("打开来信只负责导航，不会自动完成任务或写入健康数据。")
           .font(.footnote)
           .foregroundStyle(CompanionPalette.secondaryText)
           .multilineTextAlignment(.center)

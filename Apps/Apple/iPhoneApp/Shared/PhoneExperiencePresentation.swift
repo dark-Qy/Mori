@@ -3,96 +3,21 @@ import Foundation
 import MoriDomain
 import MoriRuntime
 
-nonisolated enum PhoneCollectionCategory: String, CaseIterable, Identifiable,
-  Sendable
-{
-  case clothing
-  case accessories
-  case scenes
-
-  var id: String { rawValue }
-
-  var title: String {
-    switch self {
-    case .clothing: "服装"
-    case .accessories: "配饰"
-    case .scenes: "场景"
-    }
-  }
-}
-
-nonisolated struct PhoneCollectionItem: Identifiable, Equatable, Sendable {
+nonisolated struct PhoneSceneOption: Identifiable, Equatable, Sendable {
   let id: String
-  let category: PhoneCollectionCategory
   let title: String
-  let symbol: String
-  let price: Int
-  let sceneID: String?
 
-  static let catalog = [
-    PhoneCollectionItem(
-      id: "default",
-      category: .clothing,
-      title: "基础外观",
-      symbol: "tshirt",
-      price: 0,
-      sceneID: nil
-    ),
-    PhoneCollectionItem(
-      id: "scarf",
-      category: .clothing,
-      title: "冒险围巾",
-      symbol: "wind",
-      price: 8,
-      sceneID: nil
-    ),
-    PhoneCollectionItem(
-      id: "soccer_scarf",
-      category: .clothing,
-      title: "球场围巾",
-      symbol: "figure.soccer",
-      price: 12,
-      sceneID: nil
-    ),
-    PhoneCollectionItem(
-      id: "leaf",
-      category: .accessories,
-      title: "发光叶子",
-      symbol: "leaf.fill",
-      price: 4,
-      sceneID: nil
-    ),
-    PhoneCollectionItem(
-      id: "star",
-      category: .accessories,
-      title: "守夜星星",
-      symbol: "star.fill",
-      price: 8,
-      sceneID: nil
-    ),
-    PhoneCollectionItem(
-      id: "spring_meadow_stream",
-      category: .scenes,
-      title: "春日花溪",
-      symbol: "leaf",
-      price: 0,
-      sceneID: "spring_meadow_stream"
-    ),
-    PhoneCollectionItem(
-      id: "moonlit_forest_camp",
-      category: .scenes,
-      title: "月光营地",
-      symbol: "moon.stars.fill",
-      price: 50,
-      sceneID: "moonlit_forest_camp"
-    ),
-  ]
+  static let all = CompanionVisualCatalog.backgroundIDs.map {
+    PhoneSceneOption(
+      id: $0,
+      title: CompanionVisualCatalog.backgroundDisplayName($0)
+    )
+  }
 }
 
 nonisolated struct PhoneRecommendedTask: Equatable, Identifiable, Sendable {
   let id: String
   let kind: MoriTaskKind
-  let reward: Int
 
   var title: String {
     switch kind {
@@ -119,39 +44,19 @@ nonisolated struct PhoneRecommendedTask: Equatable, Identifiable, Sendable {
 }
 
 nonisolated struct PhoneMockExperienceProjection: Equatable, Sendable {
-  let coinBalance: Int
   let completedTaskIDs: Set<String>
-  let ownedItemIDs: Set<String>
-  let equippedItemID: String
-  let equippedAccessoryID: String?
-  let selectedSceneID: String
   let recommendedTask: PhoneRecommendedTask?
 
   static let empty = PhoneMockExperienceProjection(
-    coinBalance: 0,
     completedTaskIDs: [],
-    ownedItemIDs: [],
-    equippedItemID: "default",
-    equippedAccessoryID: nil,
-    selectedSceneID: "spring_meadow_stream",
     recommendedTask: nil
   )
 
   private init(
-    coinBalance: Int,
     completedTaskIDs: Set<String>,
-    ownedItemIDs: Set<String>,
-    equippedItemID: String,
-    equippedAccessoryID: String?,
-    selectedSceneID: String,
     recommendedTask: PhoneRecommendedTask?
   ) {
-    self.coinBalance = coinBalance
     self.completedTaskIDs = completedTaskIDs
-    self.ownedItemIDs = ownedItemIDs
-    self.equippedItemID = equippedItemID
-    self.equippedAccessoryID = equippedAccessoryID
-    self.selectedSceneID = selectedSceneID
     self.recommendedTask = recommendedTask
   }
 
@@ -162,46 +67,20 @@ nonisolated struct PhoneMockExperienceProjection: Equatable, Sendable {
   ) {
     let state = snapshot.localState
     let today = ProfileQueries.phoneToday(from: state, at: now)
-    coinBalance = state.coinLedger.balance
     completedTaskIDs = Set(
       state.tasks.compactMap { task in
         task.lifecycle.isCompleted ? task.header.recordID.rawValue : nil
       }
     )
-    ownedItemIDs = Set(
-      state.collection.ownership.map(\.cosmeticID.rawValue)
-    )
-    equippedItemID =
-      state.collection.equipped[.outfit]?.cosmeticID.rawValue ?? "default"
-    equippedAccessoryID =
-      state.collection.equipped[.accessory]?.cosmeticID.rawValue
-    selectedSceneID =
-      state.collection.equipped[.scene]?.cosmeticID.rawValue
-      ?? "spring_meadow_stream"
     recommendedTask =
       sensingEnabled
       ? today.recommended.map {
         PhoneRecommendedTask(
           id: $0.header.recordID.rawValue,
-          kind: $0.kind,
-          reward: $0.rewardTier.rawValue
+          kind: $0.kind
         )
       }
       : nil
-  }
-
-  func isEquipped(_ item: PhoneCollectionItem) -> Bool {
-    if let sceneID = item.sceneID {
-      return selectedSceneID == sceneID
-    }
-    switch item.category {
-    case .clothing:
-      return equippedItemID == item.id
-    case .accessories:
-      return equippedAccessoryID == item.id
-    case .scenes:
-      return false
-    }
   }
 }
 

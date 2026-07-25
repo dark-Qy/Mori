@@ -50,6 +50,21 @@ public enum CompanionVisualCatalog {
     default: "企鹅伙伴"
     }
   }
+
+  public static func backgroundDisplayName(_ id: String) -> String {
+    switch normalizedBackgroundID(id) {
+    case "spring_meadow_stream": "春日花溪"
+    case "rainy_cabin_dusk": "雨夜木屋"
+    case "moonlit_forest_camp": "月光森林营地"
+    case "snow_birch_sunrise": "雪林日出"
+    case "summer_lake": "夏日湖畔"
+    case "rainy_reading_room": "雨日阅读室"
+    case "aurora_observatory": "极光观星台"
+    case "sunset_coast": "黄昏海岸"
+    case "lantern_festival_square": "灯火节日广场"
+    default: "冰海白昼"
+    }
+  }
 }
 
 extension Array {

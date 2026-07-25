@@ -55,20 +55,3 @@ struct WatchDataBadge: View {
     }
   }
 }
-
-struct MoriCoinMark: View {
-  var body: some View {
-    ZStack {
-      Circle()
-        .fill(AdventurePalette.gold)
-      Circle()
-        .stroke(.white.opacity(0.58), lineWidth: 1)
-        .padding(2)
-      Text("M")
-        .font(.system(size: 8, weight: .black, design: .rounded))
-        .foregroundStyle(.black.opacity(0.72))
-    }
-    .frame(width: 16, height: 16)
-    .accessibilityHidden(true)
-  }
-}

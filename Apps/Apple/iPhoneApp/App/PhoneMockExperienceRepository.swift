@@ -7,6 +7,7 @@
   enum PhoneMockProfileSettingsError: Error {
     case invalidProfile
     case invalidPublicPetState
+    case invalidBackground
   }
 
   /// Profile-local, non-product preferences used by the Debug Mock experience.
@@ -19,6 +20,7 @@
     var publicPetSocialStateRawValue =
       PublicPetSocialStateV1.greeting.rawValue
     var conversationMemoryContextEnabled = false
+    var selectedBackgroundID: String?
   }
 
   nonisolated final class PhoneMockProfileSettingsRepository:
@@ -112,13 +114,20 @@
       profile: MoriGlobalProfileScope,
       proactiveMessagesEnabled: Bool,
       socialSharingEnabled: Bool,
-      publicPetSocialStateRawValue: String
+      publicPetSocialStateRawValue: String,
+      selectedBackgroundID: String? = nil
     ) throws -> PhoneMockProfileSettings {
       guard
         publicPetSocialStateRawValue.isEmpty == false,
         publicPetSocialStateRawValue.count <= 80
       else {
         throw PhoneMockProfileSettingsError.invalidPublicPetState
+      }
+      guard
+        selectedBackgroundID.map(CompanionVisualCatalog.backgroundIDs.contains)
+          ?? true
+      else {
+        throw PhoneMockProfileSettingsError.invalidBackground
       }
       lock.lock()
       defer { lock.unlock() }
@@ -128,6 +137,29 @@
       value.proactiveMessagesEnabled = proactiveMessagesEnabled
       value.socialSharingEnabled = socialSharingEnabled
       value.publicPetSocialStateRawValue = publicPetSocialStateRawValue
+      value.selectedBackgroundID = selectedBackgroundID
+      snapshot.profiles[profile.storageKey] = value
+      try save(snapshot)
+      return value
+    }
+
+    func migrateLegacyBackgroundIfNeeded(
+      profile: MoriGlobalProfileScope,
+      legacyBackgroundID: String
+    ) throws -> PhoneMockProfileSettings {
+      guard CompanionVisualCatalog.backgroundIDs.contains(legacyBackgroundID)
+      else {
+        throw PhoneMockProfileSettingsError.invalidBackground
+      }
+      lock.lock()
+      defer { lock.unlock() }
+      var snapshot = try loadValidated(profile)
+      var value =
+        snapshot.profiles[profile.storageKey] ?? PhoneMockProfileSettings()
+      guard value.selectedBackgroundID == nil else {
+        return value
+      }
+      value.selectedBackgroundID = legacyBackgroundID
       snapshot.profiles[profile.storageKey] = value
       try save(snapshot)
       return value

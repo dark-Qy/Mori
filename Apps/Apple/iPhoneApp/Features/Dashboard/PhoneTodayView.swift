@@ -38,30 +38,17 @@ struct PhoneTodayView: View {
   }
 
   private var header: some View {
-    HStack(alignment: .firstTextBaseline) {
-      VStack(alignment: .leading, spacing: 4) {
-        Text("Mori 今天想和你做一件小事")
-          .font(.title2.bold())
-        Text(
-          store.mockExperience.completedTaskIDs.isEmpty
-            ? "今天还没有完成"
-            : "今天已完成 \(store.mockExperience.completedTaskIDs.count) 件"
-        )
+    VStack(alignment: .leading, spacing: 4) {
+      Text("Mori 今天想和你做一件小事")
+        .font(.title2.bold())
+      Text(
+        store.mockExperience.completedTaskIDs.isEmpty
+          ? "今天还没有完成"
+          : "今天已完成 \(store.mockExperience.completedTaskIDs.count) 件"
+      )
         .font(.subheadline)
         .foregroundStyle(CompanionPalette.secondaryText)
         .accessibilityIdentifier("phone.today.completed-count")
-      }
-      Spacer()
-      if store.companionExperienceAvailable {
-        Label(
-          "\(store.activeCoinBalance)",
-          systemImage: "circle.fill"
-        )
-        .font(.subheadline.bold())
-        .foregroundStyle(CompanionPalette.gold)
-        .accessibilityLabel("金币 \(store.activeCoinBalance) 枚")
-        .accessibilityIdentifier("phone.today.coins")
-      }
     }
   }
 
@@ -79,21 +66,15 @@ struct PhoneTodayView: View {
         .foregroundStyle(CompanionPalette.secondaryText)
         .fixedSize(horizontal: false, vertical: true)
 
-      HStack {
-        Label("\(task.reward) 金币", systemImage: "circle.fill")
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(CompanionPalette.gold)
-        Spacer()
-        Button {
-          Task { await store.completeRecommendedTask() }
-        } label: {
-          Label("我完成了", systemImage: "checkmark")
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(CompanionPalette.mint)
-        .disabled(store.isSavingMockExperience)
-        .accessibilityIdentifier("phone.today.complete-recommended")
+      Button {
+        Task { await store.completeRecommendedTask() }
+      } label: {
+        Label("我完成了", systemImage: "checkmark")
       }
+      .buttonStyle(.borderedProminent)
+      .tint(CompanionPalette.mint)
+      .disabled(store.isSavingMockExperience)
+      .accessibilityIdentifier("phone.today.complete-recommended")
     }
     .padding(CompanionSpacing.medium)
     .background(
@@ -139,7 +120,7 @@ struct PhoneTodayView: View {
       Divider()
       Label(store.model.sleepText, systemImage: "moon.fill")
         .accessibilityIdentifier("phone.today.sleep")
-      Text("这里只显示本机已有的数值，不把它们解释成健康结论，也不重复生成奖励任务。")
+      Text("这里只显示本机已有的数值，不把它们解释成健康结论，也不重复生成推荐任务。")
         .font(.caption)
         .foregroundStyle(CompanionPalette.secondaryText)
         .fixedSize(horizontal: false, vertical: true)

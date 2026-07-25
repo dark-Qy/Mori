@@ -34,8 +34,6 @@ final class WatchAppStore: ObservableObject {
   @Published private(set) var isCompletingAction = false
   @Published private(set) var actionCompleted = false
   @Published private(set) var hasSuggestedAction = false
-  @Published private(set) var suggestedActionReward = 0
-  @Published private(set) var coinBalance = 0
   @Published private(set) var selectedDataSource: CompanionDataSource
   @Published private(set) var movementScene: MovementScenePresentation?
   @Published private(set) var notificationDestination: RuntimeNotificationDestination? = nil
@@ -699,9 +697,9 @@ final class WatchAppStore: ObservableObject {
       )
       await refreshProductLoopSnapshot(from: productLoopRuntime)
       statusMessage =
-        (!receipt.didRecordCompletion && !receipt.didRecordReward)
-        ? "这件 Mock 小事已经记下，金币不会重复增加"
-        : "Mock 小事已经记下，当前有 \(receipt.balance) 枚金币"
+        receipt.didRecordCompletion
+        ? "Mock 小事已经记下"
+        : "这件 Mock 小事已经记过了"
       return true
     } catch {
       statusMessage = "Mock 小事暂时没能保存"
@@ -868,9 +866,7 @@ final class WatchAppStore: ObservableObject {
     suggestedTaskID = nil
     suggestedTaskCompletionDate = nil
     hasSuggestedAction = false
-    suggestedActionReward = 0
     actionCompleted = false
-    coinBalance = 0
   }
 
   private func refreshProductLoopSnapshot(
@@ -911,11 +907,9 @@ final class WatchAppStore: ObservableObject {
     let task = tasks.first
     suggestedTaskID = task?.header.recordID
     suggestedTaskCompletionDate = task?.issuedAt
-    suggestedActionReward = task?.rewardTier.rawValue ?? 0
     hasSuggestedAction =
       task?.completionPolicy == .userConfirmation
     actionCompleted = task?.lifecycle.isCompleted ?? false
-    coinBalance = snapshot.localState.coinLedger.balance
   }
 
   private static func isActive(

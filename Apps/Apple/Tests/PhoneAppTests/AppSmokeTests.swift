@@ -49,7 +49,6 @@ final class AppSmokeTests: XCTestCase {
     XCTAssertFalse(store.model.isLive)
     XCTAssertFalse(store.model.allowsInteraction)
     XCTAssertFalse(store.companionExperienceAvailable)
-    XCTAssertEqual(store.activeCoinBalance, 0)
     XCTAssertEqual(store.mockExperience, .empty)
   }
 
@@ -77,25 +76,13 @@ final class AppSmokeTests: XCTestCase {
     XCTAssertFalse(model.currentFactNarrative.contains("状态"))
   }
 
-  func testCollectionCatalogMatchesProductAuthority() {
-    let presentation = Dictionary(
-      uniqueKeysWithValues: PhoneCollectionItem.catalog.map {
-        (CosmeticID($0.id), ($0.price, $0.category))
-      }
+  func testAllVisualCatalogScenesAreExposedWithoutAStoreCatalog() {
+    XCTAssertEqual(
+      PhoneSceneOption.all.map(\.id),
+      CompanionVisualCatalog.backgroundIDs
     )
-
-    for item in MoriProductCosmeticCatalog.product.purchasableItems {
-      let decorated = presentation[item.id]
-      XCTAssertEqual(decorated?.0, item.coinPrice)
-      switch item.slot {
-      case .outfit:
-        XCTAssertEqual(decorated?.1, .clothing)
-      case .accessory:
-        XCTAssertEqual(decorated?.1, .accessories)
-      case .scene:
-        XCTAssertEqual(decorated?.1, .scenes)
-      }
-    }
+    XCTAssertEqual(Set(PhoneSceneOption.all.map(\.id)).count, 10)
+    XCTAssertTrue(PhoneSceneOption.all.allSatisfy { !$0.title.isEmpty })
   }
 
   func testMock7ActiveBuildsFiveWeeklyMemoriesWithConcreteFactsAndCovers() throws {
@@ -650,7 +637,7 @@ final class AppSmokeTests: XCTestCase {
   }
 
   #if DEBUG
-    func testProductLoopRestartAndDuplicateCommandsStayIdempotent()
+    func testProductLoopRestartAndDuplicateTaskCompletionStayIdempotent()
       async throws
     {
       let directory = temporaryDirectory()
@@ -663,11 +650,7 @@ final class AppSmokeTests: XCTestCase {
         snapshot: snapshot,
         sensingEnabled: true
       )
-      XCTAssertEqual(projection.coinBalance, 18)
-      XCTAssertEqual(
-        projection.ownedItemIDs,
-        Set(["default", "spring_meadow_stream"])
-      )
+      XCTAssertTrue(projection.completedTaskIDs.isEmpty)
 
       let task = try XCTUnwrap(projection.recommendedTask)
       let firstSettlement = try await context.runtime.completeTask(
@@ -680,27 +663,8 @@ final class AppSmokeTests: XCTestCase {
         method: .userConfirmed,
         at: Date()
       )
-      XCTAssertTrue(firstSettlement.didRecordReward)
+      XCTAssertTrue(firstSettlement.didRecordCompletion)
       XCTAssertFalse(replayedSettlement.didRecordCompletion)
-      XCTAssertFalse(replayedSettlement.didRecordReward)
-      XCTAssertEqual(replayedSettlement.balance, 19)
-
-      let operationID = CollectionOperationID(
-        rawValue: "phone.purchase.restart-scarf"
-      )
-      let firstPurchase = try await context.runtime.purchase(
-        cosmeticID: CosmeticID("scarf"),
-        operationID: operationID,
-        at: Date()
-      )
-      let replayedPurchase = try await context.runtime.purchase(
-        cosmeticID: CosmeticID("scarf"),
-        operationID: operationID,
-        at: Date()
-      )
-      XCTAssertTrue(firstPurchase.didRecordPurchase)
-      XCTAssertFalse(replayedPurchase.didRecordPurchase)
-      XCTAssertEqual(replayedPurchase.balance, 11)
 
       let reopened = try ProductLoopAppRuntime(
         applicationSupportURL: directory,
@@ -714,12 +678,11 @@ final class AppSmokeTests: XCTestCase {
         snapshot: snapshot,
         sensingEnabled: true
       )
-      XCTAssertEqual(projection.coinBalance, 11)
-      XCTAssertTrue(projection.ownedItemIDs.contains("scarf"))
+      XCTAssertTrue(projection.completedTaskIDs.contains(task.id))
       XCTAssertNil(projection.recommendedTask)
     }
 
-    func testPhoneStorePersistsCompleteThenPurchaseAcrossRestart()
+    func testPhoneAppStatePersistsCompletedTaskAcrossRestart()
       async throws
     {
       let identifier = "restart-\(UUID().uuidString)"
@@ -728,24 +691,17 @@ final class AppSmokeTests: XCTestCase {
         source: .mock1,
         reset: true
       )
-      XCTAssertEqual(first.activeCoinBalance, 18)
-      XCTAssertNotNil(first.mockExperience.recommendedTask)
+      let taskID = try XCTUnwrap(first.mockExperience.recommendedTask?.id)
 
       await first.completeRecommendedTask()
-      XCTAssertEqual(first.activeCoinBalance, 19)
-      let scarf = try XCTUnwrap(
-        PhoneCollectionItem.catalog.first { $0.id == "scarf" }
-      )
-      await first.purchase(scarf)
-      XCTAssertEqual(first.activeCoinBalance, 11)
+      XCTAssertTrue(first.mockExperience.completedTaskIDs.contains(taskID))
 
       let reopened = await makeReadyStore(
         storageID: identifier,
         source: .mock1,
         reset: false
       )
-      XCTAssertEqual(reopened.activeCoinBalance, 11)
-      XCTAssertTrue(reopened.mockExperience.ownedItemIDs.contains("scarf"))
+      XCTAssertTrue(reopened.mockExperience.completedTaskIDs.contains(taskID))
       XCTAssertNil(reopened.mockExperience.recommendedTask)
     }
 
@@ -758,20 +714,16 @@ final class AppSmokeTests: XCTestCase {
         reset: true
       )
       await store.completeRecommendedTask()
-      XCTAssertEqual(store.activeCoinBalance, 19)
+      XCTAssertFalse(store.mockExperience.completedTaskIDs.isEmpty)
 
       await store.resetCurrentMockState()
 
       XCTAssertEqual(store.selectedDataSource, .mock1)
-      XCTAssertEqual(store.activeCoinBalance, 18)
-      XCTAssertEqual(
-        store.mockExperience.ownedItemIDs,
-        Set(["default", "spring_meadow_stream"])
-      )
+      XCTAssertTrue(store.mockExperience.completedTaskIDs.isEmpty)
       XCTAssertNotNil(store.mockExperience.recommendedTask)
     }
 
-    func testProfileSwitchRaceNeverPublishesOldCollectionState()
+    func testProfileSwitchRaceNeverPublishesOldTaskState()
       async throws
     {
       let store = await makeReadyStore(
@@ -779,17 +731,12 @@ final class AppSmokeTests: XCTestCase {
         source: .mock1,
         reset: true
       )
-      let scarf = try XCTUnwrap(
-        PhoneCollectionItem.catalog.first { $0.id == "scarf" }
-      )
-
-      async let purchase: Void = store.purchase(scarf)
+      async let completion: Void = store.completeRecommendedTask()
       async let switchProfile: Void = store.selectDataSource(.mock2)
-      _ = await (purchase, switchProfile)
+      _ = await (completion, switchProfile)
 
       XCTAssertEqual(store.selectedDataSource, .mock2)
-      XCTAssertEqual(store.activeCoinBalance, 18)
-      XCTAssertFalse(store.mockExperience.ownedItemIDs.contains("scarf"))
+      XCTAssertTrue(store.mockExperience.completedTaskIDs.isEmpty)
     }
 
     func testMockProfileSettingsRemainSeparateAndProfileLocal()
@@ -814,7 +761,8 @@ final class AppSmokeTests: XCTestCase {
         proactiveMessagesEnabled: true,
         socialSharingEnabled: true,
         publicPetSocialStateRawValue:
-          PublicPetSocialStateV1.greeting.rawValue
+          PublicPetSocialStateV1.greeting.rawValue,
+        selectedBackgroundID: "aurora_observatory"
       )
       _ = try repository.setConversationMemoryContext(
         profile: first,
@@ -833,6 +781,9 @@ final class AppSmokeTests: XCTestCase {
         try repository.settings(profile: second)
           .proactiveMessagesEnabled
       )
+      XCTAssertNil(
+        try repository.settings(profile: second).selectedBackgroundID
+      )
       XCTAssertTrue(
         try repository.settings(profile: second)
           .socialSharingEnabled
@@ -843,7 +794,8 @@ final class AppSmokeTests: XCTestCase {
         proactiveMessagesEnabled: false,
         socialSharingEnabled: false,
         publicPetSocialStateRawValue:
-          PublicPetSocialStateV1.greeting.rawValue
+          PublicPetSocialStateV1.greeting.rawValue,
+        selectedBackgroundID: "lantern_festival_square"
       )
       let reloadedRepository = PhoneMockProfileSettingsRepository(
         fileURL: directory.appendingPathComponent("settings.json")
@@ -852,9 +804,60 @@ final class AppSmokeTests: XCTestCase {
         try reloadedRepository.settings(profile: second)
           .socialSharingEnabled
       )
+      XCTAssertEqual(
+        try reloadedRepository.settings(profile: second)
+          .selectedBackgroundID,
+        "lantern_festival_square"
+      )
+      XCTAssertEqual(
+        try reloadedRepository.settings(profile: first)
+          .selectedBackgroundID,
+        "aurora_observatory"
+      )
     }
 
-    func testSensingReconcileRemovesRecommendedTaskAndKeepsLedger()
+    func testLegacyMockBackgroundMigratesOnceWithoutOverwritingNewSelection()
+      async throws
+    {
+      let directory = temporaryDirectory()
+      let repository = PhoneMockProfileSettingsRepository(
+        fileURL: directory.appendingPathComponent("settings.json")
+      )
+      let authority = try MoriGlobalPreferenceRuntime(
+        storageURL: directory.appendingPathComponent("authority.json"),
+        originDeviceID: "phone",
+        initialProfileSource: .mock(scenarioID: "mock1")
+      )
+      let profile = try await authority.current().profileScope
+
+      let migrated = try repository.migrateLegacyBackgroundIfNeeded(
+        profile: profile,
+        legacyBackgroundID: "moonlit_forest_camp"
+      )
+      XCTAssertEqual(
+        migrated.selectedBackgroundID,
+        "moonlit_forest_camp"
+      )
+
+      _ = try repository.setAppPreferences(
+        profile: profile,
+        proactiveMessagesEnabled: false,
+        socialSharingEnabled: true,
+        publicPetSocialStateRawValue:
+          PublicPetSocialStateV1.greeting.rawValue,
+        selectedBackgroundID: "aurora_observatory"
+      )
+      let preserved = try repository.migrateLegacyBackgroundIfNeeded(
+        profile: profile,
+        legacyBackgroundID: "spring_meadow_stream"
+      )
+      XCTAssertEqual(
+        preserved.selectedBackgroundID,
+        "aurora_observatory"
+      )
+    }
+
+    func testSensingReconcileRemovesRecommendedTask()
       async throws
     {
       let directory = temporaryDirectory()
@@ -883,7 +886,6 @@ final class AppSmokeTests: XCTestCase {
       )
 
       XCTAssertNil(projection.recommendedTask)
-      XCTAssertEqual(projection.coinBalance, 18)
       XCTAssertFalse(snapshot.localState.companionSensingEnabled)
       XCTAssertEqual(snapshot.localState.currentSensingEpoch, disabled.epoch)
     }

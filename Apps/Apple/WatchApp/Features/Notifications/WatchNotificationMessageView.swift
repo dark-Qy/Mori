@@ -48,7 +48,7 @@ struct WatchNotificationMessageView: View {
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
 
-        Label("打开来信不会领取奖励", systemImage: "checkmark.shield.fill")
+        Label("打开来信不会自动完成任务", systemImage: "checkmark.shield.fill")
           .font(.caption2)
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)

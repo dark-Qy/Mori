@@ -12,7 +12,7 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(element("phone.mock-badge", in: app).exists)
     XCTAssertTrue(element("phone.open-settings", in: app).exists)
     XCTAssertEqual(app.tabBars.buttons.count, 4)
-    for title in ["Mori", "今天", "回忆", "收藏"] {
+    for title in ["Mori", "今天", "回忆", "场景"] {
       XCTAssertTrue(app.tabBars.buttons[title].exists)
     }
     XCTAssertFalse(element("phone.today.recommended", in: app).exists)
@@ -141,70 +141,78 @@ final class PhoneAppUITests: XCTestCase {
     }
   }
 
-  func testTodayCompleteThenPurchasePersistAcrossRelaunch() {
+  func testTodayCompletionAndSceneSelectionPersistAcrossRelaunch() {
     let storageID = "phone-task-ledger"
     let app = launchMock(storageID: storageID, reset: true)
 
     app.tabBars.buttons["今天"].tap()
     XCTAssertTrue(element("phone.today", in: app).waitForExistence(timeout: 5))
-    XCTAssertEqual(element("phone.today.coins", in: app).label, "金币 18 枚")
+    XCTAssertFalse(element("phone.today.coins", in: app).exists)
     XCTAssertTrue(element("phone.today.steps", in: app).label.contains("3,250步"))
     XCTAssertTrue(element("phone.today.sleep", in: app).label.contains("7小时30分"))
 
-    app.buttons["phone.today.complete-recommended"].tap()
-    XCTAssertTrue(
-      element("phone.today.coins", in: app).waitForExistence(timeout: 5)
-        && element("phone.today.coins", in: app).label == "金币 19 枚"
-    )
-    XCTAssertFalse(app.buttons["phone.today.complete-recommended"].exists)
+    let completeButton = app.buttons["phone.today.complete-recommended"]
+    completeButton.tap()
+    XCTAssertTrue(completeButton.waitForNonExistence(timeout: 5))
 
-    app.tabBars.buttons["收藏"].tap()
-    let buy = app.buttons["phone.collection.buy.scarf"]
-    scrollToElement(buy, in: app)
-    buy.tap()
-    XCTAssertTrue(
-      app.buttons["phone.collection.use.scarf"].waitForExistence(timeout: 5)
+    app.tabBars.buttons["场景"].tap()
+    XCTAssertTrue(element("phone.scenes", in: app).waitForExistence(timeout: 5))
+    let aurora = app.buttons["phone.scene.aurora_observatory"]
+    scrollToElement(aurora, in: app)
+    aurora.tap()
+    expectation(
+      for: NSPredicate(format: "label CONTAINS %@", "正在使用"),
+      evaluatedWith: app.buttons["phone.scene.aurora_observatory"]
     )
-    XCTAssertEqual(
-      element("phone.collection.coins", in: app).label,
-      "金币 11 枚"
+    expectation(
+      for: NSPredicate(format: "value CONTAINS %@", "极光观星台"),
+      evaluatedWith: element("phone.scenes.preview", in: app)
     )
+    expectation(
+      for: NSPredicate(format: "label CONTAINS %@", "场景已切换"),
+      evaluatedWith: element("phone.scenes.status", in: app)
+    )
+    waitForExpectations(timeout: 5)
     app.terminate()
 
     let relaunched = launchMock(storageID: storageID, reset: false)
-    relaunched.tabBars.buttons["收藏"].tap()
+    relaunched.tabBars.buttons["场景"].tap()
+    XCTAssertTrue(element("phone.scenes", in: relaunched).waitForExistence(timeout: 5))
     XCTAssertTrue(
-      element("phone.collection.coins", in: relaunched)
-        .waitForExistence(timeout: 5)
-        && element("phone.collection.coins", in: relaunched).label
-          == "金币 11 枚"
+      (element("phone.scenes.preview", in: relaunched).value as? String)?
+        .contains("极光观星台") == true
     )
-    XCTAssertFalse(relaunched.buttons["phone.collection.buy.scarf"].exists)
     relaunched.tabBars.buttons["今天"].tap()
     XCTAssertFalse(relaunched.buttons["phone.today.complete-recommended"].exists)
   }
 
-  func testBiliCharactersCanBeSelectedFromCollectionAndShownAtHome() {
+  func testBiliCharactersCanBeSelectedFromScenesAndShownAtHome() {
     let app = launchApp(scenario: "health_normal")
 
-    app.tabBars.buttons["收藏"].tap()
-    XCTAssertTrue(element("phone.collection", in: app).waitForExistence(timeout: 5))
+    app.tabBars.buttons["场景"].tap()
+    XCTAssertTrue(element("phone.scenes", in: app).waitForExistence(timeout: 5))
 
     let girl22 = app.buttons["phone.character.bili_22"]
     scrollToElement(girl22, in: app)
-    scrollHorizontallyToElement(girl22, in: app)
     girl22.tap()
-    XCTAssertTrue(girl22.label.contains("22 娘"))
-    XCTAssertTrue(
-      (element("phone.collection.preview", in: app).value as? String)?
-        .contains("22 娘") == true
+    expectation(
+      for: NSPredicate(format: "label CONTAINS %@", "正在陪伴"),
+      evaluatedWith: app.buttons["phone.character.bili_22"]
     )
+    expectation(
+      for: NSPredicate(format: "value CONTAINS %@", "22 娘"),
+      evaluatedWith: element("phone.scenes.preview", in: app)
+    )
+    waitForExpectations(timeout: 5)
 
     let girl33 = app.buttons["phone.character.bili_33"]
     scrollToElement(girl33, in: app)
-    scrollHorizontallyToElement(girl33, in: app)
     girl33.tap()
-    XCTAssertTrue(girl33.label.contains("33 娘"))
+    expectation(
+      for: NSPredicate(format: "label CONTAINS %@", "正在陪伴"),
+      evaluatedWith: app.buttons["phone.character.bili_33"]
+    )
+    waitForExpectations(timeout: 5)
 
     app.tabBars.buttons["Mori"].tap()
     let scene = app.buttons["phone.companion-interaction"]
@@ -243,10 +251,7 @@ final class PhoneAppUITests: XCTestCase {
       relaunched.staticTexts[persistedLabel].waitForExistence(timeout: 8)
     )
     relaunched.tabBars.buttons["今天"].tap()
-    XCTAssertTrue(
-      element("phone.today.coins", in: relaunched).waitForExistence(timeout: 5)
-        && element("phone.today.coins", in: relaunched).label == "金币 18 枚"
-    )
+    XCTAssertFalse(element("phone.today.coins", in: relaunched).exists)
     XCTAssertTrue(
       relaunched.buttons["phone.today.complete-recommended"].isEnabled
     )
@@ -432,41 +437,31 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertFalse(app.staticTexts["恢复不足"].exists)
   }
 
-  func testCollectionPurchaseAndEquipPersistAcrossRelaunch() {
-    let storageID = "phone-collection"
+  func testAllScenesAreDirectlySelectableWithoutStoreControls() {
+    let storageID = "phone-scenes"
     let app = launchMock(storageID: storageID, reset: true)
 
-    app.tabBars.buttons["收藏"].tap()
-    XCTAssertTrue(
-      element("phone.collection", in: app).waitForExistence(timeout: 5)
-    )
-    XCTAssertEqual(
-      element("phone.collection.coins", in: app).label,
-      "金币 18 枚"
-    )
+    app.tabBars.buttons["场景"].tap()
+    XCTAssertTrue(element("phone.scenes", in: app).waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["所有场景都已开放，点一下即可切换。"].exists)
+    XCTAssertFalse(app.staticTexts["服装"].exists)
+    XCTAssertFalse(app.staticTexts["配饰"].exists)
+    XCTAssertFalse(element("phone.today.coins", in: app).exists)
 
-    let buy = app.buttons["phone.collection.buy.scarf"]
-    scrollToElement(buy, in: app)
-    buy.tap()
-    let use = app.buttons["phone.collection.use.scarf"]
-    XCTAssertTrue(use.waitForExistence(timeout: 5))
-    XCTAssertEqual(
-      element("phone.collection.coins", in: app).label,
-      "金币 10 枚"
+    let festival = app.buttons["phone.scene.lantern_festival_square"]
+    scrollToElement(festival, in: app)
+    festival.tap()
+    expectation(
+      for: NSPredicate(format: "label CONTAINS %@", "正在使用"),
+      evaluatedWith: app.buttons["phone.scene.lantern_festival_square"]
     )
-    use.tap()
-    XCTAssertTrue(app.staticTexts["使用中"].waitForExistence(timeout: 5))
-    app.terminate()
-
-    let relaunched = launchMock(storageID: storageID, reset: false)
-    relaunched.tabBars.buttons["收藏"].tap()
-    XCTAssertTrue(
-      element("phone.collection.coins", in: relaunched)
-        .waitForExistence(timeout: 5)
-        && element("phone.collection.coins", in: relaunched).label
-          == "金币 10 枚"
-    )
-    XCTAssertFalse(relaunched.buttons["phone.collection.buy.scarf"].exists)
+    waitForExpectations(timeout: 5)
+    XCTAssertFalse(app.buttons.matching(
+      NSPredicate(format: "identifier BEGINSWITH %@", "phone.collection.buy.")
+    ).firstMatch.exists)
+    XCTAssertFalse(app.buttons.matching(
+      NSPredicate(format: "identifier BEGINSWITH %@", "phone.collection.use.")
+    ).firstMatch.exists)
   }
 
   func testSettingsOwnsCompanionDataAndHonestSyncStatus() {
@@ -515,7 +510,7 @@ final class PhoneAppUITests: XCTestCase {
     )
   }
 
-  func testInvalidMockFailsClosedAcrossAllProductTabs() {
+  func testInvalidMockStillFailsClosedWhileScenesRemainAvailable() {
     let app = launchInvalidMock()
 
     XCTAssertTrue(element("phone.mori.scene", in: app).waitForExistence(timeout: 8))
@@ -526,13 +521,10 @@ final class PhoneAppUITests: XCTestCase {
       element("phone.today.task-unavailable", in: app)
         .waitForExistence(timeout: 5)
     )
-    app.tabBars.buttons["收藏"].tap()
-    XCTAssertTrue(
-      element("phone.collection.unavailable", in: app)
-        .waitForExistence(timeout: 5)
-    )
+    app.tabBars.buttons["场景"].tap()
+    XCTAssertTrue(element("phone.scenes", in: app).waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["phone.scene.spring_meadow_stream"].exists)
     XCTAssertFalse(element("phone.today.coins", in: app).exists)
-    XCTAssertFalse(element("phone.collection.coins", in: app).exists)
   }
 
   func testCareNotificationRouteOpensSafeCareMessage() {
@@ -547,7 +539,7 @@ final class PhoneAppUITests: XCTestCase {
     )
     XCTAssertTrue(app.staticTexts["已回到 Mori"].exists)
     XCTAssertTrue(
-      app.staticTexts["打开来信只负责导航，不会自动完成任务、发放金币或写入健康数据。"].exists
+      app.staticTexts["打开来信只负责导航，不会自动完成任务或写入健康数据。"].exists
     )
     app.buttons["phone.notification.dismiss"].tap()
     XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 5))
@@ -561,7 +553,7 @@ final class PhoneAppUITests: XCTestCase {
     for (tab, identifier) in [
       ("今天", "phone.today"),
       ("回忆", "phone.memories"),
-      ("收藏", "phone.collection"),
+      ("场景", "phone.scenes"),
     ] {
       app.tabBars.buttons[tab].tap()
       XCTAssertTrue(element(identifier, in: app).waitForExistence(timeout: 5))
@@ -658,26 +650,6 @@ final class PhoneAppUITests: XCTestCase {
       } else {
         scrollSurface.swipeUp()
       }
-    }
-  }
-
-  private func scrollHorizontallyToElement(
-    _ element: XCUIElement,
-    in app: XCUIApplication
-  ) {
-    guard let horizontalScroll = app.scrollViews.allElementsBoundByIndex.last else {
-      XCTFail("Expected a horizontal character picker")
-      return
-    }
-    for _ in 0..<8 {
-      let visibleFrame = horizontalScroll.frame.insetBy(dx: 8, dy: 0)
-      if element.exists,
-        element.frame.minX >= visibleFrame.minX,
-        element.frame.maxX <= visibleFrame.maxX
-      {
-        return
-      }
-      horizontalScroll.swipeLeft()
     }
   }
 
