@@ -146,6 +146,7 @@
       "mock3",
       "mock4",
       "mock5",
+      "mock6",
       "mock7_active",
       "mock7_recovery",
       "mock7_rhythm",

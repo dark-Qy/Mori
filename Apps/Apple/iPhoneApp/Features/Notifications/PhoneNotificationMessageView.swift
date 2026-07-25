@@ -37,6 +37,23 @@ struct PhoneNotificationMessageView: View {
         "今天的时刻已经收好",
         "白熊把一天里的几个画面放在一起；每天会换成当天的新时刻。"
       )
+    case .sleepReminder:
+      (
+        "moon.stars.fill",
+        "该准备睡觉啦",
+        "Mori 会在这里陪你收好今天；这条提醒不会写入或修改健康数据。"
+      )
+    }
+  }
+
+  private var navigationTitle: String {
+    switch destination {
+    case .dailyMemory:
+      "今日时刻"
+    case .sleepReminder:
+      "睡眠提醒"
+    case .recoveryMessage, .activityMessage, .careMessage:
+      "Mori 来信"
     }
   }
 
@@ -75,7 +92,7 @@ struct PhoneNotificationMessageView: View {
       .padding(CompanionSpacing.large)
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .background(CompanionPalette.background.ignoresSafeArea())
-      .navigationTitle(destination == .dailyMemory ? "今日时刻" : "Mori 来信")
+      .navigationTitle(navigationTitle)
       .navigationBarTitleDisplayMode(.inline)
     }
     .accessibilityIdentifier("phone.notification.\(destination.rawValue)")

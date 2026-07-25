@@ -61,6 +61,8 @@
         .normalDay
       case "mock2":
         .lateSleep
+      case "mock6":
+        .lateSleep
       case "mock3", "activity_high":
         .fastWalking
       default:
@@ -82,7 +84,7 @@
       }
 
       let evaluatedAt =
-        scenarioID.rawValue == "mock5"
+        scenarioID.rawValue == "mock5" || scenarioID.rawValue == "mock6"
         ? Date(timeIntervalSince1970: 1_785_075_600)
         : Date(timeIntervalSince1970: 1_760_000_000)
       let activeSince = evaluatedAt.addingTimeInterval(-9 * 60 * 60)
@@ -112,7 +114,9 @@
         localHour:
           scenarioID.rawValue == "mock5"
           ? 22
-          : (scenario == .lateSleep ? 9 : 12),
+          : scenarioID.rawValue == "mock6"
+            ? 23
+            : (scenario == .lateSleep ? 9 : 12),
         activation: activation,
         facts: facts(
           for: scenario,

@@ -84,6 +84,21 @@ pending request. The two apps schedule independently: simulator success does
 not prove iPhone-to-Watch mirroring, paired delivery, background timing, or
 physical-device notification behavior.
 
+`Mock 6` is the sleep-reminder fixture. It contains synthetic recent short
+sleep, but no inferred State of Mind. After iPhone explicitly selects the
+fixture, iPhone schedules three labeled ordinary local notifications for 10,
+20, and 30 seconds from the selection gesture. Their bodies are fixed demo
+copy, the selection token makes the batch once-per-selection, and switching
+sources cancels pending and in-flight requests in the batch. If notification
+permission still needs a user response, an elapsed fire date is delivered at
+the system's earliest supported interval after authorization. General UI tests
+suppress system notification prompts; focused notification runs opt in with
+`--enable-mock-system-notification`. iPhone is the single scheduling owner so
+the batch cannot be doubled by both apps. Watch loads the fixture but does not
+schedule another local batch; simulator results still do not establish
+iPhone-to-Watch mirroring, paired routing, background timing, or
+physical-device delivery.
+
 `RuntimeStorageLayout` creates distinct real and Mock parent directories. Raw
 profile, scenario, and device identifiers are SHA-256 inputs and never path
 components. Each namespace owns separate:
@@ -222,6 +237,7 @@ workout-session heart rate, background execution, or physical-device sensor vali
 | `mock3` | High-activity story demo | high activity and an explicit soccer workout eligible for `lost_ball` |
 | `mock4` | Real-time scene demo | looping synthetic GPS speed and heart rate drive four scene states |
 | `mock5` | Polar-bear daily moments | three same-day visual moments refresh by local day, seal on iPhone, and can notify both devices after about 20 seconds |
+| `mock6` | Sleep-reminder demo | recent synthetic short sleep and three ordinary reminders at 10-second intervals |
 | `mock7_stable` | Five-week stable timeline | recent metrics remain steady across 35 days |
 | `mock7_recovery` | Five-week recovery timeline | sleep duration gradually reduces and the latest day enters recovery |
 | `mock7_active` | Five-week activity timeline | walking, swimming, badminton, tennis, then soccer; latest soccer workout is eligible for `lost_ball` |
@@ -292,14 +308,15 @@ not choose a default scenario.
 
 The Watch and iPhone stores use the profile-aware Mori product loop for tasks,
 coins, collection state, identity, and scene projection. Historical `Mock 1`,
-`Mock 2`, `Mock 3`, `Mock 5`, and `mock7_*` fixtures remain as Debug compatibility inputs,
+`Mock 2`, `Mock 3`, `Mock 5`, `Mock 6`, and `mock7_*` fixtures remain as Debug compatibility inputs,
 not as an independent product-state authority.
 
 At this boundary:
 
 - legacy selectors must remain Debug-only;
 - legacy Mock presentation must not write the real event ledger or invoke
-  HealthKit or connectivity; only the explicitly opted-in `Mock 2` and `Mock 5`
+  HealthKit or connectivity; only the explicitly opted-in `Mock 2`, `Mock 5`,
+  and `Mock 6`
   notification harnesses may invoke the isolated local-notification paths
   described above;
 - new product features must use the profile-aware product loop rather than

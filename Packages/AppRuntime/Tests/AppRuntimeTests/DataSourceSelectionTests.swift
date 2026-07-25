@@ -197,6 +197,55 @@ struct DataSourceSelectionTests {
           == nil
       )
     }
+
+    @Test("Mock sleep reminders schedule once per explicit selection token")
+    func mockSleepReminderOccurrence() async {
+      let storage = makeRepository()
+      defer { removeStorage(suiteName: storage.suiteName) }
+
+      let firstToken = await storage.repository.save(.mock6)
+      #expect(
+        await storage.repository.mockSleepReminderNotificationTokenIfNeeded()
+          == firstToken
+      )
+      #expect(
+        await storage.repository.markMockSleepRemindersScheduled(
+          selectionToken: firstToken
+        )
+      )
+      #expect(
+        await storage.repository.mockSleepReminderNotificationTokenIfNeeded()
+          == nil
+      )
+      await storage.repository.clearMockSleepRemindersScheduled(
+        selectionToken: firstToken
+      )
+      #expect(
+        await storage.repository.mockSleepReminderNotificationTokenIfNeeded()
+          == firstToken
+      )
+      #expect(
+        await storage.repository.markMockSleepRemindersScheduled(
+          selectionToken: firstToken
+        )
+      )
+
+      let secondToken = await storage.repository.save(.mock6)
+      #expect(secondToken != firstToken)
+      await storage.repository.clearMockSleepRemindersScheduled(
+        selectionToken: firstToken
+      )
+      #expect(
+        await storage.repository.mockSleepReminderNotificationTokenIfNeeded()
+          == secondToken
+      )
+
+      _ = await storage.repository.save(.mock1)
+      #expect(
+        await storage.repository.mockSleepReminderNotificationTokenIfNeeded()
+          == nil
+      )
+    }
   #endif
 
   @Test("Invalid stored selection uses the build-appropriate safe default")
@@ -217,23 +266,27 @@ struct DataSourceSelectionTests {
     #if DEBUG
       #expect(
         CompanionDataSource.allCases == [
-          .healthKit, .mock1, .mock2, .mock3, .mock4, .mock5, .mock7Active,
+          .healthKit, .mock1, .mock2, .mock3, .mock4, .mock5, .mock6,
+          .mock7Active,
           .mock7Recovery, .mock7Rhythm, .mock7Sparse, .mock7Stable,
         ])
       #expect(
         CompanionDataSource.allCases.map(\.displayName) == [
           "Apple 健康", "Mock 1", "Mock 2", "Mock 3", "Mock 4 · 实时场景",
-          "Mock 5 · 每日时刻", "35 日 · 活动旅程", "35 日 · 恢复旅程",
-          "35 日 · 节律旅程", "35 日 · 片段旅程", "35 日 · 平稳旅程",
+          "Mock 5 · 每日时刻", "Mock 6 · 睡眠提醒", "35 日 · 活动旅程",
+          "35 日 · 恢复旅程", "35 日 · 节律旅程", "35 日 · 片段旅程",
+          "35 日 · 平稳旅程",
         ])
       #expect(
         CompanionDataSource.allCases.map(\.fixtureID) == [
-          nil, "mock1", "mock2", "mock3", "mock4", "mock5", "mock7_active",
-          "mock7_recovery", "mock7_rhythm", "mock7_sparse", "mock7_stable",
+          nil, "mock1", "mock2", "mock3", "mock4", "mock5", "mock6",
+          "mock7_active", "mock7_recovery", "mock7_rhythm", "mock7_sparse",
+          "mock7_stable",
         ])
       #expect(
         CompanionDataSource.allCases.map(\.isMock) == [
           false, true, true, true, true, true, true, true, true, true, true,
+          true,
         ])
       #expect(CompanionDataSource.isPeerExchangeFixtureID("mock2"))
       #expect(!CompanionDataSource.isPeerExchangeFixtureID(nil))
@@ -241,6 +294,8 @@ struct DataSourceSelectionTests {
       #expect(!CompanionDataSource.mock1.simulatesPeerExchange)
       #expect(CompanionDataSource.mock5.simulatesDailyMoments)
       #expect(!CompanionDataSource.mock4.simulatesDailyMoments)
+      #expect(CompanionDataSource.mock6.simulatesSleepReminders)
+      #expect(!CompanionDataSource.mock5.simulatesSleepReminders)
     #else
       #expect(CompanionDataSource.allCases == [.healthKit])
       #expect(CompanionDataSource.allCases.map(\.displayName) == ["Apple 健康"])

@@ -8,6 +8,7 @@ public enum CompanionDataSource: String, Codable, CaseIterable, Sendable {
     case mock3
     case mock4
     case mock5
+    case mock6
     case mock7Active = "mock7_active"
     case mock7Recovery = "mock7_recovery"
     case mock7Rhythm = "mock7_rhythm"
@@ -24,6 +25,7 @@ public enum CompanionDataSource: String, Codable, CaseIterable, Sendable {
       case .mock3: "Mock 3"
       case .mock4: "Mock 4 · 实时场景"
       case .mock5: "Mock 5 · 每日时刻"
+      case .mock6: "Mock 6 · 睡眠提醒"
       case .mock7Active: "35 日 · 活动旅程"
       case .mock7Recovery: "35 日 · 恢复旅程"
       case .mock7Rhythm: "35 日 · 节律旅程"
@@ -42,6 +44,7 @@ public enum CompanionDataSource: String, Codable, CaseIterable, Sendable {
       case .mock3: "mock3"
       case .mock4: "mock4"
       case .mock5: "mock5"
+      case .mock6: "mock6"
       case .mock7Active: "mock7_active"
       case .mock7Recovery: "mock7_recovery"
       case .mock7Rhythm: "mock7_rhythm"
@@ -90,6 +93,14 @@ public enum CompanionDataSource: String, Codable, CaseIterable, Sendable {
       false
     #endif
   }
+
+  public var simulatesSleepReminders: Bool {
+    #if DEBUG
+      self == .mock6
+    #else
+      false
+    #endif
+  }
 }
 
 public struct PeerDataSourceSelectionPlan: Equatable, Sendable {
@@ -119,6 +130,7 @@ public actor DataSourceSelectionRepository {
   private let mockChatInviteNotificationTokenKey: String
   private let mockCareNotificationTokenKey: String
   private let mockDailyMomentsNotificationTokenKey: String
+  private let mockSleepReminderNotificationTokenKey: String
   private var pendingPeerPlan: PeerDataSourceSelectionPlan?
 
   public init(
@@ -133,6 +145,8 @@ public actor DataSourceSelectionRepository {
     mockCareNotificationTokenKey = "\(key).mock-care-notification-token"
     mockDailyMomentsNotificationTokenKey =
       "\(key).mock-daily-moments-notification-token"
+    mockSleepReminderNotificationTokenKey =
+      "\(key).mock-sleep-reminder-notification-token"
   }
 
   public func load() -> CompanionDataSource {
@@ -161,6 +175,7 @@ public actor DataSourceSelectionRepository {
     defaults.removeObject(forKey: mockChatInviteNotificationTokenKey)
     defaults.removeObject(forKey: mockCareNotificationTokenKey)
     defaults.removeObject(forKey: mockDailyMomentsNotificationTokenKey)
+    defaults.removeObject(forKey: mockSleepReminderNotificationTokenKey)
   }
 
   public func loadSelectionToken() -> String? {
@@ -237,6 +252,47 @@ public actor DataSourceSelectionRepository {
 
     public func lastScheduledMockDailyMomentsNotificationToken() -> String? {
       defaults.string(forKey: mockDailyMomentsNotificationTokenKey)
+    }
+
+    public func mockSleepReminderNotificationTokenIfNeeded() -> String? {
+      guard
+        load() == .mock6,
+        let token = loadSelectionToken(),
+        token != defaults.string(forKey: mockSleepReminderNotificationTokenKey)
+      else { return nil }
+      return token
+    }
+
+    @discardableResult
+    public func markMockSleepRemindersScheduled(
+      selectionToken: String
+    ) -> Bool {
+      guard load() == .mock6, loadSelectionToken() == selectionToken else {
+        return false
+      }
+      defaults.set(
+        selectionToken,
+        forKey: mockSleepReminderNotificationTokenKey
+      )
+      return true
+    }
+
+    public func lastScheduledMockSleepReminderNotificationToken() -> String? {
+      defaults.string(forKey: mockSleepReminderNotificationTokenKey)
+    }
+
+    public func isCurrentMockSleepReminderSelection(
+      selectionToken: String
+    ) -> Bool {
+      load() == .mock6 && loadSelectionToken() == selectionToken
+    }
+
+    public func clearMockSleepRemindersScheduled(selectionToken: String) {
+      guard
+        defaults.string(forKey: mockSleepReminderNotificationTokenKey)
+          == selectionToken
+      else { return }
+      defaults.removeObject(forKey: mockSleepReminderNotificationTokenKey)
     }
   #endif
 

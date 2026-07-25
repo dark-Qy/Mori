@@ -40,6 +40,17 @@ struct ScenarioRuntimeTests {
     #expect(Set(collection.moments.map(\.id)).count == 3)
   }
 
+  @Test("Mock 6 represents recent short sleep without inventing mood data")
+  func sleepReminderScenario() throws {
+    let runtime = try runtime(named: "mock6")
+    let run = try MockScenarioRun(runtime: runtime)
+
+    #expect(runtime.displayName == "Mock 6 · 睡眠提醒")
+    #expect(runtime.healthSnapshot.sleepMinutes == 275)
+    #expect(runtime.healthSnapshot.stateOfMindSamples?.isEmpty != false)
+    #expect(run.state.activeTheme == .recovery)
+  }
+
   @Test("Thirty-five-day demos use real daily history and self-check their latest trends")
   func sevenDayScenarios() throws {
     let expectedStatuses: [String: [TrendMetric: PersonalTrendStatus]] = [

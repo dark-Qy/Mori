@@ -15,6 +15,7 @@ public enum RuntimeNotificationDestination: String, Equatable, Identifiable, Sen
   case activityMessage
   case careMessage
   case dailyMemory
+  case sleepReminder
 
   public var id: String { rawValue }
 }
@@ -30,6 +31,7 @@ public struct NotificationRouteCoordinator: Sendable {
     case "pet/activity": .activityMessage
     case "pet/care": .careMessage
     case "memory/daily": .dailyMemory
+    case "pet/sleep": .sleepReminder
     default: nil
     }
   }

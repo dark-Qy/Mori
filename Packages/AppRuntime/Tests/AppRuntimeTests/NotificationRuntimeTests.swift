@@ -218,6 +218,46 @@ struct NotificationRuntimeTests {
     #expect(delay.truncatingRemainder(dividingBy: 60) == 0)
   }
 
+  #if DEBUG
+    @Test("Sleep Mock schedules the requested copy at ten-second intervals")
+    func mockSleepReminderSchedule() async throws {
+      let schedule = MockSleepReminderSchedule(
+        selectionToken: "selection",
+        now: now
+      )
+
+      #expect(schedule.interactions.count == 3)
+      #expect(
+        schedule.interactions.map(\.body) == [
+          "最近没休息好，要快点睡觉啦",
+          "快快睡觉了～",
+          "我好困困，我先睡觉惹，不管你啦！",
+        ]
+      )
+      #expect(
+        schedule.interactions.map { $0.fireDate.timeIntervalSince(now) }
+          == [10, 20, 30]
+      )
+      #expect(schedule.interactions.map(\.route) == ["pet/sleep", "pet/sleep", "pet/sleep"])
+      #expect(schedule.interactions.allSatisfy { $0.interruptionLevel == .active })
+      #expect(Set(schedule.interactions.map(\.id)).count == 3)
+
+      let client = MockLocalNotificationClient(
+        state: .authorized,
+        calendar: utcCalendar
+      )
+      for interaction in schedule.interactions {
+        #expect(
+          try await ProactiveInteractionService(client: client).schedule(
+            interaction,
+            policy: NotificationPolicy()
+          ) == .allow
+        )
+      }
+      #expect(await client.pending.count == 3)
+    }
+  #endif
+
   private var utcCalendar: Calendar {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!

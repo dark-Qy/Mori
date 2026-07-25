@@ -638,6 +638,7 @@ final class PhoneAppStore: ObservableObject {
     else {
       return
     }
+    let selectionStartedAt = Date()
     isSwitchingDataSource = true
     defer { isSwitchingDataSource = false }
     mockCareTask?.cancel()
@@ -654,11 +655,16 @@ final class PhoneAppStore: ObservableObject {
     await runtime?.cancelMockChatInviteNotification()
     await runtime?.cancelMockCareNotification()
     await runtime?.cancelMockDailyMomentsNotification()
+    await runtime?.cancelMockSleepReminderNotifications()
+    notificationStatus = await notificationStatusText()
     selectedDataSource = source
     if let runtime {
       _ = await runtime.saveDataSourceSelection(source)
     }
-    await applySelectedDataSource(requestAccessIfNeeded: source == .healthKit)
+    await applySelectedDataSource(
+      requestAccessIfNeeded: source == .healthKit,
+      sleepReminderStartDate: selectionStartedAt
+    )
     await configureConversation()
   }
 
@@ -1560,22 +1566,26 @@ final class PhoneAppStore: ObservableObject {
   }
 
   private func applySelectedDataSource(
-    requestAccessIfNeeded: Bool
+    requestAccessIfNeeded: Bool,
+    sleepReminderStartDate: Date? = nil
   ) async {
     movementSceneTask?.cancel()
     movementSceneTask = nil
     movementScene = nil
     if selectedDataSource.isMock {
       #if DEBUG
+        statusMessage = "\(selectedDataSource.displayName) 已载入"
+        notificationStatus = "此 Mock 未安排系统提醒"
+        await scheduleMockSleepRemindersIfNeeded(
+          startingAt: sleepReminderStartDate ?? Date()
+        )
         model = PhonePresentationModel.demo(
           selectedDataSource,
           now: Date()
         )
         await loadMockExperience()
         phase = .ready
-        statusMessage = "\(selectedDataSource.displayName) 已载入"
         startMovementSceneIfNeeded()
-        notificationStatus = "此 Mock 未安排系统提醒"
         await scheduleMockChatInviteNotificationIfNeeded()
         await scheduleMockDailyMomentsNotificationIfNeeded()
       #else
@@ -1648,6 +1658,35 @@ final class PhoneAppStore: ObservableObject {
       notificationStatus = "此设备不可用"
     case .failed:
       statusMessage = "Mock 5 已载入；每日时刻通知暂时未能安排"
+    }
+  }
+
+  private func scheduleMockSleepRemindersIfNeeded(
+    startingAt date: Date
+  ) async {
+    guard
+      selectedDataSource.simulatesSleepReminders,
+      mockSystemNotificationsEnabled,
+      let runtime
+    else { return }
+    let status = await runtime.scheduleMockSleepReminderNotifications(now: date)
+    guard selectedDataSource.simulatesSleepReminders else {
+      await runtime.cancelMockSleepReminderNotifications()
+      return
+    }
+    switch status {
+    case .scheduled:
+      notificationStatus = "已安排 · 10、20、30 秒后"
+    case .alreadyScheduled:
+      notificationStatus = "本次睡眠提醒已安排"
+    case .denied:
+      notificationStatus = "已在系统中关闭"
+      statusMessage = "Mock 6 已载入；请在系统设置中开启通知"
+    case .unavailable:
+      notificationStatus = "此设备不可用"
+    case .failed:
+      notificationStatus = "安排失败"
+      statusMessage = "Mock 6 已载入；睡眠提醒暂时未能安排"
     }
   }
 
@@ -1769,11 +1808,10 @@ final class PhoneAppStore: ObservableObject {
         var settings = try mockProfileSettingsRepository.settings(
           profile: profile
         )
-        if
-          settings.selectedBackgroundID == nil,
+        if settings.selectedBackgroundID == nil,
           let legacyBackgroundID =
             snapshot.localState.collection.equipped[.scene]?
-              .cosmeticID.rawValue
+            .cosmeticID.rawValue
         {
           settings =
             try mockProfileSettingsRepository.migrateLegacyBackgroundIfNeeded(
@@ -2408,13 +2446,17 @@ final class PhoneAppStore: ObservableObject {
       switch destination {
       case .activityMessage: .today
       case .dailyMemory: .memories
-      case .recoveryMessage, .careMessage: .mori
+      case .recoveryMessage, .careMessage, .sleepReminder: .mori
       }
     notificationDestination = destination
-    statusMessage =
-      destination == .dailyMemory
-      ? "已打开今天的多个时刻；通知没有改变任务或金币"
-      : "已处理旧版入口；没有合成内容或改变账本"
+    switch destination {
+    case .dailyMemory:
+      statusMessage = "已打开今天的多个时刻；通知没有改变任务或金币"
+    case .sleepReminder:
+      statusMessage = "已打开睡眠提醒；通知没有改变任务或金币"
+    case .activityMessage, .recoveryMessage, .careMessage:
+      statusMessage = "已处理旧版入口；没有合成内容或改变账本"
+    }
   }
 
   private func retryPeerSyncInBackground(runtime: AppleCompanionRuntime) {

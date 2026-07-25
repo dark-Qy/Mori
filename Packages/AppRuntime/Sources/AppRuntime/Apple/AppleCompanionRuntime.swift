@@ -71,6 +71,8 @@
       private var mockChatInviteScheduleGeneration: UInt64 = 0
       private var mockCareScheduleGeneration: UInt64 = 0
       private var mockDailyMomentsScheduleGeneration: UInt64 = 0
+      private var mockSleepReminderScheduleGeneration: UInt64 = 0
+      private var mockSleepReminderScheduleTokensInFlight: Set<String> = []
     #endif
     private var selectionGeneration: UInt64 = 0
     private var selectionTransitionTarget: CompanionDataSource?
@@ -632,10 +634,138 @@
       #endif
     }
 
+    public func scheduleMockSleepReminderNotifications(
+      every interval: TimeInterval = 10,
+      now: Date = Date()
+    ) async -> RuntimeNotificationScheduleStatus {
+      #if DEBUG
+        guard
+          let selectionToken =
+            await dataSourceSelection.mockSleepReminderNotificationTokenIfNeeded()
+        else {
+          return .alreadyScheduled
+        }
+        guard !mockSleepReminderScheduleTokensInFlight.contains(selectionToken) else {
+          return .alreadyScheduled
+        }
+        mockSleepReminderScheduleGeneration &+= 1
+        let generation = mockSleepReminderScheduleGeneration
+        mockSleepReminderScheduleTokensInFlight.insert(selectionToken)
+        defer {
+          mockSleepReminderScheduleTokensInFlight.remove(selectionToken)
+        }
+        let schedule = MockSleepReminderSchedule(
+          selectionToken: selectionToken,
+          now: now,
+          interval: interval
+        )
+        var permission = await mockNotifications.permissionState()
+        guard
+          await isCurrentMockSleepReminderSchedule(
+            generation: generation,
+            selectionToken: selectionToken
+          )
+        else { return .failed }
+        if permission == .notRequested {
+          permission = await mockNotifications.requestPermission()
+        }
+        guard
+          await isCurrentMockSleepReminderSchedule(
+            generation: generation,
+            selectionToken: selectionToken
+          )
+        else { return .failed }
+        switch permission {
+        case .authorized, .provisional, .ephemeral:
+          break
+        case .denied:
+          return .denied
+        case .notRequested, .unavailable:
+          return .unavailable
+        }
+
+        var scheduledInteractions: [ApprovedProactiveInteraction] = []
+        do {
+          for interaction in schedule.interactions {
+            let decision = try await ProactiveInteractionService(
+              client: mockNotifications
+            ).schedule(
+              interaction,
+              policy: NotificationPolicy()
+            )
+            guard decision == .allow else {
+              await removeMockSleepReminders(scheduledInteractions)
+              return .failed
+            }
+            scheduledInteractions.append(interaction)
+            guard
+              await isCurrentMockSleepReminderSchedule(
+                generation: generation,
+                selectionToken: selectionToken
+              )
+            else {
+              await removeMockSleepReminders(scheduledInteractions)
+              return .failed
+            }
+          }
+          guard
+            await dataSourceSelection.markMockSleepRemindersScheduled(
+              selectionToken: selectionToken
+            )
+          else {
+            await removeMockSleepReminders(scheduledInteractions)
+            return .failed
+          }
+          guard
+            await isCurrentMockSleepReminderSchedule(
+              generation: generation,
+              selectionToken: selectionToken
+            )
+          else {
+            await dataSourceSelection.clearMockSleepRemindersScheduled(
+              selectionToken: selectionToken
+            )
+            await removeMockSleepReminders(scheduledInteractions)
+            return .failed
+          }
+          return .scheduled
+        } catch {
+          await removeMockSleepReminders(scheduledInteractions)
+          return .failed
+        }
+      #else
+        return .unavailable
+      #endif
+    }
+
+    public func cancelMockSleepReminderNotifications() async {
+      #if DEBUG
+        mockSleepReminderScheduleGeneration &+= 1
+        var selectionTokens = mockSleepReminderScheduleTokensInFlight
+        if let selectionToken =
+          await dataSourceSelection
+          .lastScheduledMockSleepReminderNotificationToken()
+        {
+          selectionTokens.insert(selectionToken)
+        }
+        for selectionToken in selectionTokens {
+          await removeMockSleepReminders(
+            MockSleepReminderSchedule(
+              selectionToken: selectionToken
+            ).interactions
+          )
+          await dataSourceSelection.clearMockSleepRemindersScheduled(
+            selectionToken: selectionToken
+          )
+        }
+      #endif
+    }
+
     public func cancelProactiveNotifications() async {
       await cancelMockChatInviteNotification()
       await cancelMockCareNotification()
       await cancelMockDailyMomentsNotification()
+      await cancelMockSleepReminderNotifications()
       await acquireProductionMutation()
       defer { releaseProductionMutation() }
       guard let generation = await productionGeneration() else { return }
@@ -646,6 +776,29 @@
       guard await isCurrentProductionGeneration(generation) else { return }
       await client.cancel(id: "pet.state-of-mind.check-in")
     }
+
+    #if DEBUG
+      private func isCurrentMockSleepReminderSchedule(
+        generation: UInt64,
+        selectionToken: String
+      ) async -> Bool {
+        let selectionIsCurrent =
+          await dataSourceSelection.isCurrentMockSleepReminderSelection(
+            selectionToken: selectionToken
+          )
+        return
+          selectionIsCurrent
+          && generation == mockSleepReminderScheduleGeneration
+      }
+
+      private func removeMockSleepReminders(
+        _ interactions: [ApprovedProactiveInteraction]
+      ) async {
+        for interaction in interactions {
+          await mockNotifications.cancelAndRemoveDelivered(id: interaction.id)
+        }
+      }
+    #endif
 
     /// Clears every app-owned local store currently composed by this runtime.
     ///

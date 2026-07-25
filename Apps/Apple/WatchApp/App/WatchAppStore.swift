@@ -597,6 +597,7 @@ final class WatchAppStore: ObservableObject {
   func selectDataSource(_ source: CompanionDataSource) async {
     guard !hasLaunchScenarioOverride else { return }
     await runtime?.cancelMockDailyMomentsNotification()
+    await runtime?.cancelMockSleepReminderNotifications()
     let previousRuntime = productLoopRuntime
     do {
       _ = try await selectGlobalProfile(for: source)
@@ -623,6 +624,7 @@ final class WatchAppStore: ObservableObject {
 
   func resetCurrentMockState() async {
     guard selectedDataSource.isMock, dataSourceSelectionAvailable else { return }
+    await runtime?.cancelMockSleepReminderNotifications()
     let previousRuntime = productLoopRuntime
     do {
       _ = try await selectGlobalProfile(for: selectedDataSource)
@@ -827,6 +829,9 @@ final class WatchAppStore: ObservableObject {
         startMovementSceneIfNeeded()
         scheduleMockCareIfNeeded()
         await scheduleMockDailyMomentsNotificationIfNeeded()
+        if selectedDataSource.simulatesSleepReminders {
+          statusMessage = "Mock 6 已载入；三次提醒由 iPhone 安排"
+        }
       #else
         selectedDataSource = .healthKit
         await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
@@ -1199,6 +1204,7 @@ final class WatchAppStore: ObservableObject {
         statusMessage = "Mock 5 已载入；每日时刻通知暂时未能安排"
       }
     }
+
   #endif
 
   private func applyPeerValues(
@@ -1210,6 +1216,7 @@ final class WatchAppStore: ObservableObject {
       shouldReloadDataSource
     {
       await runtime?.cancelMockDailyMomentsNotification()
+      await runtime?.cancelMockSleepReminderNotifications()
       selectedDataSource = incoming
       await applySelectedDataSource(requestAccessIfNeeded: false)
       return
@@ -1280,6 +1287,8 @@ final class WatchAppStore: ObservableObject {
       statusMessage = "Mori：要不要一起走两分钟？不完成也不会失去什么"
     case .careMessage:
       statusMessage = "Mori：不用解释，我可以陪你安静待一会儿"
+    case .sleepReminder:
+      statusMessage = "Mori：该睡觉啦"
     case .dailyMemory:
       launchProductRoute = .dailyMemory
       statusMessage = "白熊在手表上等你查看今天的 3 个时刻"

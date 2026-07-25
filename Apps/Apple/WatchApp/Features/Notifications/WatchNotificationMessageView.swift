@@ -35,6 +35,13 @@ struct WatchNotificationMessageView: View {
         "今天的 3 个时刻",
         "白熊在手表上等你翻看晨光、冰海和极光；沉淀状态以 iPhone 为准。"
       )
+    case .sleepReminder:
+      (
+        "moon.stars.fill",
+        AdventurePalette.blue,
+        "该准备睡觉啦",
+        "Mori 先去睡觉啦，也在这里等你收好今天。"
+      )
     }
   }
 

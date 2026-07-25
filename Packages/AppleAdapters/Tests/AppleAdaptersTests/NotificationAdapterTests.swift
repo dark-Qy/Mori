@@ -72,6 +72,23 @@ struct NotificationAdapterTests {
     #expect(await client.pending.count == 1)
   }
 
+  @Test func zeroCooldownAllowsAReplacementBatchWithEarlierDates() async throws {
+    let client = MockLocalNotificationClient(state: .authorized, calendar: utcCalendar)
+    #expect(
+      try await client.schedule(
+        notification(id: "old-later", offset: 30),
+        policy: NotificationPolicy()
+      ) == .allow
+    )
+    #expect(
+      try await client.schedule(
+        notification(id: "new-earlier", offset: 10),
+        policy: NotificationPolicy()
+      ) == .allow
+    )
+    #expect(await client.pending.count == 2)
+  }
+
   @Test func cooldownSurvivesClientRecreation() async throws {
     let cooldownStore = InMemoryNotificationCooldownStore()
     let first = MockLocalNotificationClient(

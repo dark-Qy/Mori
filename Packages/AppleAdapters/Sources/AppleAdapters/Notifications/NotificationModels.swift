@@ -98,7 +98,7 @@ public struct NotificationPolicyEvaluator: Sendable {
       let minute = (components.hour ?? 0) * 60 + (components.minute ?? 0)
       if quietHours.contains(minuteOfDay: minute) { return .suppressQuietHours }
     }
-    if let lastScheduledDate {
+    if policy.minimumCooldown > 0, let lastScheduledDate {
       let elapsed = fireDate.timeIntervalSince(lastScheduledDate)
       if elapsed < policy.minimumCooldown {
         return .suppressCooldown(remainingSeconds: policy.minimumCooldown - elapsed)
