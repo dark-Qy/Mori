@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -euo pipefail
+
+destination_directory="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+destination_path="$destination_directory/MoriStepFunToken.private"
+
+if [[ "${CONFIGURATION:-}" != "Debug" ]]; then
+  rm -f -- "$destination_path"
+  exit 0
+fi
+
+source_path="$SRCROOT/iPhoneApp/Resources/MoriStepFunToken.private"
+if [[ ! -f "$source_path" ]]; then
+  rm -f -- "$destination_path"
+  echo "warning: Debug Mori direct TTS is disabled because MoriStepFunToken.private is missing." >&2
+  exit 0
+fi
+
+mkdir -p "$destination_directory"
+install -m 0600 "$source_path" "$destination_path"

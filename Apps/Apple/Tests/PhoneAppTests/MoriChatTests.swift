@@ -269,7 +269,10 @@ final class MoriChatTests: XCTestCase {
       session: session
     )
 
-    let audio = try await client.synthesize(requestID: "speech-request-001")
+    let audio = try await client.synthesize(
+      requestID: "speech-request-001",
+      text: nil
+    )
 
     XCTAssertEqual(audio, Data("ID3-test-audio".utf8))
     let request = try XCTUnwrap(MoriSpeechURLProtocolStub.recordedRequest())
@@ -306,12 +309,112 @@ final class MoriChatTests: XCTestCase {
     )
 
     do {
-      _ = try await client.synthesize(requestID: "speech-request-unauthorized")
+      _ = try await client.synthesize(
+        requestID: "speech-request-unauthorized",
+        text: nil
+      )
       XCTFail("Expected missing gateway credentials to fail closed")
     } catch {
       XCTAssertEqual(error as? MoriSpeechFailure, .unauthorized)
     }
     XCTAssertNil(MoriSpeechURLProtocolStub.recordedRequest())
+  }
+
+  @MainActor
+  func testDirectStepFunSpeechClientSendsReplyTextAndAcceptsMP3() async throws {
+    MoriSpeechURLProtocolStub.reset()
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [MoriSpeechURLProtocolStub.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let client = DirectMoriStepFunSpeechAIClient(
+      endpoint: try XCTUnwrap(
+        URL(string: "https://api.stepfun.com/v1/audio/speech")
+      ),
+      credentialProvider: StaticChatCredentialProvider(token: "provider-token"),
+      session: session
+    )
+
+    let audio = try await client.synthesize(
+      requestID: nil,
+      text: "我在这里，慢慢听你说。"
+    )
+
+    XCTAssertEqual(audio, Data("ID3-test-audio".utf8))
+    let request = try XCTUnwrap(MoriSpeechURLProtocolStub.recordedRequest())
+    XCTAssertEqual(request.url?.absoluteString, "https://api.stepfun.com/v1/audio/speech")
+    XCTAssertEqual(
+      request.value(forHTTPHeaderField: "Authorization"),
+      "Bearer provider-token"
+    )
+    let body = try XCTUnwrap(
+      try JSONSerialization.jsonObject(with: request.httpBody ?? Data())
+        as? [String: Any]
+    )
+    XCTAssertEqual(body["model"] as? String, "stepaudio-2.5-tts")
+    XCTAssertEqual(body["voice"] as? String, "ruanmengnvsheng")
+    XCTAssertEqual(body["input"] as? String, "我在这里，慢慢听你说。")
+    XCTAssertEqual(body["response_format"] as? String, "mp3")
+    XCTAssertNotNil(body["instruction"] as? String)
+    XCTAssertNil(body["request_id"])
+  }
+
+  @MainActor
+  func testDirectStepFunSpeechClientFailsClosedWithoutProviderCredential()
+    async throws
+  {
+    MoriSpeechURLProtocolStub.reset()
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [MoriSpeechURLProtocolStub.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let client = DirectMoriStepFunSpeechAIClient(
+      endpoint: try XCTUnwrap(
+        URL(string: "https://api.stepfun.com/v1/audio/speech")
+      ),
+      credentialProvider: StaticChatCredentialProvider(token: nil),
+      session: session
+    )
+
+    do {
+      _ = try await client.synthesize(requestID: nil, text: "测试")
+      XCTFail("Expected missing provider credentials to fail closed")
+    } catch {
+      XCTAssertEqual(error as? MoriSpeechFailure, .unauthorized)
+    }
+    XCTAssertNil(MoriSpeechURLProtocolStub.recordedRequest())
+  }
+
+  @MainActor
+  func testDebugSpeechRouterUsesDirectTextThenFallsBackToGatewayRequestID()
+    async throws
+  {
+    let direct = RecordingMoriSpeechSynthesizer(audio: Data("direct".utf8))
+    let gateway = RecordingMoriSpeechSynthesizer(audio: Data("gateway".utf8))
+    let router = DebugMoriSpeechRouter(
+      directSynthesizer: direct,
+      gatewaySynthesizer: gateway
+    )
+
+    let directAudio = try await router.synthesize(
+      requestID: nil,
+      text: "Mock 1 reply"
+    )
+    let gatewayAudio = try await router.synthesize(
+      requestID: "gateway-speech-request",
+      text: nil
+    )
+
+    XCTAssertEqual(directAudio, Data("direct".utf8))
+    XCTAssertEqual(gatewayAudio, Data("gateway".utf8))
+    XCTAssertEqual(
+      direct.invocations,
+      [.init(requestID: nil, text: "Mock 1 reply")]
+    )
+    XCTAssertEqual(
+      gateway.invocations,
+      [.init(requestID: "gateway-speech-request", text: nil)]
+    )
   }
 
   @MainActor
@@ -356,6 +459,29 @@ final class MoriChatTests: XCTestCase {
     )
 
     XCTAssertTrue(speech.spoken.isEmpty)
+  }
+
+  @MainActor
+  func testMock1LocalReplyTriggersDirectSpeechText() async {
+    let speech = RecordingMoriSpeechPlaybackCoordinator()
+    let store = PhoneAppStore(
+      arguments: [
+        "WatchCompanion",
+        "-UITesting",
+        "--mock-scenario=mock1",
+      ],
+      chatSpeechCoordinator: speech
+    )
+    await store.start()
+    let reply = await store.replyToMoriChat(
+      messages: [MoriChatMessage(author: .owner, text: "今天想聊聊天")]
+    )
+
+    store.speakMoriChatReply(reply)
+
+    XCTAssertEqual(speech.spoken.count, 1)
+    XCTAssertNil(speech.spoken.first?.speechRequestID)
+    XCTAssertEqual(speech.spoken.first?.text, reply.text)
   }
 
   func testChatHabitExtractorKeepsOnlyTypedStablePreferences() {
@@ -453,21 +579,47 @@ private struct StaticChatCredentialProvider: WeeklyMemoryAICredentialProviding {
 }
 
 @MainActor
+private final class RecordingMoriSpeechSynthesizer: MoriSpeechSynthesizing {
+  struct Invocation: Equatable {
+    let requestID: String?
+    let text: String?
+  }
+
+  let audio: Data
+  private(set) var invocations: [Invocation] = []
+
+  init(audio: Data) {
+    self.audio = audio
+  }
+
+  func synthesize(requestID: String?, text: String?) async throws -> Data {
+    invocations.append(.init(requestID: requestID, text: text))
+    return audio
+  }
+}
+
+@MainActor
 private final class RecordingMoriSpeechPlaybackCoordinator:
   MoriSpeechPlaybackCoordinating
 {
   struct SpokenValue: Equatable {
     let messageID: String
-    let speechRequestID: String
+    let speechRequestID: String?
+    let text: String?
   }
 
   private(set) var spoken: [SpokenValue] = []
 
-  func speak(messageID: String, speechRequestID: String) {
+  func speak(
+    messageID: String,
+    speechRequestID: String?,
+    text: String?
+  ) {
     spoken.append(
       SpokenValue(
         messageID: messageID,
-        speechRequestID: speechRequestID
+        speechRequestID: speechRequestID,
+        text: text
       )
     )
   }

@@ -26,6 +26,7 @@ coverage/
 Secrets.xcconfig
 *.private.xcconfig
 MoriGatewayToken.private
+MoriStepFunToken.private
 
 # Runtime data must never enter source control
 *.healthkit.json

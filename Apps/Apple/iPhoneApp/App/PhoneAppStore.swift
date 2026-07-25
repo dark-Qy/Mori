@@ -384,18 +384,26 @@ final class PhoneAppStore: ObservableObject {
   }
 
   func speakMoriChatReply(_ reply: MoriChatReply) {
-    guard
-      selectedTab == .mori,
-      let speechRequestID = reply.speechRequestID
-    else { return }
+    guard selectedTab == .mori else { return }
+    let directText = mock1DirectSpeechText(reply.text)
+    guard reply.speechRequestID != nil || directText != nil else { return }
     chatSpeechCoordinator.speak(
       messageID: "legacy-\(UUID().uuidString.lowercased())",
-      speechRequestID: speechRequestID
+      speechRequestID: reply.speechRequestID,
+      text: directText
     )
   }
 
   func stopMoriSpeech() {
     chatSpeechCoordinator.stop()
+  }
+
+  private func mock1DirectSpeechText(_ text: String) -> String? {
+    #if DEBUG
+      return selectedDataSource == .mock1 ? text : nil
+    #else
+      return nil
+    #endif
   }
 
   private func rememberChatHabits(
@@ -2165,7 +2173,8 @@ final class PhoneAppStore: ObservableObject {
     else { return }
     chatSpeechCoordinator.speak(
       messageID: reply.header.recordID.rawValue,
-      speechRequestID: speechRequestID
+      speechRequestID: speechRequestID,
+      text: mock1DirectSpeechText(reply.content)
     )
   }
 

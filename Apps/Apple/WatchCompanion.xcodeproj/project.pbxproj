@@ -86,6 +86,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E13000000000000000000003 /* Exceptions for "iPhoneApp" folder in "WatchCompanion" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Resources/MoriGatewayToken.private,
+				Resources/MoriStepFunToken.private,
+			);
+			target = 39ED9AE2300FD7CF00649CAA /* WatchCompanion */;
+		};
 		E13100000000000000000003 /* Exceptions for "WatchApp" folder in "WatchCompanion Watch App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -98,6 +106,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		39ED9AE5300FD7CF00649CAA /* iPhoneApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E13000000000000000000003 /* Exceptions for "iPhoneApp" folder in "WatchCompanion" target */,
+			);
 			path = iPhoneApp;
 			sourceTree = "<group>";
 		};
@@ -221,6 +232,7 @@
 				39ED9ADF300FD7CF00649CAA /* Sources */,
 				39ED9AE0300FD7CF00649CAA /* Frameworks */,
 				39ED9AE1300FD7CF00649CAA /* Resources */,
+				E10000000000000000000003 /* Copy Debug StepFun Token */,
 				E10100000000000000000003 /* Copy Debug Scenario Fixtures */,
 				39ED9B00300FD7D100649CAA /* Embed Watch Content */,
 			);
@@ -442,6 +454,26 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		E10000000000000000000003 /* Copy Debug StepFun Token */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../../Scripts/copy-debug-stepfun-token",
+			);
+			name = "Copy Debug StepFun Token";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"$SRCROOT/../../Scripts/copy-debug-stepfun-token\"\n";
+		};
 		E10100000000000000000003 /* Copy Debug Scenario Fixtures */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;

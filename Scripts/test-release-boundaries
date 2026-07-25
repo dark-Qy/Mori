@@ -64,10 +64,25 @@ if [[ -n "$unexpected_resource" ]]; then
   exit 1
 fi
 
+unexpected_credential="$(
+  find "$phone_app" -type f \
+    \( -name MoriGatewayToken.private -o -name MoriStepFunToken.private \) \
+    -print -quit
+)"
+if [[ -n "$unexpected_credential" ]]; then
+  echo "error: Release app contains a Debug Mori credential: $unexpected_credential" >&2
+  exit 1
+fi
+
 phone_strings="$derived_data_path/release-phone.strings"
 watch_strings="$derived_data_path/release-watch.strings"
 /usr/bin/strings "$phone_binary" >"$phone_strings"
 /usr/bin/strings "$watch_binary" >"$watch_strings"
+
+if /usr/bin/grep -Fq -- "https://api.stepfun.com/v1/audio/speech" "$phone_strings"; then
+  echo "error: Release executable contains the Debug StepFun endpoint." >&2
+  exit 1
+fi
 
 for marker in \
   "--mock-scenario=" \
