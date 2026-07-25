@@ -79,10 +79,14 @@ watch_strings="$derived_data_path/release-watch.strings"
 /usr/bin/strings "$phone_binary" >"$phone_strings"
 /usr/bin/strings "$watch_binary" >"$watch_strings"
 
-if /usr/bin/grep -Fq -- "https://api.stepfun.com/v1/audio/speech" "$phone_strings"; then
-  echo "error: Release executable contains the Debug StepFun endpoint." >&2
-  exit 1
-fi
+for debug_endpoint in \
+  "https://api.stepfun.com/v1/audio/speech" \
+  "https://api.stepfun.com/v1/chat/completions"; do
+  if /usr/bin/grep -Fq -- "$debug_endpoint" "$phone_strings"; then
+    echo "error: Release executable contains a Debug StepFun endpoint." >&2
+    exit 1
+  fi
+done
 
 for marker in \
   "--mock-scenario=" \

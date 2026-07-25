@@ -127,6 +127,8 @@ final class PhoneAppStore: ObservableObject {
   private var conversationProcessor: ConversationProcessor?
   private var conversationProfileScope: MoriGlobalProfileScope?
   #if DEBUG
+    private let mock1DirectChatReplying: any MoriChatReplying
+    private let mock1DirectChatEnabled: Bool
     private var mockChatAuthority: PhoneMockChatAuthority?
   #endif
   private var conversationSendTask:
@@ -151,6 +153,7 @@ final class PhoneAppStore: ObservableObject {
     arguments: [String] = ProcessInfo.processInfo.arguments,
     weeklyMemoryPolisher: WeeklyMemoryPolishing? = nil,
     chatReplying: (any MoriChatReplying)? = nil,
+    debugDirectChatReplying: (any MoriChatReplying)? = nil,
     chatSpeechCoordinator: (any MoriSpeechPlaybackCoordinating)? = nil,
     chatNudgePolicy: MoriChatNudgePolicy? = nil,
     personalizationRepository: (any PersonalizationRepositoryProtocol)? = nil
@@ -247,6 +250,11 @@ final class PhoneAppStore: ObservableObject {
     } else {
       self.chatReplying = chatReplying ?? MoriChatAIClient.live()
     }
+    #if DEBUG
+      self.mock1DirectChatReplying =
+        debugDirectChatReplying ?? DirectMoriStepFunChatAIClient.live()
+      mock1DirectChatEnabled = !usesLocalChatFixture
+    #endif
     if let chatSpeechCoordinator {
       self.chatSpeechCoordinator = chatSpeechCoordinator
     } else {
@@ -380,6 +388,14 @@ final class PhoneAppStore: ObservableObject {
       await rememberChatHabits(from: latestMessage)
     }
     let personality = isPersonalizationEnabled ? personalityProjection : .moriCore
+    #if DEBUG
+      if mock1DirectChatEnabled, selectedDataSource == .mock1 {
+        return await mock1DirectChatReplying.reply(
+          to: messages,
+          personality: personality
+        )
+      }
+    #endif
     return await chatReplying.reply(to: messages, personality: personality)
   }
 
