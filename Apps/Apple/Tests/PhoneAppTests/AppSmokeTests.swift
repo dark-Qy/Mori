@@ -833,6 +833,25 @@ final class AppSmokeTests: XCTestCase {
         try repository.settings(profile: second)
           .proactiveMessagesEnabled
       )
+      XCTAssertTrue(
+        try repository.settings(profile: second)
+          .socialSharingEnabled
+      )
+
+      _ = try repository.setAppPreferences(
+        profile: second,
+        proactiveMessagesEnabled: false,
+        socialSharingEnabled: false,
+        publicPetSocialStateRawValue:
+          PublicPetSocialStateV1.greeting.rawValue
+      )
+      let reloadedRepository = PhoneMockProfileSettingsRepository(
+        fileURL: directory.appendingPathComponent("settings.json")
+      )
+      XCTAssertFalse(
+        try reloadedRepository.settings(profile: second)
+          .socialSharingEnabled
+      )
     }
 
     func testSensingReconcileRemovesRecommendedTaskAndKeepsLedger()

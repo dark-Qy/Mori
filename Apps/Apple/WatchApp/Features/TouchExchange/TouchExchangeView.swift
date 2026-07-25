@@ -41,21 +41,9 @@ struct TouchExchangeView: View {
       .background(AdventurePalette.background.ignoresSafeArea())
       .navigationTitle("触碰交换")
       .navigationBarTitleDisplayMode(.inline)
-      .navigationBarBackButtonHidden(dismissesAfterCancellation)
       // 主页隐藏导航栏的设置会延续到推入页面，
-      // 与 WatchDailyMemoryView 一样显式恢复，保证有返回按钮可离开。
+      // 与 WatchDailyMemoryView 一样显式恢复，使用系统原生返回按钮。
       .toolbar(.visible, for: .navigationBar)
-      .toolbar {
-        if dismissesAfterCancellation {
-          ToolbarItem(placement: .cancellationAction) {
-            Button(action: cancelAndDismiss) {
-              Image(systemName: "chevron.left")
-                .accessibilityLabel("返回并取消交换")
-            }
-            .accessibilityIdentifier("watch.touch-exchange.back")
-          }
-        }
-      }
       .accessibilityIdentifier("watch.touch-exchange")
       .onChange(of: exchange.phase) { _, phase in
         if phase == .approaching {

@@ -15,7 +15,7 @@
   /// `ProductLoopAppRuntime` is the only authority for those product states.
   nonisolated struct PhoneMockProfileSettings: Codable, Equatable, Sendable {
     var proactiveMessagesEnabled = false
-    var socialSharingEnabled = false
+    var socialSharingEnabled = true
     var publicPetSocialStateRawValue =
       PublicPetSocialStateV1.greeting.rawValue
     var conversationMemoryContextEnabled = false

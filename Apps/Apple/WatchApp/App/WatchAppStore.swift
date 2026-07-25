@@ -223,8 +223,7 @@ final class WatchAppStore: ObservableObject {
         do {
           try await applyLatestPhonePreferencesIfAvailable(runtime: runtime)
         } catch {
-          preferences.socialSharingEnabled = false
-          statusMessage = "好友分享设置暂时无法同步，触碰交换保持关闭"
+          statusMessage = "好友分享设置暂时无法同步，将沿用当前设置"
         }
       }
       guard preferences.hasCompletedOnboarding else {
@@ -243,8 +242,9 @@ final class WatchAppStore: ObservableObject {
       beginPeerUpdates(runtime: runtime)
       retryPeerSyncInBackground(runtime: runtime)
     } catch {
+      // Preferences could include an explicit iPhone opt-out. If the local record itself
+      // cannot be read, fail closed rather than guessing that sharing was enabled.
       preferences.socialSharingEnabled = false
-      preferences.phoneSocialSettingsAuthorityVersion = nil
       phase = .ready
       statusMessage = "载入失败，请稍后重试"
     }
@@ -574,8 +574,7 @@ final class WatchAppStore: ObservableObject {
         do {
           try await applyLatestPhonePreferencesIfAvailable(runtime: runtime)
         } catch {
-          preferences.socialSharingEnabled = false
-          statusMessage = "好友分享设置暂时无法同步，触碰交换保持关闭"
+          statusMessage = "好友分享设置暂时无法同步，将沿用当前设置"
         }
       }
       phase = .ready
