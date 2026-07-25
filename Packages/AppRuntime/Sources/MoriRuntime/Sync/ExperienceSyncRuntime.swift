@@ -195,6 +195,15 @@ public actor ExperienceSyncRuntime<
     try await scopedLedger().replay()
   }
 
+  /// Returns the complete accepted ledger, including envelopes that are still
+  /// waiting on another record during fixed-point replay.
+  ///
+  /// Recovery runtimes use this snapshot to allocate monotonic local sequence
+  /// numbers and to distinguish a missing event from an unresolved one.
+  public func currentLedger() async throws -> ProfileLedger {
+    try await scopedLedger()
+  }
+
   private func scopedLedger() async throws -> ProfileLedger {
     let current = try await ledger.currentLedger()
     guard current.initialState.runtimeProfile == profile else {

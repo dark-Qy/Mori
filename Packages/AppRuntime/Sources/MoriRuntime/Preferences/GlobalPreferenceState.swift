@@ -126,6 +126,20 @@ public enum GlobalPreferenceMerger {
     guard current.isValid else { return .rejected(.invalidCurrent) }
     guard incoming.isValid else { return .rejected(.invalidIncoming) }
 
+    let currentDeletionRoot =
+      current.profileSelection.profile.deletionAuthorityRoot
+    let incomingDeletionRoot =
+      incoming.profileSelection.profile.deletionAuthorityRoot
+    if currentDeletionRoot != incomingDeletionRoot {
+      // A deletion fence resets the complete synchronized preference authority,
+      // not only the selected profile register. An offline peer from an older
+      // root must never restore its profile, sensing, reminder, or quiet-hours
+      // values merely because it advanced a field revision while disconnected.
+      return incomingDeletionRoot > currentDeletionRoot
+        ? .applied(incoming)
+        : .duplicate(current)
+    }
+
     let profileSelection = select(
       current: current.profileSelection,
       currentRevision: current.profileSelection.revision,

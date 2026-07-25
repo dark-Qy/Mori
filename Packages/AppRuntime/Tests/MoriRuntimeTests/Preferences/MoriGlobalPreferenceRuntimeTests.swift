@@ -186,6 +186,23 @@ struct MoriGlobalPreferenceRuntimeTests {
     )
     let before = try await runtime.current()
 
+    await #expect(
+      throws: MoriGlobalPreferenceRuntimeError.rejectedPreference
+    ) {
+      _ = try await runtime.deleteAllData(
+        expectedProfileScope: before.profileScope,
+        requestID: "baseline"
+      )
+    }
+    await #expect(
+      throws: MoriGlobalPreferenceRuntimeError.rejectedPreference
+    ) {
+      _ = try await runtime.deleteAllData(
+        expectedProfileScope: before.profileScope,
+        requestID: "mock-baseline-\(String(repeating: "a", count: 64))"
+      )
+    }
+
     let deleted = try await runtime.deleteAllData(
       expectedProfileScope: before.profileScope,
       requestID: "delete-test-request"

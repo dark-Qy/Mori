@@ -30,6 +30,8 @@ struct ProfileSelectionAuthorityTests {
     #expect(first.profile.id == second.profile.id)
     #expect(first.profile.id != later.profile.id)
     #expect(first.profile.epoch != later.profile.epoch)
+    #expect(first.profile.deletionEpoch == .bootstrap)
+    #expect(first.profile.deletionAuthorityRoot == .bootstrap)
   }
 
   @Test("Mock profile hashing frames components that contain delimiters")
@@ -44,7 +46,58 @@ struct ProfileSelectionAuthorityTests {
     )
 
     #expect(first.profile.id != second.profile.id)
-    #expect(first.profile.deletionEpoch.requestID != second.profile.deletionEpoch.requestID)
+    #expect(first.profile.deletionEpoch == .bootstrap)
+    #expect(second.profile.deletionEpoch == .bootstrap)
+  }
+
+  @Test("Legacy migration recomputes the historical Mock derivation")
+  func strictLegacyMockBootstrapMigration() throws {
+    let scenarioID = MockScenarioID("ordinary-day")
+    let revision = LamportRevision(counter: 42, originDeviceID: "watch")
+    let epoch = ProfileEpoch(revision)
+    let legacyDeletion = DeletionEpoch(
+      requestID: MockProfileBootstrapMigration.legacyDeletionRequestID(
+        scenarioID: scenarioID,
+        revision: revision
+      ),
+      revision: revision
+    )
+    let legacy = RuntimeProfile(
+      id: MockProfileBootstrapMigration.derivedProfileID(
+        scenarioID: scenarioID,
+        revision: revision
+      ),
+      epoch: epoch,
+      deletionEpoch: legacyDeletion,
+      source: .mock(
+        scenarioID: scenarioID,
+        selectionEpoch: epoch
+      )
+    )
+    let forged = RuntimeProfile(
+      id: ProfileID(
+        "mock-profile-\(String(repeating: "a", count: 64))"
+      ),
+      epoch: epoch,
+      deletionEpoch: DeletionEpoch(
+        requestID: DeletionRequestID(
+          "mock-baseline-\(String(repeating: "a", count: 64))"
+        ),
+        revision: revision
+      ),
+      source: legacy.source
+    )
+    let migrated = try #require(
+      MockProfileBootstrapMigration.migrate(legacy)
+    )
+
+    #expect(legacy.isValid == false)
+    #expect(migrated.isValid)
+    #expect(migrated.deletionEpoch == .bootstrap)
+    #expect(migrated.id == legacy.id)
+    #expect(migrated.source == legacy.source)
+    #expect(forged.isValid == false)
+    #expect(MockProfileBootstrapMigration.migrate(forged) == nil)
   }
 
   @Test("Offline conflicts converge by Lamport order independent of arrival")

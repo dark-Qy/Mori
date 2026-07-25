@@ -106,6 +106,91 @@ struct ProfileAndPassivePolicyTests {
     #expect(first < separateRequest)
   }
 
+  @Test("Bootstrap deletion root is typed and its namespace cannot be forged")
+  func bootstrapDeletionRootContract() {
+    #expect(DeletionEpoch.bootstrap.isValid)
+    #expect(DeletionEpoch.bootstrap.requestID == .bootstrap)
+    #expect(
+      DeletionEpoch(
+        requestID: .bootstrap,
+        revision: MoriTestFixtures.revision(2, device: "attacker")
+      ).isValid == false
+    )
+    #expect(
+      DeletionRequestID(
+        "mock-baseline-\(String(repeating: "a", count: 64))"
+      ).isReservedBootstrapNamespace
+    )
+    #expect(
+      DeletionRequestID("mock-baseline-user-request")
+        .isReservedBootstrapNamespace == false
+    )
+    let ordinaryPrefixedEpoch = DeletionEpoch(
+      requestID: DeletionRequestID("mock-baseline-user-request"),
+      revision: MoriTestFixtures.revision(2, device: "phone")
+    )
+    let ordinaryPrefixedProfile = RuntimeProfile(
+      id: ProfileID("real"),
+      epoch: ProfileEpoch(
+        MoriTestFixtures.revision(2, device: "phone")
+      ),
+      deletionEpoch: ordinaryPrefixedEpoch,
+      source: .real
+    )
+    #expect(ordinaryPrefixedProfile.isValid)
+    #expect(
+      ordinaryPrefixedProfile.deletionAuthorityRoot
+        == .deletion(ordinaryPrefixedEpoch)
+    )
+    #expect(
+      DeletionAuthorityRoot.deletion(.bootstrap).isValid == false
+    )
+  }
+
+  @Test("Legacy Mock bootstrap migration verifies the original derivation")
+  func legacyMockBootstrapMigration() throws {
+    let scenarioID = MockScenarioID("ordinary-day")
+    let revision = MoriTestFixtures.revision(42, device: "watch")
+    let epoch = ProfileEpoch(revision)
+    let legacy = RuntimeProfile(
+      id: MockProfileBootstrapMigration.derivedProfileID(
+        scenarioID: scenarioID,
+        revision: revision
+      ),
+      epoch: epoch,
+      deletionEpoch: DeletionEpoch(
+        requestID:
+          MockProfileBootstrapMigration.legacyDeletionRequestID(
+            scenarioID: scenarioID,
+            revision: revision
+          ),
+        revision: revision
+      ),
+      source: .mock(
+        scenarioID: scenarioID,
+        selectionEpoch: epoch
+      )
+    )
+    let migrated = try #require(
+      MockProfileBootstrapMigration.migrate(legacy)
+    )
+    let digest = String(repeating: "a", count: 64)
+    let forged = RuntimeProfile(
+      id: ProfileID("mock-profile-\(digest)"),
+      epoch: epoch,
+      deletionEpoch: DeletionEpoch(
+        requestID: DeletionRequestID("mock-baseline-\(digest)"),
+        revision: revision
+      ),
+      source: legacy.source
+    )
+
+    #expect(!legacy.isValid)
+    #expect(migrated.isValid)
+    #expect(migrated.deletionEpoch == .bootstrap)
+    #expect(MockProfileBootstrapMigration.migrate(forged) == nil)
+  }
+
   @Test("Low confidence remains silent while medium is the visible boundary")
   func confidenceBoundary() {
     let profile = MoriTestFixtures.profile()

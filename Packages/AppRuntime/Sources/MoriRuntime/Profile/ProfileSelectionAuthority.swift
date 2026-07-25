@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import MoriDomain
 
@@ -65,23 +64,14 @@ public enum MockProfileDerivation {
     guard scenarioID.isValid else { throw ProfileSelectionError.invalidScenario }
     guard revision.isValid else { throw ProfileSelectionError.invalidRevision }
 
-    let seed = CanonicalHashInput.data([
-      "mori-mock-profile-v1",
-      scenarioID.rawValue,
-      String(revision.counter),
-      revision.originDeviceID,
-    ])
-    let digest = SHA256.hash(data: seed)
-      .map { String(format: "%02x", $0) }
-      .joined()
     let epoch = ProfileEpoch(revision)
     let profile = RuntimeProfile(
-      id: ProfileID("mock-profile-\(digest)"),
-      epoch: epoch,
-      deletionEpoch: DeletionEpoch(
-        requestID: DeletionRequestID("mock-baseline-\(digest)"),
+      id: MockProfileBootstrapMigration.derivedProfileID(
+        scenarioID: scenarioID,
         revision: revision
       ),
+      epoch: epoch,
+      deletionEpoch: .bootstrap,
       source: .mock(scenarioID: scenarioID, selectionEpoch: epoch)
     )
     return ProfileSelectionRecord(profile: profile, revision: revision)

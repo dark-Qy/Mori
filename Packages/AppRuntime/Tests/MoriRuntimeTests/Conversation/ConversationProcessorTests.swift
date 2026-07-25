@@ -424,7 +424,7 @@ struct ConversationProcessorTests {
       id: ProfileID(mock ? "mock-chat" : "real"),
       epoch: epoch,
       deletionEpoch: DeletionEpoch(
-        requestID: DeletionRequestID("baseline"),
+        requestID: DeletionRequestID("test-baseline"),
         revision: value
       ),
       source:

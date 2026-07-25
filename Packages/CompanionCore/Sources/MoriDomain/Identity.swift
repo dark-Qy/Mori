@@ -131,7 +131,11 @@ public struct DeletionEpoch: Hashable, Codable, Sendable, Comparable {
   }
 
   public var isValid: Bool {
-    requestID.isValid && revision.isValid
+    guard requestID.isValid, revision.isValid else { return false }
+    if requestID.isReservedBootstrapNamespace {
+      return self == .bootstrap
+    }
+    return true
   }
 
   public static func < (lhs: Self, rhs: Self) -> Bool {
@@ -139,6 +143,84 @@ public struct DeletionEpoch: Hashable, Codable, Sendable, Comparable {
       return lhs.revision < rhs.revision
     }
     return lhs.requestID < rhs.requestID
+  }
+}
+
+extension StableIdentifier where Tag == DeletionRequestIDTag {
+  /// Reserved process-wide root before the first completed deletion.
+  public static var bootstrap: Self { Self("baseline") }
+
+  /// Bootstrap identifiers cannot be supplied by a user deletion request.
+  ///
+  /// The digest form is retained only so a strict `RuntimeProfile` validator
+  /// can recognize snapshots written by the historical Mock derivation.
+  public var isReservedBootstrapNamespace: Bool {
+    self == .bootstrap || legacyMockBootstrapDigest != nil
+  }
+
+  private var legacyMockBootstrapDigest: String? {
+    let prefix = "mock-baseline-"
+    guard rawValue.hasPrefix(prefix) else { return nil }
+    let digest = String(rawValue.dropFirst(prefix.count))
+    guard
+      digest.count == 64,
+      digest.allSatisfy({
+        ("0"..."9").contains($0) || ("a"..."f").contains($0)
+      })
+    else {
+      return nil
+    }
+    return digest
+  }
+}
+
+extension DeletionEpoch {
+  public static let bootstrap = Self(
+    requestID: .bootstrap,
+    revision: LamportRevision(
+      counter: 1,
+      originDeviceID: "mori-bootstrap"
+    )
+  )
+}
+
+/// Monotonic authority root shared by preferences and consent.
+///
+/// A root is deliberately not constructible as an arbitrary "bootstrap"
+/// string. Decoders accept only this closed representation.
+public enum DeletionAuthorityRoot: Hashable, Codable, Sendable, Comparable {
+  case bootstrap
+  case deletion(DeletionEpoch)
+
+  public var isValid: Bool {
+    switch self {
+    case .bootstrap:
+      return true
+    case .deletion(let epoch):
+      return epoch.isValid && epoch != .bootstrap
+    }
+  }
+
+  public var epoch: DeletionEpoch {
+    switch self {
+    case .bootstrap:
+      return .bootstrap
+    case .deletion(let epoch):
+      return epoch
+    }
+  }
+
+  public static func < (lhs: Self, rhs: Self) -> Bool {
+    switch (lhs, rhs) {
+    case (.bootstrap, .bootstrap):
+      return false
+    case (.bootstrap, .deletion):
+      return true
+    case (.deletion, .bootstrap):
+      return false
+    case (.deletion(let lhs), .deletion(let rhs)):
+      return lhs < rhs
+    }
   }
 }
 
@@ -208,6 +290,13 @@ public struct RuntimeProfile: Hashable, Codable, Sendable {
   public var isMock: Bool {
     if case .mock = source { return true }
     return false
+  }
+
+  public var deletionAuthorityRoot: DeletionAuthorityRoot {
+    if deletionEpoch == .bootstrap {
+      return .bootstrap
+    }
+    return .deletion(deletionEpoch)
   }
 }
 

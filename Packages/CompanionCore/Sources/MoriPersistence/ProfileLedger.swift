@@ -314,6 +314,87 @@ public struct ProfileLedgerCodec: Sendable {
   }
 
   public func decode(_ data: Data) throws -> ProfileLedger {
-    try codec.decode(ProfileLedger.self, from: data)
+    do {
+      return try codec.decode(ProfileLedger.self, from: data)
+    } catch {
+      guard let migratedData = try migrateLegacyMockBootstrap(in: data) else {
+        throw error
+      }
+      return try codec.decode(ProfileLedger.self, from: migratedData)
+    }
+  }
+
+  private func migrateLegacyMockBootstrap(in data: Data) throws -> Data? {
+    guard
+      let root = try JSONSerialization.jsonObject(with: data)
+        as? [String: Any],
+      let initialState = root["initialState"] as? [String: Any],
+      let profileObject = initialState["runtimeProfile"] as? [String: Any]
+    else {
+      return nil
+    }
+    let profileData = try JSONSerialization.data(
+      withJSONObject: profileObject,
+      options: [.sortedKeys]
+    )
+    let profile = try codec.decode(RuntimeProfile.self, from: profileData)
+    guard
+      MockProfileBootstrapMigration.migrate(profile) != nil,
+      let legacyEpoch = profileObject["deletionEpoch"]
+    else {
+      return nil
+    }
+    let bootstrapEpoch = try JSONSerialization.jsonObject(
+      with: codec.encode(DeletionEpoch.bootstrap)
+    )
+    let migrated = replacingDeletionEpoch(
+      in: root,
+      matching: legacyEpoch,
+      with: bootstrapEpoch
+    )
+    return try JSONSerialization.data(
+      withJSONObject: migrated,
+      options: [.sortedKeys]
+    )
+  }
+
+  private func replacingDeletionEpoch(
+    in value: Any,
+    matching legacyEpoch: Any,
+    with bootstrapEpoch: Any
+  ) -> Any {
+    if let object = value as? [String: Any] {
+      return Dictionary(
+        uniqueKeysWithValues: object.map { key, child in
+          if key == "deletionEpoch",
+            jsonValuesEqual(child, legacyEpoch)
+          {
+            return (key, bootstrapEpoch)
+          }
+          return (
+            key,
+            replacingDeletionEpoch(
+              in: child,
+              matching: legacyEpoch,
+              with: bootstrapEpoch
+            )
+          )
+        }
+      )
+    }
+    if let array = value as? [Any] {
+      return array.map {
+        replacingDeletionEpoch(
+          in: $0,
+          matching: legacyEpoch,
+          with: bootstrapEpoch
+        )
+      }
+    }
+    return value
+  }
+
+  private func jsonValuesEqual(_ lhs: Any, _ rhs: Any) -> Bool {
+    (lhs as AnyObject).isEqual(rhs)
   }
 }

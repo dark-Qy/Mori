@@ -68,6 +68,292 @@ struct GlobalAuthorityPeerSyncTests {
     )
   }
 
+  @Test("Legacy request receives v1 revocation and both peers converge")
+  func legacyConsentWireRevokesBothPeers() async throws {
+    let initial = try snapshot(
+      consent: enabledConsent(
+        .remoteChat,
+        revision: revision(7, "phone")
+      )
+    )
+    let storage = InMemoryGlobalAuthorityStorage()
+    let repository = try GlobalAuthorityRepository(
+      storage: storage,
+      initialSnapshot: initial
+    )
+    let runtime = GlobalAuthorityPeerSyncRuntime(repository: repository)
+    let codec = GlobalAuthoritySyncWireCodec()
+    let legacyPeer = LegacyV1OnlyAuthorityPeer(
+      consent: enabledConsent(
+        .remoteChat,
+        revision: revision(999, "legacy-phone")
+      )
+    )
+    let legacy = try await legacyPeer.consentPayload()
+
+    let response = try await runtime.receive(
+      channel: .consent,
+      payload: legacy
+    )
+    _ = try await legacyPeer.exchange(
+      channel: .consent,
+      payload: response
+    )
+    let value = try await repository.current()
+    let responseFrame = try codec.decodeConsent(response)
+    let relaunched = try GlobalAuthorityRepository(
+      storage: storage,
+      initialSnapshot: initial
+    )
+
+    #expect(
+      MoriConsentKind.allCases.allSatisfy {
+        !value.consent[$0].enabled
+      }
+    )
+    #expect(
+      responseFrame.schemaVersion
+        == GlobalConsentSyncFrame.legacySchemaVersion
+    )
+    #expect(responseFrame.deletionRoot == .bootstrap)
+    #expect(responseFrame.consent == value.consent)
+    #expect(
+      responseFrame.consent.remoteChat.revision
+        == revision(999, "legacy-phone")
+    )
+    #expect(
+      await legacyPeer.currentConsent().allCapabilitiesDisabled
+    )
+    #expect(
+      try await relaunched.current().consent.allCapabilitiesDisabled
+    )
+  }
+
+  @Test("Unknown consent wire revokes instead of retaining local capability")
+  func unknownConsentWireRevokesLocally() async throws {
+    let initial = try snapshot(
+      consent: enabledConsent(
+        .memoryContext,
+        revision: revision(7, "phone")
+      )
+    )
+    let repository = try GlobalAuthorityRepository(
+      storage: InMemoryGlobalAuthorityStorage(),
+      initialSnapshot: initial
+    )
+    let runtime = GlobalAuthorityPeerSyncRuntime(repository: repository)
+    let codec = GlobalAuthoritySyncWireCodec()
+    let valid = try codec.encode(
+      GlobalConsentSyncFrame(
+        deletionRoot: .bootstrap,
+        consent: initial.consent
+      )
+    )
+    var future = try #require(
+      JSONSerialization.jsonObject(with: valid) as? [String: Any]
+    )
+    future["schemaVersion"] = 99
+    let futureData = try JSONSerialization.data(
+      withJSONObject: future,
+      options: [.sortedKeys]
+    )
+
+    await #expect(
+      throws: GlobalAuthoritySyncWireError.unsupportedSchema(99)
+    ) {
+      _ = try await runtime.receive(
+        channel: .consent,
+        payload: futureData
+      )
+    }
+    #expect(
+      try await repository.current().consent.memoryContext.enabled
+        == false
+    )
+  }
+
+  @Test("v2 initiator safely downgrades and converges after deletion")
+  func v2InitiatorDowngradesAndConvergesAfterDeletion() async throws {
+    let initial = try deletedSnapshot(
+      consent: enabledConsent(
+        .letterNotifications,
+        revision: revision(11, "phone")
+      )
+    )
+    let repository = try GlobalAuthorityRepository(
+      storage: InMemoryGlobalAuthorityStorage(),
+      initialSnapshot: initial
+    )
+    let runtime = GlobalAuthorityPeerSyncRuntime(repository: repository)
+    let legacyPeer = LegacyV1OnlyAuthorityPeer(
+      consent: enabledConsent(
+        .letterNotifications,
+        revision: revision(999, "legacy-phone")
+      )
+    )
+
+    let first = await runtime.handle(
+      .foregroundActivation,
+      using: legacyPeer
+    )
+    let valueAfterFirst = try await repository.current()
+    let peerAfterFirst = await legacyPeer.currentConsent()
+    let rejectionsAfterFirst = await legacyPeer.v2RejectionCount()
+    let fallbacksAfterFirst = await legacyPeer.v1ExchangeCount()
+    let second = await runtime.handle(
+      .connectivityRestored,
+      using: legacyPeer
+    )
+    let repeated = await runtime.handle(
+      .backgroundRefresh,
+      using: legacyPeer
+    )
+    let value = try await repository.current()
+
+    #expect(first.consent == .retryRequired(.schemaIncompatible))
+    #expect(valueAfterFirst.consent.allCapabilitiesDisabled)
+    #expect(!peerAfterFirst.allCapabilitiesDisabled)
+    #expect(rejectionsAfterFirst == 1)
+    #expect(fallbacksAfterFirst == 1)
+    #expect(!second.requiresRetry)
+    #expect(!repeated.requiresRetry)
+    #expect(value.deletionRoot == initial.deletionRoot)
+    #expect(value.consent.allCapabilitiesDisabled)
+    #expect(await legacyPeer.currentConsent().allCapabilitiesDisabled)
+    #expect(await legacyPeer.v2RejectionCount() == 3)
+    #expect(await legacyPeer.v1ExchangeCount() == 3)
+  }
+
+  @Test("Typed schema incompatibility also performs a safe v1 downgrade")
+  func typedSchemaIncompatibilityDowngrades() async throws {
+    let initial = try snapshot(
+      consent: enabledConsent(
+        .remoteChat,
+        revision: revision(7, "phone")
+      )
+    )
+    let repository = try GlobalAuthorityRepository(
+      storage: InMemoryGlobalAuthorityStorage(),
+      initialSnapshot: initial
+    )
+    let runtime = GlobalAuthorityPeerSyncRuntime(repository: repository)
+    let legacyPeer = LegacyV1OnlyAuthorityPeer(
+      consent: initial.consent,
+      rejectionStyle: .typedTransportError
+    )
+
+    let report = await runtime.handle(
+      .connectivityRestored,
+      using: legacyPeer
+    )
+
+    #expect(!report.requiresRetry)
+    #expect(try await repository.current().consent.allCapabilitiesDisabled)
+    #expect(await legacyPeer.currentConsent().allCapabilitiesDisabled)
+    #expect(await legacyPeer.v2RejectionCount() == 1)
+    #expect(await legacyPeer.v1ExchangeCount() == 1)
+  }
+
+  @Test("A post-commit concurrent grant cannot enter the v1 response")
+  func concurrentGrantCannotEnterLegacyResponse() async throws {
+    let initial = try snapshot(
+      consent: enabledConsent(
+        .memoryContext,
+        revision: revision(7, "phone")
+      )
+    )
+    let storage = AfterCommitPausingGlobalAuthorityStorage(
+      pauseOnSaveNumber: 2
+    )
+    let repository = try GlobalAuthorityRepository(
+      storage: storage,
+      initialSnapshot: initial
+    )
+    let concurrentRepository = try GlobalAuthorityRepository(
+      storage: storage,
+      initialSnapshot: initial
+    )
+    let runtime = GlobalAuthorityPeerSyncRuntime(repository: repository)
+    let codec = GlobalAuthoritySyncWireCodec()
+    _ = try await concurrentRepository.current()
+    let concurrentGrant = enabledConsent(
+      .memoryContext,
+      revision: revision(1_000, "phone")
+    )
+    let legacyRequest = try codec.encode(
+      GlobalConsentSyncFrame(
+        schemaVersion: GlobalConsentSyncFrame.legacySchemaVersion,
+        deletionRoot: .bootstrap,
+        consent: enabledConsent(
+          .memoryContext,
+          revision: revision(999, "legacy-phone")
+        )
+      )
+    )
+    let firstResponseTask = Task {
+      try await runtime.receive(
+        channel: .consent,
+        payload: legacyRequest
+      )
+    }
+    await storage.waitUntilSaveIsPaused()
+    _ = try await concurrentRepository.merge(
+      consent: concurrentGrant,
+      deletionRoot: initial.deletionRoot
+    )
+    await storage.releaseSave()
+
+    let firstResponse = try await firstResponseTask.value
+    let firstFrame = try codec.decodeConsent(firstResponse)
+    let stateAfterConcurrentGrant = try await repository.current()
+    let secondResponse = try await runtime.receive(
+      channel: .consent,
+      payload: legacyRequest
+    )
+    let secondFrame = try codec.decodeConsent(secondResponse)
+    let converged = try await repository.current()
+
+    #expect(firstFrame.isLegacyV1)
+    #expect(firstFrame.consent.allCapabilitiesDisabled)
+    #expect(stateAfterConcurrentGrant.consent.memoryContext.enabled)
+    #expect(secondFrame.consent.allCapabilitiesDisabled)
+    #expect(converged.consent.allCapabilitiesDisabled)
+    #expect(
+      converged.consent.memoryContext.revision
+        == revision(1_000, "phone")
+    )
+  }
+
+  @Test("Offline consent exchange retries without revoking authority")
+  func offlineDoesNotMasqueradeAsSchemaIncompatibility() async throws {
+    let initial = try snapshot(
+      consent: enabledConsent(
+        .remoteChat,
+        revision: revision(7, "phone")
+      )
+    )
+    let repository = try GlobalAuthorityRepository(
+      storage: InMemoryGlobalAuthorityStorage(),
+      initialSnapshot: initial
+    )
+    let runtime = GlobalAuthorityPeerSyncRuntime(repository: repository)
+    let offline = InMemoryGlobalAuthorityPeerTransport(
+      isAvailable: false
+    ) { _, _ in
+      Issue.record("Offline transport must not call the peer")
+      return Data()
+    }
+
+    let report = await runtime.handle(
+      .connectivityRestored,
+      using: offline
+    )
+
+    #expect(report.preferences == .retryRequired(.offline))
+    #expect(report.consent == .retryRequired(.offline))
+    #expect(try await repository.current().consent.remoteChat.enabled)
+  }
+
   @Test("One channel failure does not starve the other and retries automatically")
   func channelFailureIsIndependentAndRetryable() async throws {
     let phoneSnapshot = try snapshot(
@@ -467,6 +753,7 @@ struct GlobalAuthorityPeerSyncTests {
   @Test("Consent wire has symmetric closed canonical version and size gates")
   func consentWireFailsClosed() throws {
     let frame = GlobalConsentSyncFrame(
+      deletionRoot: .bootstrap,
       consent: enabledConsent(
         .letterNotifications,
         revision: revision(3, "phone")
@@ -475,6 +762,28 @@ struct GlobalAuthorityPeerSyncTests {
     let codec = GlobalAuthoritySyncWireCodec()
     let canonical = try codec.encode(frame)
     #expect(try codec.decodeConsent(canonical) == frame)
+
+    var legacy = try #require(
+      JSONSerialization.jsonObject(with: canonical) as? [String: Any]
+    )
+    legacy["schemaVersion"] = 1
+    legacy.removeValue(forKey: "deletionRoot")
+    let legacyData = try JSONSerialization.data(
+      withJSONObject: legacy,
+      options: [.sortedKeys]
+    )
+    let legacyFrame = try codec.decodeConsent(legacyData)
+    #expect(legacyFrame.isLegacyV1)
+    #expect(legacyFrame.deletionRoot == .bootstrap)
+    #expect(legacyFrame.consent == frame.consent)
+    #expect(throws: GlobalAuthoritySyncWireError.invalidDeletionRoot) {
+      try codec.encode(
+        GlobalConsentSyncFrame(
+          deletionRoot: .deletion(.bootstrap),
+          consent: frame.consent
+        )
+      )
+    }
 
     var injected = try #require(
       JSONSerialization.jsonObject(with: canonical) as? [String: Any]
@@ -550,6 +859,48 @@ struct GlobalAuthorityPeerSyncTests {
     )
   }
 
+  private func deletedSnapshot(
+    consent: GlobalConsentState
+  ) throws -> GlobalAuthoritySnapshot {
+    let deletionRevision = revision(10, "phone")
+    let profile = RuntimeProfile(
+      id: ProfileID("real"),
+      epoch: ProfileEpoch(deletionRevision),
+      deletionEpoch: DeletionEpoch(
+        requestID: DeletionRequestID("delete-before-v1-peer"),
+        revision: deletionRevision
+      ),
+      source: .real
+    )
+    return GlobalAuthoritySnapshot(
+      preferences: GlobalSyncedPreferences(
+        profileSelection: try .real(
+          profile: profile,
+          selectionRevision: deletionRevision
+        ),
+        companionSensing: RevisionedPreference(
+          value: CompanionSensingPreference(
+            enabled: false,
+            epoch: SensingEpoch(deletionRevision)
+          ),
+          revision: deletionRevision
+        ),
+        reminderMode: RevisionedPreference(
+          value: .wristRaise,
+          revision: deletionRevision
+        ),
+        quietHours: RevisionedPreference(
+          value: CompanionQuietHours(
+            startMinute: 22 * 60,
+            endMinute: 7 * 60
+          ),
+          revision: deletionRevision
+        )
+      ),
+      consent: consent
+    )
+  }
+
   private func preferences(
     sensingRevision: LamportRevision? = nil,
     sensingEnabled: Bool = true,
@@ -565,10 +916,7 @@ struct GlobalAuthorityPeerSyncTests {
     let profile = RuntimeProfile(
       id: ProfileID("real"),
       epoch: ProfileEpoch(base),
-      deletionEpoch: DeletionEpoch(
-        requestID: DeletionRequestID("baseline"),
-        revision: base
-      ),
+      deletionEpoch: .bootstrap,
       source: .real
     )
     return GlobalSyncedPreferences(
@@ -688,5 +1036,186 @@ private actor DroppingResponseTransport: GlobalAuthorityPeerTransport {
       throw GlobalAuthorityPeerTransportError.injectedFailure(channel)
     }
     return response
+  }
+}
+
+private actor LegacyV1OnlyAuthorityPeer: GlobalAuthorityPeerTransport {
+  enum RejectionStyle: Sendable {
+    case legacyWireError
+    case typedTransportError
+  }
+
+  private let codec = GlobalAuthoritySyncWireCodec()
+  private let rejectionStyle: RejectionStyle
+  private var consent: GlobalConsentState
+  private var rejectedV2Count = 0
+  private var acceptedV1Count = 0
+
+  init(
+    consent: GlobalConsentState,
+    rejectionStyle: RejectionStyle = .legacyWireError
+  ) {
+    self.consent = consent
+    self.rejectionStyle = rejectionStyle
+  }
+
+  func exchange(
+    channel: GlobalAuthoritySyncChannel,
+    payload: Data
+  ) throws -> Data {
+    guard channel == .consent else { return payload }
+    let schemaVersion = try schemaVersion(in: payload)
+    guard schemaVersion == GlobalConsentSyncFrame.legacySchemaVersion else {
+      rejectedV2Count += 1
+      switch rejectionStyle {
+      case .legacyWireError:
+        throw GlobalAuthoritySyncWireError.unsupportedSchema(
+          schemaVersion
+        )
+      case .typedTransportError:
+        throw GlobalAuthorityPeerTransportError.schemaIncompatible(
+          channel: .consent,
+          receivedSchemaVersion: schemaVersion,
+          maximumSupportedSchemaVersion:
+            GlobalConsentSyncFrame.legacySchemaVersion
+        )
+      }
+    }
+
+    let frame = try codec.decodeConsent(payload)
+    guard frame.isLegacyV1 else {
+      throw GlobalAuthoritySyncWireError.unsupportedSchema(
+        frame.schemaVersion
+      )
+    }
+    acceptedV1Count += 1
+    switch GlobalConsentMerger.merge(
+      current: consent,
+      incoming: frame.consent
+    ) {
+    case .applied(let merged), .duplicate(let merged):
+      consent = merged
+    case .rejected(let reason):
+      throw GlobalAuthorityPeerSyncError.rejectedConsent(reason)
+    }
+    return try consentPayload()
+  }
+
+  func consentPayload() throws -> Data {
+    try codec.encode(
+      GlobalConsentSyncFrame(
+        schemaVersion: GlobalConsentSyncFrame.legacySchemaVersion,
+        deletionRoot: .bootstrap,
+        consent: consent
+      )
+    )
+  }
+
+  func currentConsent() -> GlobalConsentState {
+    consent
+  }
+
+  func v2RejectionCount() -> Int {
+    rejectedV2Count
+  }
+
+  func v1ExchangeCount() -> Int {
+    acceptedV1Count
+  }
+
+  private func schemaVersion(in payload: Data) throws -> UInt16 {
+    let object: [String: Any]
+    do {
+      guard
+        let decoded =
+          try JSONSerialization.jsonObject(with: payload)
+          as? [String: Any]
+      else {
+        throw GlobalAuthoritySyncWireError.malformed
+      }
+      object = decoded
+    } catch {
+      throw GlobalAuthoritySyncWireError.malformed
+    }
+    guard
+      let number = object["schemaVersion"] as? NSNumber,
+      let version = UInt16(exactly: number.uint64Value)
+    else {
+      throw GlobalAuthoritySyncWireError.malformed
+    }
+    return version
+  }
+}
+
+private actor AfterCommitPausingGlobalAuthorityStorage:
+  GlobalAuthorityStorage
+{
+  private var data: Data?
+  private let pauseOnSaveNumber: Int
+  private var saveCount = 0
+  private var saveIsPaused = false
+  private var pauseWaiters: [CheckedContinuation<Void, Never>] = []
+  private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
+
+  init(pauseOnSaveNumber: Int) {
+    self.pauseOnSaveNumber = pauseOnSaveNumber
+  }
+
+  func load() -> GlobalAuthorityStorageSnapshot {
+    GlobalAuthorityStorageSnapshot(
+      data: data,
+      revision: .current(for: data)
+    )
+  }
+
+  func save(
+    _ data: Data,
+    replacing expectedRevision: GlobalAuthorityStorageRevision
+  ) async throws -> GlobalAuthorityStorageRevision {
+    guard
+      GlobalAuthorityStorageRevision.current(for: self.data)
+        == expectedRevision
+    else {
+      throw GlobalAuthorityRepositoryError.staleStorageRevision
+    }
+    self.data = data
+    saveCount += 1
+    let committedRevision = GlobalAuthorityStorageRevision.current(
+      for: data
+    )
+    if saveCount == pauseOnSaveNumber {
+      saveIsPaused = true
+      let waiters = pauseWaiters
+      pauseWaiters.removeAll()
+      for waiter in waiters {
+        waiter.resume()
+      }
+      await withCheckedContinuation { continuation in
+        releaseWaiters.append(continuation)
+      }
+      saveIsPaused = false
+    }
+    return committedRevision
+  }
+
+  func waitUntilSaveIsPaused() async {
+    guard !saveIsPaused else { return }
+    await withCheckedContinuation { continuation in
+      pauseWaiters.append(continuation)
+    }
+  }
+
+  func releaseSave() {
+    let waiters = releaseWaiters
+    releaseWaiters.removeAll()
+    for waiter in waiters {
+      waiter.resume()
+    }
+  }
+}
+
+extension GlobalConsentState {
+  fileprivate var allCapabilitiesDisabled: Bool {
+    MoriConsentKind.allCases.allSatisfy { !self[$0].enabled }
   }
 }

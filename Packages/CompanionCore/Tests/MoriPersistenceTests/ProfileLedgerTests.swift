@@ -25,6 +25,122 @@ struct ProfileLedgerTests {
     #expect(replay.state.experienceLedger.map(\.eventID) == [event.eventID, fact.eventID])
   }
 
+  @Test("Authentic legacy Mock authority and ledger migrate to a runnable bootstrap")
+  func legacyMockBootstrapLedgerMigration() async throws {
+    let fixture = try legacyMockLedgerFixture()
+    let codec = ProfileLedgerCodec()
+    let migrated = try codec.decode(fixture.legacyData)
+    let replay = migrated.replay()
+
+    #expect(migrated.initialState.runtimeProfile == fixture.state.runtimeProfile)
+    #expect(migrated.envelopes.first?.deletionEpoch == .bootstrap)
+    #expect(replay.unresolved.isEmpty)
+    #expect(replay.state.derivedFacts.count == 1)
+
+    let storage = InMemoryProfileLedgerStorage(data: fixture.legacyData)
+    let repository = ProfileLedgerRepository(
+      storage: storage,
+      initialState: fixture.state
+    )
+    #expect(try await repository.currentLedger() == migrated)
+    #expect(await storage.load().data == fixture.normalizedData)
+  }
+
+  @Test("Paused legacy migration cannot overwrite a concurrent append")
+  func migrationCASPreservesConcurrentAppend() async throws {
+    let fixture = try legacyMockLedgerFixture()
+    let storage = MigrationBarrierProfileLedgerStorage(
+      data: fixture.legacyData
+    )
+    let migrating = ProfileLedgerRepository(
+      storage: storage,
+      initialState: fixture.state
+    )
+    let appending = ProfileLedgerRepository(
+      storage: storage,
+      initialState: fixture.state
+    )
+    let newEnvelope = mockFactEnvelope(
+      id: "during-migration",
+      evidenceID: "during-migration-steps",
+      steps: 4_000,
+      state: fixture.state,
+      revision: LamportRevision(counter: 44, originDeviceID: "watch"),
+      sequence: 2
+    )
+
+    let migration = Task {
+      try await migrating.currentLedger()
+    }
+    await storage.waitUntilFirstSaveStarts()
+    _ = try await appending.append(newEnvelope)
+    await storage.resumeFirstSave()
+    let migrated = try await migration.value
+    let persisted = try ProfileLedgerCodec().decode(
+      try #require(await storage.load().data)
+    )
+
+    #expect(
+      Set(migrated.envelopes.map(\.eventID))
+        == Set(persisted.envelopes.map(\.eventID))
+    )
+    #expect(persisted.envelopes.contains(newEnvelope))
+    #expect(
+      persisted.envelopes.allSatisfy {
+        $0.deletionEpoch == .bootstrap
+      }
+    )
+  }
+
+  @Test("Independent repositories preserve both concurrent appends")
+  func independentRepositoriesPreserveConcurrentAppends() async throws {
+    let state = try sampleState()
+    let initial = try ProfileLedgerCodec().encode(
+      ProfileLedger(initialState: state)
+    )
+    let storage = MigrationBarrierProfileLedgerStorage(data: initial)
+    let firstRepository = ProfileLedgerRepository(
+      storage: storage,
+      initialState: state
+    )
+    let secondRepository = ProfileLedgerRepository(
+      storage: storage,
+      initialState: state
+    )
+    let firstEnvelope = uniqueFactEnvelope(
+      id: "independent-a",
+      evidenceID: "independent-steps-a",
+      stepTotal: 3_250,
+      in: state,
+      revision: revision(2),
+      sequence: 1
+    )
+    let secondEnvelope = uniqueFactEnvelope(
+      id: "independent-b",
+      evidenceID: "independent-steps-b",
+      stepTotal: 4_000,
+      in: state,
+      revision: revision(3),
+      sequence: 2
+    )
+
+    let first = Task {
+      try await firstRepository.append(firstEnvelope)
+    }
+    await storage.waitUntilFirstSaveStarts()
+    _ = try await secondRepository.append(secondEnvelope)
+    await storage.resumeFirstSave()
+    _ = try await first.value
+    let persisted = try ProfileLedgerCodec().decode(
+      try #require(await storage.load().data)
+    )
+
+    #expect(
+      Set(persisted.envelopes.map(\.eventID))
+        == Set([firstEnvelope.eventID, secondEnvelope.eventID])
+    )
+  }
+
   @Test("Wrong profile, wrong epoch, and conflicting IDs fail closed")
   func scopeAndIdentityConflicts() throws {
     let state = try sampleState()
@@ -233,6 +349,83 @@ struct ProfileLedgerTests {
     #expect(
       try fileURL.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true
     )
+  }
+
+  @Test("Independent file storage instances preserve concurrent appends")
+  func fileStorageCASPreservesConcurrentAppends() async throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent(
+        "mori-ledger-cas-\(UUID().uuidString)",
+        isDirectory: true
+      )
+    let fileURL = directory.appendingPathComponent("profile-ledger-v1.json")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let state = try sampleState()
+    let first = ProfileLedgerRepository(
+      storage: FileProfileLedgerStorage(fileURL: fileURL),
+      initialState: state
+    )
+    let second = ProfileLedgerRepository(
+      storage: FileProfileLedgerStorage(fileURL: fileURL),
+      initialState: state
+    )
+    let firstEnvelope = uniqueFactEnvelope(
+      id: "file-cas-a",
+      evidenceID: "file-cas-steps-a",
+      stepTotal: 3_250,
+      in: state,
+      revision: revision(2),
+      sequence: 1
+    )
+    let secondEnvelope = uniqueFactEnvelope(
+      id: "file-cas-b",
+      evidenceID: "file-cas-steps-b",
+      stepTotal: 4_000,
+      in: state,
+      revision: revision(3),
+      sequence: 2
+    )
+
+    async let firstResult = first.append(firstEnvelope)
+    async let secondResult = second.append(secondEnvelope)
+    _ = try await (firstResult, secondResult)
+
+    let reopened = ProfileLedgerRepository(
+      storage: FileProfileLedgerStorage(fileURL: fileURL),
+      initialState: state
+    )
+    let persisted = try await reopened.currentLedger()
+    #expect(
+      Set(persisted.envelopes.map(\.eventID))
+        == Set([firstEnvelope.eventID, secondEnvelope.eventID])
+    )
+  }
+
+  @Test("File storage instances reject a stale expected revision")
+  func fileStorageRejectsStaleRevision() async throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent(
+        "mori-ledger-stale-\(UUID().uuidString)",
+        isDirectory: true
+      )
+    let fileURL = directory.appendingPathComponent("profile-ledger-v1.json")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let first = FileProfileLedgerStorage(fileURL: fileURL)
+    let stale = FileProfileLedgerStorage(fileURL: fileURL)
+    let firstRevision = try await first.load().revision
+    let staleRevision = try await stale.load().revision
+
+    _ = try await first.save(
+      Data("first".utf8),
+      replacing: firstRevision
+    )
+    await #expect(throws: ProfileLedgerStorageError.staleRevision) {
+      _ = try await stale.save(
+        Data("stale".utf8),
+        replacing: staleRevision
+      )
+    }
+    #expect(try await first.load().data == Data("first".utf8))
   }
 
   @Test("Valid terminal losers are consumed instead of remaining unresolved")
@@ -701,11 +894,17 @@ private actor PausingProfileLedgerStorage: ProfileLedgerStorage {
   private var secondAppendStarted = false
   private var secondAppendStartWaiters: [CheckedContinuation<Void, Never>] = []
 
-  func load() -> Data? {
-    persistedData
+  func load() -> ProfileLedgerStorageSnapshot {
+    ProfileLedgerStorageSnapshot(
+      data: persistedData,
+      revision: .current(for: persistedData)
+    )
   }
 
-  func save(_ data: Data) async {
+  func save(
+    _ data: Data,
+    replacing expectedRevision: ProfileLedgerStorageRevision
+  ) async throws -> ProfileLedgerStorageRevision {
     saveCount += 1
     if saveCount == 1 {
       firstSaveStarted = true
@@ -718,7 +917,11 @@ private actor PausingProfileLedgerStorage: ProfileLedgerStorage {
         firstSaveResume = continuation
       }
     }
+    guard ProfileLedgerStorageRevision.current(for: persistedData) == expectedRevision else {
+      throw ProfileLedgerStorageError.staleRevision
+    }
     persistedData = data
+    return .current(for: data)
   }
 
   func waitUntilFirstSaveStarts() async {
@@ -750,6 +953,60 @@ private actor PausingProfileLedgerStorage: ProfileLedgerStorage {
   }
 }
 
+private actor MigrationBarrierProfileLedgerStorage: ProfileLedgerStorage {
+  private var data: Data?
+  private var saveCount = 0
+  private var firstSaveStarted = false
+  private var firstSaveWaiters: [CheckedContinuation<Void, Never>] = []
+  private var firstSaveResume: CheckedContinuation<Void, Never>?
+
+  init(data: Data?) {
+    self.data = data
+  }
+
+  func load() -> ProfileLedgerStorageSnapshot {
+    ProfileLedgerStorageSnapshot(
+      data: data,
+      revision: .current(for: data)
+    )
+  }
+
+  func save(
+    _ data: Data,
+    replacing expectedRevision: ProfileLedgerStorageRevision
+  ) async throws -> ProfileLedgerStorageRevision {
+    saveCount += 1
+    if saveCount == 1 {
+      firstSaveStarted = true
+      let waiters = firstSaveWaiters
+      firstSaveWaiters.removeAll()
+      for waiter in waiters {
+        waiter.resume()
+      }
+      await withCheckedContinuation { continuation in
+        firstSaveResume = continuation
+      }
+    }
+    guard ProfileLedgerStorageRevision.current(for: self.data) == expectedRevision else {
+      throw ProfileLedgerStorageError.staleRevision
+    }
+    self.data = data
+    return .current(for: data)
+  }
+
+  func waitUntilFirstSaveStarts() async {
+    guard !firstSaveStarted else { return }
+    await withCheckedContinuation { continuation in
+      firstSaveWaiters.append(continuation)
+    }
+  }
+
+  func resumeFirstSave() {
+    firstSaveResume?.resume()
+    firstSaveResume = nil
+  }
+}
+
 private func sampleState(profileID: String = "real") throws -> ProfileState {
   let profile = RuntimeProfile(
     id: ProfileID(profileID),
@@ -760,8 +1017,12 @@ private func sampleState(profileID: String = "real") throws -> ProfileState {
     ),
     source: .real
   )
+  return try emptyState(profile: profile)
+}
+
+private func emptyState(profile: RuntimeProfile) throws -> ProfileState {
   let state = ProfileState(
-    header: header(ProfileID(profileID), in: profile),
+    header: header(profile.id, in: profile),
     runtimeProfile: profile,
     companionSensingEnabled: true,
     currentSensingEpoch: SensingEpoch(revision(1)),
@@ -778,6 +1039,160 @@ private func sampleState(profileID: String = "real") throws -> ProfileState {
     throw rejection
   }
   return state
+}
+
+private struct LegacyMockLedgerFixture {
+  let state: ProfileState
+  let normalizedData: Data
+  let legacyData: Data
+}
+
+private func legacyMockLedgerFixture() throws -> LegacyMockLedgerFixture {
+  let scenarioID = MockScenarioID("ordinary-day")
+  let selectionRevision = LamportRevision(
+    counter: 42,
+    originDeviceID: "watch"
+  )
+  let epoch = ProfileEpoch(selectionRevision)
+  let profile = RuntimeProfile(
+    id: MockProfileBootstrapMigration.derivedProfileID(
+      scenarioID: scenarioID,
+      revision: selectionRevision
+    ),
+    epoch: epoch,
+    deletionEpoch: .bootstrap,
+    source: .mock(
+      scenarioID: scenarioID,
+      selectionEpoch: epoch
+    )
+  )
+  let state = try emptyState(profile: profile)
+  let envelope = mockFactEnvelope(
+    id: "legacy-mock-event",
+    evidenceID: "legacy-mock-steps",
+    steps: 3_250,
+    state: state,
+    revision: LamportRevision(counter: 43, originDeviceID: "watch"),
+    sequence: 1
+  )
+  let normalizedData = try ProfileLedgerCodec().encode(
+    ProfileLedger(initialState: state, envelopes: [envelope])
+  )
+  let legacyEpoch = DeletionEpoch(
+    requestID:
+      MockProfileBootstrapMigration.legacyDeletionRequestID(
+        scenarioID: scenarioID,
+        revision: selectionRevision
+      ),
+    revision: selectionRevision
+  )
+  return try LegacyMockLedgerFixture(
+    state: state,
+    normalizedData: normalizedData,
+    legacyData: replacingDeletionEpochs(
+      in: normalizedData,
+      from: .bootstrap,
+      to: legacyEpoch
+    )
+  )
+}
+
+private func mockFactEnvelope(
+  id: String,
+  evidenceID: String,
+  steps: Int,
+  state: ProfileState,
+  revision: LamportRevision,
+  sequence: UInt64
+) -> ExperienceSyncEnvelope {
+  let profile = state.runtimeProfile
+  let observedAt = Date(timeIntervalSince1970: 1_700_000_000)
+  let fact = DerivedFactRecord(
+    header: header(EvidenceID(evidenceID), in: profile),
+    observedAt: observedAt,
+    freshUntil: observedAt.addingTimeInterval(3_600),
+    value: .stepTotal(steps),
+    provenance: .deterministicMock,
+    authorization: .companion(state.currentSensingEpoch)
+  )
+  return ExperienceSyncEnvelope(
+    eventID: ExperienceEventID(id),
+    eventType: .derivedFact,
+    profileID: profile.id,
+    profileEpoch: profile.epoch,
+    deletionEpoch: profile.deletionEpoch,
+    profileSource: profile.source,
+    originDeviceID: revision.originDeviceID,
+    originSequence: sequence,
+    revision: revision,
+    observedAt: observedAt,
+    authoredAt: observedAt,
+    privacyClass: .approvedDerived,
+    tombstone: nil,
+    sourceEventID: nil,
+    settlementID: nil,
+    payload: .derivedFact(fact)
+  )
+}
+
+private func replacingDeletionEpochs(
+  in data: Data,
+  from sourceEpoch: DeletionEpoch,
+  to replacementEpoch: DeletionEpoch
+) throws -> Data {
+  let codec = CanonicalJSONCodec()
+  let source = try JSONSerialization.jsonObject(
+    with: codec.encode(sourceEpoch)
+  )
+  let replacement = try JSONSerialization.jsonObject(
+    with: codec.encode(replacementEpoch)
+  )
+  let root = try JSONSerialization.jsonObject(with: data)
+  let migrated = replaceDeletionEpochs(
+    in: root,
+    matching: source,
+    with: replacement
+  )
+  return try JSONSerialization.data(
+    withJSONObject: migrated,
+    options: [.sortedKeys]
+  )
+}
+
+private func replaceDeletionEpochs(
+  in value: Any,
+  matching sourceEpoch: Any,
+  with replacementEpoch: Any
+) -> Any {
+  if let object = value as? [String: Any] {
+    return Dictionary(
+      uniqueKeysWithValues: object.map { key, child in
+        if key == "deletionEpoch",
+          (child as AnyObject).isEqual(sourceEpoch)
+        {
+          return (key, replacementEpoch)
+        }
+        return (
+          key,
+          replaceDeletionEpochs(
+            in: child,
+            matching: sourceEpoch,
+            with: replacementEpoch
+          )
+        )
+      }
+    )
+  }
+  if let array = value as? [Any] {
+    return array.map {
+      replaceDeletionEpochs(
+        in: $0,
+        matching: sourceEpoch,
+        with: replacementEpoch
+      )
+    }
+  }
+  return value
 }
 
 private func factEnvelope(

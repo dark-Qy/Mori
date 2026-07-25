@@ -553,7 +553,7 @@ private func realProfile(revision: LamportRevision) -> RuntimeProfile {
     id: ProfileID("real-profile"),
     epoch: ProfileEpoch(revision),
     deletionEpoch: DeletionEpoch(
-      requestID: DeletionRequestID("baseline"),
+      requestID: DeletionRequestID("test-baseline"),
       revision: revision
     ),
     source: .real

@@ -545,7 +545,7 @@ struct ConversationRepositoryTests {
       id: ProfileID("mock-\(counter)"),
       epoch: epoch,
       deletionEpoch: DeletionEpoch(
-        requestID: DeletionRequestID("baseline"),
+        requestID: DeletionRequestID("test-baseline"),
         revision: revision
       ),
       source: .mock(

@@ -48,7 +48,7 @@ struct RuntimeStorageNamespaceTests {
         LamportRevision(counter: 2, originDeviceID: "device")
       ),
       deletionEpoch: DeletionEpoch(
-        requestID: DeletionRequestID("baseline"),
+        requestID: DeletionRequestID("test-baseline"),
         revision: LamportRevision(counter: 7, originDeviceID: "phone")
       ),
       source: .real
@@ -59,7 +59,7 @@ struct RuntimeStorageNamespaceTests {
         LamportRevision(counter: 1, originDeviceID: "2|device")
       ),
       deletionEpoch: DeletionEpoch(
-        requestID: DeletionRequestID("baseline"),
+        requestID: DeletionRequestID("test-baseline"),
         revision: LamportRevision(counter: 7, originDeviceID: "phone")
       ),
       source: .real

@@ -1,4 +1,5 @@
 import Foundation
+import MoriDomain
 import MoriPersistence
 
 public enum GlobalAuthoritySyncChannel: String, CaseIterable, Codable, Sendable {
@@ -26,21 +27,68 @@ public struct GlobalPreferenceSyncFrame: Codable, Equatable, Sendable {
 }
 
 public struct GlobalConsentSyncFrame: Codable, Equatable, Sendable {
-  public static let currentSchemaVersion: UInt16 = 1
+  public static let legacySchemaVersion: UInt16 = 1
+  public static let currentSchemaVersion: UInt16 = 2
 
   public let schemaVersion: UInt16
+  public let deletionRoot: DeletionAuthorityRoot
   public let consent: GlobalConsentState
 
   public init(
     schemaVersion: UInt16 = Self.currentSchemaVersion,
+    deletionRoot: DeletionAuthorityRoot,
     consent: GlobalConsentState
   ) {
     self.schemaVersion = schemaVersion
+    self.deletionRoot = deletionRoot
     self.consent = consent
   }
 
   public var isValid: Bool {
-    schemaVersion == Self.currentSchemaVersion && consent.isValid
+    (schemaVersion == Self.legacySchemaVersion
+      || schemaVersion == Self.currentSchemaVersion)
+      && deletionRoot.isValid
+      && consent.isValid
+  }
+
+  public var isLegacyV1: Bool {
+    schemaVersion == Self.legacySchemaVersion
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case schemaVersion
+    case deletionRoot
+    case consent
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    schemaVersion = try container.decode(UInt16.self, forKey: .schemaVersion)
+    consent = try container.decode(GlobalConsentState.self, forKey: .consent)
+    switch schemaVersion {
+    case Self.legacySchemaVersion:
+      deletionRoot = .bootstrap
+    case Self.currentSchemaVersion:
+      deletionRoot = try container.decode(
+        DeletionAuthorityRoot.self,
+        forKey: .deletionRoot
+      )
+    default:
+      deletionRoot =
+        try container.decodeIfPresent(
+          DeletionAuthorityRoot.self,
+          forKey: .deletionRoot
+        ) ?? .bootstrap
+    }
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(schemaVersion, forKey: .schemaVersion)
+    try container.encode(consent, forKey: .consent)
+    if schemaVersion != Self.legacySchemaVersion {
+      try container.encode(deletionRoot, forKey: .deletionRoot)
+    }
   }
 }
 
@@ -52,6 +100,7 @@ public enum GlobalAuthoritySyncWireError: Error, Equatable, Sendable {
   case unsupportedSchema(UInt16)
   case invalidPreferences
   case invalidConsent
+  case invalidDeletionRoot
 }
 
 /// Closed, bounded, canonical wire for the two global authority channels.
@@ -84,12 +133,17 @@ public struct GlobalAuthoritySyncWireCodec: Sendable {
   }
 
   public func encode(_ frame: GlobalConsentSyncFrame) throws -> Data {
-    guard frame.schemaVersion == GlobalConsentSyncFrame.currentSchemaVersion
+    guard
+      frame.schemaVersion == GlobalConsentSyncFrame.legacySchemaVersion
+        || frame.schemaVersion == GlobalConsentSyncFrame.currentSchemaVersion
     else {
       throw GlobalAuthoritySyncWireError.unsupportedSchema(frame.schemaVersion)
     }
     guard frame.consent.isValid else {
       throw GlobalAuthoritySyncWireError.invalidConsent
+    }
+    guard frame.deletionRoot.isValid else {
+      throw GlobalAuthoritySyncWireError.invalidDeletionRoot
     }
     return try encodeCanonical(frame)
   }
@@ -121,12 +175,17 @@ public struct GlobalAuthoritySyncWireCodec: Sendable {
     } catch {
       throw GlobalAuthoritySyncWireError.malformed
     }
-    guard frame.schemaVersion == GlobalConsentSyncFrame.currentSchemaVersion
+    guard
+      frame.schemaVersion == GlobalConsentSyncFrame.legacySchemaVersion
+        || frame.schemaVersion == GlobalConsentSyncFrame.currentSchemaVersion
     else {
       throw GlobalAuthoritySyncWireError.unsupportedSchema(frame.schemaVersion)
     }
     guard frame.consent.isValid else {
       throw GlobalAuthoritySyncWireError.invalidConsent
+    }
+    guard frame.deletionRoot.isValid else {
+      throw GlobalAuthoritySyncWireError.invalidDeletionRoot
     }
     try validateClosedCanonical(data, value: frame)
     return frame

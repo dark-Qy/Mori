@@ -113,6 +113,82 @@ struct GlobalPreferenceStateTests {
     #expect(forward.companionSensing.revision == revision(4, "watch"))
   }
 
+  @Test("A newer deletion root defeats every higher revision from the old root")
+  func deletionRootPrecedesRegisterRevisions() throws {
+    let staleOfflineWatch = try preferences(
+      profileRevision: revision(100, "watch"),
+      sensingRevision: revision(101, "watch"),
+      reminderRevision: revision(102, "watch"),
+      quietRevision: revision(103, "watch"),
+      sensingEnabled: true,
+      reminderMode: .gentleHaptic,
+      quietHours: CompanionQuietHours(
+        startMinute: 23 * 60,
+        endMinute: 9 * 60
+      ),
+      deletionRevision: revision(5, "phone"),
+      deletionRequestID: "delete-root-5"
+    )
+    let deletionFence = try preferences(
+      profileRevision: revision(10, "phone"),
+      sensingRevision: revision(10, "phone"),
+      reminderRevision: revision(10, "phone"),
+      quietRevision: revision(10, "phone"),
+      sensingEnabled: false,
+      reminderMode: .wristRaise,
+      deletionRevision: revision(10, "phone"),
+      deletionRequestID: "delete-root-10"
+    )
+
+    let forward = try #require(
+      GlobalPreferenceMerger.merge(
+        current: staleOfflineWatch,
+        incoming: deletionFence
+      ).value
+    )
+    let reverse = try #require(
+      GlobalPreferenceMerger.merge(
+        current: deletionFence,
+        incoming: staleOfflineWatch
+      ).value
+    )
+
+    #expect(forward == deletionFence)
+    #expect(reverse == deletionFence)
+    #expect(!forward.companionSensing.value.enabled)
+    #expect(forward.reminderMode.value == .wristRaise)
+    #expect(
+      forward.profileSelection.profile.deletionEpoch
+        == deletionFence.profileSelection.profile.deletionEpoch
+    )
+  }
+
+  @Test("Synthetic first-launch Mock and Real share the undeleted root")
+  func syntheticMockBaselineDoesNotBlockProfileSelection() throws {
+    let real = try preferences(
+      profileRevision: revision(1, "phone"),
+      sensingRevision: revision(1, "phone"),
+      reminderRevision: revision(1, "phone"),
+      quietRevision: revision(1, "phone")
+    )
+    let mockSelection = try MockProfileDerivation.selection(
+      scenarioID: MockScenarioID("normal-day"),
+      revision: revision(5, "watch")
+    )
+    let mock = GlobalSyncedPreferences(
+      profileSelection: mockSelection,
+      companionSensing: real.companionSensing,
+      reminderMode: real.reminderMode,
+      quietHours: real.quietHours
+    )
+
+    let selected = try #require(
+      GlobalPreferenceMerger.merge(current: real, incoming: mock).value
+    )
+
+    #expect(selected.profileSelection == mockSelection)
+  }
+
   @Test("Sensing authority must carry its exact Lamport epoch")
   func sensingEpochIsBoundToRevision() throws {
     let valid = try preferences(
@@ -280,15 +356,24 @@ struct GlobalPreferenceStateTests {
     quietHours: CompanionQuietHours = CompanionQuietHours(
       startMinute: 22 * 60,
       endMinute: 7 * 60
-    )
+    ),
+    deletionRevision: LamportRevision? = nil,
+    deletionRequestID: String? = nil
   ) throws -> GlobalSyncedPreferences {
+    let rootRevision = deletionRevision ?? revision(1, "phone")
+    let deletionEpoch =
+      if let deletionRequestID {
+        DeletionEpoch(
+          requestID: DeletionRequestID(deletionRequestID),
+          revision: rootRevision
+        )
+      } else {
+        DeletionEpoch.bootstrap
+      }
     let profile = RuntimeProfile(
       id: ProfileID("real"),
-      epoch: ProfileEpoch(revision(1, "phone")),
-      deletionEpoch: DeletionEpoch(
-        requestID: DeletionRequestID("baseline"),
-        revision: revision(1, "phone")
-      ),
+      epoch: ProfileEpoch(rootRevision),
+      deletionEpoch: deletionEpoch,
       source: .real
     )
     return GlobalSyncedPreferences(

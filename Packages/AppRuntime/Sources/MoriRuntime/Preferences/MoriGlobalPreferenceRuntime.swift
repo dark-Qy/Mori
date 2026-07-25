@@ -79,11 +79,6 @@ public struct MoriGlobalPreferenceProjection: Equatable, Sendable {
 /// synchronization remains a separate concern; a local choice is durable even
 /// while the peer is unavailable.
 public actor MoriGlobalPreferenceRuntime {
-  private static let bootstrapRevision = LamportRevision(
-    counter: 1,
-    originDeviceID: "mori-bootstrap"
-  )
-
   private let originDeviceID: String
   private let repository: GlobalAuthorityRepository<FileGlobalAuthorityStorage>
 
@@ -177,7 +172,10 @@ public actor MoriGlobalPreferenceRuntime {
       authorDevice: author
     )
     let candidate = current.consent.replacing(kind, with: record)
-    let result = try await repository.merge(consent: candidate)
+    let result = try await repository.merge(
+      consent: candidate,
+      deletionRoot: current.deletionRoot
+    )
     let consent: GlobalConsentState
     switch result {
     case .applied(let value), .duplicate(let value):
@@ -225,7 +223,10 @@ public actor MoriGlobalPreferenceRuntime {
       in: .whitespacesAndNewlines
     )
     let deletionRequestID = DeletionRequestID(normalizedRequestID)
-    guard deletionRequestID.isValid else {
+    guard
+      deletionRequestID.isValid,
+      !deletionRequestID.isReservedBootstrapNamespace
+    else {
       throw MoriGlobalPreferenceRuntimeError.rejectedPreference
     }
 
@@ -405,7 +406,7 @@ public actor MoriGlobalPreferenceRuntime {
   private static func makeInitialSnapshot(
     profileSource: MoriGlobalProfileSource
   ) throws -> GlobalAuthoritySnapshot {
-    let revision = bootstrapRevision
+    let revision = DeletionEpoch.bootstrap.revision
     let preferences = GlobalSyncedPreferences(
       profileSelection: try profileSelection(
         for: profileSource,
@@ -490,22 +491,13 @@ public actor MoriGlobalPreferenceRuntime {
   private static func rootDeletionEpoch(
     from currentProfile: RuntimeProfile?
   ) -> DeletionEpoch {
-    let baseline = DeletionEpoch(
-      requestID: DeletionRequestID("baseline"),
-      revision: bootstrapRevision
-    )
-    guard let currentProfile else { return baseline }
-    let current = currentProfile.deletionEpoch
-    let requestID = current.requestID.rawValue
-    if requestID == "baseline" {
-      return baseline
+    guard let currentProfile else { return .bootstrap }
+    switch currentProfile.deletionAuthorityRoot {
+    case .bootstrap:
+      return .bootstrap
+    case .deletion(let epoch):
+      return epoch
     }
-    if requestID.hasPrefix("mock-baseline-"),
-      current.revision == currentProfile.epoch.revision
-    {
-      return baseline
-    }
-    return current
   }
 }
 

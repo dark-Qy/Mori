@@ -1,4 +1,5 @@
 import Foundation
+import MoriDomain
 
 /// Production adapters must bound peer I/O and promptly honor task
 /// cancellation. The runtime also applies an outer timeout so one authority
@@ -12,6 +13,11 @@ public protocol GlobalAuthorityPeerTransport: Sendable {
 
 public enum GlobalAuthorityPeerTransportError: Error, Equatable, Sendable {
   case offline
+  case schemaIncompatible(
+    channel: GlobalAuthoritySyncChannel,
+    receivedSchemaVersion: UInt16,
+    maximumSupportedSchemaVersion: UInt16
+  )
   case injectedFailure(GlobalAuthoritySyncChannel)
 }
 
@@ -80,6 +86,8 @@ public enum GlobalAuthoritySyncTrigger: String, CaseIterable, Sendable {
 }
 
 public enum GlobalAuthorityChannelFailure: String, Equatable, Sendable {
+  case offline
+  case schemaIncompatible
   case invalidWire
   case mergeRejected
   case timedOut
@@ -118,6 +126,7 @@ public struct GlobalAuthoritySyncReport: Equatable, Sendable {
 public enum GlobalAuthorityPeerSyncError: Error, Equatable, Sendable {
   case rejectedPreferences(GlobalPreferenceMergeRejection)
   case rejectedConsent(GlobalConsentMergeRejection)
+  case consentRevocationDidNotConverge
 }
 
 /// Automatic latest-state anti-entropy for global preferences and consent.
@@ -186,13 +195,37 @@ public actor GlobalAuthorityPeerSyncRuntime<Storage: GlobalAuthorityStorage> {
         throw GlobalAuthorityPeerSyncError.rejectedPreferences(reason)
       }
     case .consent:
-      let frame = try wireCodec.decodeConsent(payload)
-      let merge = try await repository.merge(consent: frame.consent)
+      let frame: GlobalConsentSyncFrame
+      do {
+        frame = try wireCodec.decodeConsent(payload)
+      } catch let error as GlobalAuthoritySyncWireError {
+        _ = try await repository.revokeConsentForIncompatiblePeer()
+        throw error
+      }
+      if frame.isLegacyV1 {
+        let revocation = try await persistLegacyConsentRevocation(
+          peerConsent: frame.consent
+        )
+        return try wireCodec.encode(
+          GlobalConsentSyncFrame(
+            schemaVersion: GlobalConsentSyncFrame.legacySchemaVersion,
+            deletionRoot: revocation.deletionRoot,
+            consent: revocation.consent
+          )
+        )
+      }
+      let merge = try await repository.merge(
+        consent: frame.consent,
+        deletionRoot: frame.deletionRoot
+      )
       switch merge {
       case .applied, .duplicate:
         let current = try await repository.current()
         return try wireCodec.encode(
-          GlobalConsentSyncFrame(consent: current.consent)
+          GlobalConsentSyncFrame(
+            deletionRoot: current.deletionRoot,
+            consent: current.consent
+          )
         )
       case .rejected(let reason):
         throw GlobalAuthorityPeerSyncError.rejectedConsent(reason)
@@ -226,10 +259,22 @@ public actor GlobalAuthorityPeerSyncRuntime<Storage: GlobalAuthorityStorage> {
       case .rejected(let reason):
         throw GlobalAuthorityPeerSyncError.rejectedPreferences(reason)
       }
-    } catch is GlobalAuthoritySyncWireError {
+    } catch let error as GlobalAuthoritySyncWireError {
+      if case .unsupportedSchema = error {
+        return .retryRequired(.schemaIncompatible)
+      }
       return .retryRequired(.invalidWire)
     } catch is GlobalAuthorityPeerSyncError {
       return .retryRequired(.mergeRejected)
+    } catch let error as GlobalAuthorityPeerTransportError {
+      switch error {
+      case .offline:
+        return .retryRequired(.offline)
+      case .schemaIncompatible:
+        return .retryRequired(.schemaIncompatible)
+      case .injectedFailure:
+        return .retryRequired(.transportOrPersistence)
+      }
     } catch {
       return .retryRequired(.transportOrPersistence)
     }
@@ -241,31 +286,254 @@ public actor GlobalAuthorityPeerSyncRuntime<Storage: GlobalAuthorityStorage> {
     do {
       let current = try await repository.current()
       let payload = try wireCodec.encode(
-        GlobalConsentSyncFrame(consent: current.consent)
+        GlobalConsentSyncFrame(
+          deletionRoot: current.deletionRoot,
+          consent: current.consent
+        )
       )
       try Task.checkCancellation()
-      let response = try await transport.exchange(
-        channel: .consent,
-        payload: payload
-      )
-      try Task.checkCancellation()
-      let frame = try wireCodec.decodeConsent(response)
-      let merge = try await repository.merge(consent: frame.consent)
-      switch merge {
-      case .applied:
-        return .synchronized(localStateChanged: true)
-      case .duplicate:
-        return .synchronized(localStateChanged: false)
-      case .rejected(let reason):
-        throw GlobalAuthorityPeerSyncError.rejectedConsent(reason)
+      let response: Data
+      do {
+        response = try await transport.exchange(
+          channel: .consent,
+          payload: payload
+        )
+      } catch let error as GlobalAuthorityPeerTransportError {
+        return try await handleConsentTransportError(
+          error,
+          using: transport
+        )
+      } catch GlobalAuthoritySyncWireError.unsupportedSchema(
+        let schemaVersion
+      ) {
+        return try await handleConsentSchemaIncompatibility(
+          receivedSchemaVersion: schemaVersion,
+          maximumSupportedSchemaVersion:
+            GlobalConsentSyncFrame.legacySchemaVersion,
+          using: transport
+        )
       }
-    } catch is GlobalAuthoritySyncWireError {
+      try Task.checkCancellation()
+      let frame: GlobalConsentSyncFrame
+      do {
+        frame = try wireCodec.decodeConsent(response)
+      } catch let error as GlobalAuthoritySyncWireError {
+        _ = try await repository.revokeConsentForIncompatiblePeer()
+        throw error
+      }
+      if frame.isLegacyV1 {
+        let revocation = try await persistLegacyConsentRevocation(
+          peerConsent: frame.consent
+        )
+        return try await synchronizeLegacyConsent(
+          using: transport,
+          revocation: revocation
+        )
+      }
+      return try await mergeCurrentConsentFrame(frame)
+    } catch let error as GlobalAuthoritySyncWireError {
+      if case .unsupportedSchema = error {
+        return .retryRequired(.schemaIncompatible)
+      }
       return .retryRequired(.invalidWire)
     } catch is GlobalAuthorityPeerSyncError {
       return .retryRequired(.mergeRejected)
     } catch {
       return .retryRequired(.transportOrPersistence)
     }
+  }
+
+  private func handleConsentTransportError<
+    Transport: GlobalAuthorityPeerTransport
+  >(
+    _ error: GlobalAuthorityPeerTransportError,
+    using transport: Transport
+  ) async throws -> GlobalAuthorityChannelOutcome {
+    switch error {
+    case .offline:
+      return .retryRequired(.offline)
+    case .injectedFailure:
+      return .retryRequired(.transportOrPersistence)
+    case .schemaIncompatible(
+      let channel,
+      let receivedSchemaVersion,
+      let maximumSupportedSchemaVersion
+    ):
+      guard channel == .consent else {
+        _ = try await repository.revokeConsentForIncompatiblePeer()
+        return .retryRequired(.schemaIncompatible)
+      }
+      return try await handleConsentSchemaIncompatibility(
+        receivedSchemaVersion: receivedSchemaVersion,
+        maximumSupportedSchemaVersion: maximumSupportedSchemaVersion,
+        using: transport
+      )
+    }
+  }
+
+  private func handleConsentSchemaIncompatibility<
+    Transport: GlobalAuthorityPeerTransport
+  >(
+    receivedSchemaVersion: UInt16,
+    maximumSupportedSchemaVersion: UInt16,
+    using transport: Transport
+  ) async throws -> GlobalAuthorityChannelOutcome {
+    let revocation = try await persistLegacyConsentRevocation()
+    guard
+      receivedSchemaVersion
+        == GlobalConsentSyncFrame.currentSchemaVersion,
+      maximumSupportedSchemaVersion
+        == GlobalConsentSyncFrame.legacySchemaVersion
+    else {
+      return .retryRequired(.schemaIncompatible)
+    }
+    return try await synchronizeLegacyConsent(
+      using: transport,
+      revocation: revocation
+    )
+  }
+
+  private struct PersistedLegacyConsentRevocation: Sendable {
+    let deletionRoot: DeletionAuthorityRoot
+    let consent: GlobalConsentState
+    let localStateChanged: Bool
+  }
+
+  /// A schema-v1 peer has no deletion root. It can receive only a fail-closed
+  /// consent frame and can never expand v2 authority. One bounded downgrade is
+  /// attempted per lifecycle synchronization.
+  private func synchronizeLegacyConsent<
+    Transport: GlobalAuthorityPeerTransport
+  >(
+    using transport: Transport,
+    revocation: PersistedLegacyConsentRevocation
+  ) async throws -> GlobalAuthorityChannelOutcome {
+    let payload = try wireCodec.encode(
+      GlobalConsentSyncFrame(
+        schemaVersion: GlobalConsentSyncFrame.legacySchemaVersion,
+        deletionRoot: revocation.deletionRoot,
+        consent: revocation.consent
+      )
+    )
+    try Task.checkCancellation()
+    let response: Data
+    do {
+      response = try await transport.exchange(
+        channel: .consent,
+        payload: payload
+      )
+    } catch GlobalAuthorityPeerTransportError.offline {
+      return .retryRequired(.offline)
+    } catch let error as GlobalAuthorityPeerTransportError {
+      if case .schemaIncompatible = error {
+        return .retryRequired(.schemaIncompatible)
+      }
+      return .retryRequired(.transportOrPersistence)
+    }
+    try Task.checkCancellation()
+    let frame = try wireCodec.decodeConsent(response)
+    guard frame.isLegacyV1 else {
+      let outcome = try await mergeCurrentConsentFrame(frame)
+      switch outcome {
+      case .synchronized(let changed):
+        return .synchronized(
+          localStateChanged:
+            revocation.localStateChanged || changed
+        )
+      case .retryRequired:
+        return outcome
+      }
+    }
+
+    let responseRevocation = try await persistLegacyConsentRevocation(
+      peerConsent: frame.consent
+    )
+    let peerIsDisabled = MoriConsentKind.allCases.allSatisfy {
+      !frame.consent[$0].enabled
+    }
+    guard peerIsDisabled else {
+      // The peer had a causally newer grant. Its revision is now persisted as
+      // a local revocation, so the next bounded downgrade can close the peer.
+      return .retryRequired(.schemaIncompatible)
+    }
+    return .synchronized(
+      localStateChanged:
+        revocation.localStateChanged
+        || responseRevocation.localStateChanged
+    )
+  }
+
+  private func mergeCurrentConsentFrame(
+    _ frame: GlobalConsentSyncFrame
+  ) async throws -> GlobalAuthorityChannelOutcome {
+    let merge = try await repository.merge(
+      consent: frame.consent,
+      deletionRoot: frame.deletionRoot
+    )
+    switch merge {
+    case .applied:
+      return .synchronized(localStateChanged: true)
+    case .duplicate:
+      return .synchronized(localStateChanged: false)
+    case .rejected(let reason):
+      throw GlobalAuthorityPeerSyncError.rejectedConsent(reason)
+    }
+  }
+
+  /// Persists a revocation at least as new as every revision exposed by an
+  /// incompatible v1 peer. The peer's enabled value is never merged and its
+  /// missing deletion root is never trusted.
+  private func persistLegacyConsentRevocation(
+    peerConsent: GlobalConsentState? = nil
+  ) async throws -> PersistedLegacyConsentRevocation {
+    var changed =
+      try await repository.revokeConsentForIncompatiblePeer()
+    for _ in 0..<8 {
+      let current = try await repository.current()
+      var failClosed = current.consent
+      for kind in MoriConsentKind.allCases {
+        let revision = max(
+          current.consent[kind].revision,
+          peerConsent?[kind].revision ?? current.consent[kind].revision
+        )
+        failClosed = failClosed.replacing(
+          kind,
+          with: MoriConsentRecord(
+            enabled: false,
+            disclosureVersion: 0,
+            revision: revision,
+            authorDevice: .phone
+          )
+        )
+      }
+      let merge = try await repository.merge(
+        consent: failClosed,
+        deletionRoot: current.deletionRoot
+      )
+      let persisted: GlobalConsentState
+      switch merge {
+      case .applied(let consent):
+        changed = true
+        persisted = consent
+      case .duplicate(let consent):
+        persisted = consent
+      case .rejected(let reason):
+        throw GlobalAuthorityPeerSyncError.rejectedConsent(reason)
+      }
+      guard
+        MoriConsentKind.allCases.allSatisfy({
+          !persisted[$0].enabled
+        })
+      else {
+        continue
+      }
+      return PersistedLegacyConsentRevocation(
+        deletionRoot: current.deletionRoot,
+        consent: persisted,
+        localStateChanged: changed
+      )
+    }
+    throw GlobalAuthorityPeerSyncError.consentRevocationDidNotConverge
   }
 }
 
