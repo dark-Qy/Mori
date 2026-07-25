@@ -23,18 +23,21 @@ final class PhoneAppUITests: XCTestCase {
   }
 
   func testPetSceneRespondsDifferentlyToHeadAndBodyTouches() {
-    let app = launchApp(scenario: "health_normal")
+    let app = launchApp(
+      scenario: "health_normal",
+      additionalArguments: ["--character=bili_22"]
+    )
 
     XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
     let scene = app.buttons["phone.companion-interaction"]
     XCTAssertTrue(scene.waitForExistence(timeout: 5))
 
     scene.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap()
-    XCTAssertTrue(app.staticTexts["摸摸头 · Mori 眨了眨眼"].waitForExistence(timeout: 2))
+    XCTAssertTrue(app.staticTexts["摸摸头 · 22 娘 眨了眨眼"].waitForExistence(timeout: 2))
 
     Thread.sleep(forTimeInterval: 0.4)
     scene.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.64)).tap()
-    XCTAssertTrue(app.staticTexts["碰一碰 · Mori 转身靠近"].waitForExistence(timeout: 2))
+    XCTAssertTrue(app.staticTexts["碰一碰 · 22 娘 转身靠近"].waitForExistence(timeout: 2))
   }
 
   func testOccasionalChatBubbleOpensConversationAndSendsReply() {
@@ -137,6 +140,34 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertFalse(relaunched.buttons["phone.collection.buy.scarf"].exists)
     relaunched.tabBars.buttons["今天"].tap()
     XCTAssertFalse(relaunched.buttons["phone.today.complete-recommended"].exists)
+  }
+
+  func testBiliCharactersCanBeSelectedFromCollectionAndShownAtHome() {
+    let app = launchApp(scenario: "health_normal")
+
+    app.tabBars.buttons["收藏"].tap()
+    XCTAssertTrue(element("phone.collection", in: app).waitForExistence(timeout: 5))
+
+    let girl22 = app.buttons["phone.character.bili_22"]
+    scrollToElement(girl22, in: app)
+    scrollHorizontallyToElement(girl22, in: app)
+    girl22.tap()
+    XCTAssertTrue(girl22.label.contains("22 娘"))
+    XCTAssertTrue(
+      (element("phone.collection.preview", in: app).value as? String)?
+        .contains("22 娘") == true
+    )
+
+    let girl33 = app.buttons["phone.character.bili_33"]
+    scrollToElement(girl33, in: app)
+    scrollHorizontallyToElement(girl33, in: app)
+    girl33.tap()
+    XCTAssertTrue(girl33.label.contains("33 娘"))
+
+    app.tabBars.buttons["Mori"].tap()
+    let scene = app.buttons["phone.companion-interaction"]
+    XCTAssertTrue(scene.waitForExistence(timeout: 5))
+    XCTAssertTrue((scene.value as? String)?.contains("33 娘") == true)
   }
 
   func testLocalConversationPersistsWithoutMutatingToday() {
@@ -585,6 +616,26 @@ final class PhoneAppUITests: XCTestCase {
       } else {
         scrollSurface.swipeUp()
       }
+    }
+  }
+
+  private func scrollHorizontallyToElement(
+    _ element: XCUIElement,
+    in app: XCUIApplication
+  ) {
+    guard let horizontalScroll = app.scrollViews.allElementsBoundByIndex.last else {
+      XCTFail("Expected a horizontal character picker")
+      return
+    }
+    for _ in 0..<8 {
+      let visibleFrame = horizontalScroll.frame.insetBy(dx: 8, dy: 0)
+      if element.exists,
+        element.frame.minX >= visibleFrame.minX,
+        element.frame.maxX <= visibleFrame.maxX
+      {
+        return
+      }
+      horizontalScroll.swipeLeft()
     }
   }
 

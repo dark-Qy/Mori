@@ -47,6 +47,26 @@
       "packageManifest": "Design/WatchCompanionAssets/characters/polar-bear-v2/final/pet.json",
       "runtimeAssetCatalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
       "runtimeAssetPrefix": "character_polar_bear_"
+    },
+    {
+      "id": "bili_22",
+      "displayName": "22 娘",
+      "status": "basic_ready",
+      "runtimeProfile": "basic_interaction",
+      "reference": "Design/WatchCompanionAssets/characters/bili-22-v2/references/reference-01.png",
+      "runDirectory": "Design/WatchCompanionAssets/characters/bili-22-v2",
+      "runtimeAssetCatalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "runtimeAssetPrefix": "character_bili_22_"
+    },
+    {
+      "id": "bili_33",
+      "displayName": "33 娘",
+      "status": "basic_ready",
+      "runtimeProfile": "basic_interaction",
+      "reference": "Design/WatchCompanionAssets/characters/bili-33-v2/references/reference-01.png",
+      "runDirectory": "Design/WatchCompanionAssets/characters/bili-33-v2",
+      "runtimeAssetCatalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "runtimeAssetPrefix": "character_bili_33_"
     }
   ]
 }

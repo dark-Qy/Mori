@@ -1,0 +1,220 @@
+{
+  "ok": true,
+  "state": "touch_body",
+  "frameCount": 8,
+  "frameSize": [
+    192,
+    208
+  ],
+  "extractionMethod": "stable-slots",
+  "inspection": {
+    "ok": true,
+    "frames_root": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/qa/touch_body/extraction/frames",
+    "states": [
+      "failed"
+    ],
+    "errors": [],
+    "warnings": [
+      "failed used extraction method stable-slots; confirm motion playback remains stable and unclipped"
+    ],
+    "rows": [
+      {
+        "state": "failed",
+        "expected_frames": 8,
+        "actual_frames": 8,
+        "extraction_method": "stable-slots",
+        "ok": true,
+        "errors": [],
+        "warnings": [
+          "failed used extraction method stable-slots; confirm motion playback remains stable and unclipped"
+        ],
+        "frames": [
+          {
+            "index": 0,
+            "file": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/qa/touch_body/extraction/frames/failed/00.png",
+            "width": 192,
+            "height": 208,
+            "nontransparent_pixels": 11027,
+            "bbox": [
+              58,
+              5,
+              145,
+              203
+            ],
+            "edge_pixels": 0,
+            "chroma_adjacent_pixels": 12
+          },
+          {
+            "index": 1,
+            "file": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/qa/touch_body/extraction/frames/failed/01.png",
+            "width": 192,
+            "height": 208,
+            "nontransparent_pixels": 12323,
+            "bbox": [
+              47,
+              5,
+              145,
+              203
+            ],
+            "edge_pixels": 0,
+            "chroma_adjacent_pixels": 15
+          },
+          {
+            "index": 2,
+            "file": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/qa/touch_body/extraction/frames/failed/02.png",
+            "width": 192,
+            "height": 208,
+            "nontransparent_pixels": 12329,
+            "bbox": [
+              47,
+              5,
+              145,
+              203
+            ],
+            "edge_pixels": 0,
+            "chroma_adjacent_pixels": 6
+          },
+          {
+            "index": 3,
+            "file": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/qa/touch_body/extraction/frames/failed/03.png",
+            "width": 192,
+            "height": 208,
+            "nontransparent_pixels": 12595,
+            "bbox": [
+              46,
+              5,
+              145,
+              203
+            ],
+            "edge_pixels": 0,
+            "chroma_adjacent_pixels": 8
+          },
+          {
+            "index": 4,
+            "file": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/qa/touch_body/extraction/frames/failed/04.png",
+            "width": 192,
+            "height": 208,
+            "nontransparent_pixels": 12735,
+            "bbox": [
+              46,
+              5,
+              145,
+              203
+            ],
+            "edge_pixels": 0,
+            "chroma_adjacent_pixels": 11
+          },
+          {
+            "index": 5,
+            "file": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/qa/touch_body/extraction/frames/failed/05.png",
+            "width": 192,
+            "height": 208,
+            "nontransparent_pixels": 12507,
+            "bbox": [
+              47,
+              5,
+              145,
+              203
+            ],
+            "edge_pixels": 0,
+            "chroma_adjacent_pixels": 14
+          },
+          {
+            "index": 6,
+            "file": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/qa/touch_body/extraction/frames/failed/06.png",
+            "width": 192,
+            "height": 208,
+            "nontransparent_pixels": 12356,
+            "bbox": [
+              47,
+              5,
+              145,
+              203
+            ],
+            "edge_pixels": 0,
+            "chroma_adjacent_pixels": 11
+          },
+          {
+            "index": 7,
+            "file": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/qa/touch_body/extraction/frames/failed/07.png",
+            "width": 192,
+            "height": 208,
+            "nontransparent_pixels": 11864,
+            "bbox": [
+              46,
+              5,
+              145,
+              203
+            ],
+            "edge_pixels": 0,
+            "chroma_adjacent_pixels": 11
+          }
+        ]
+      }
+    ]
+  },
+  "source": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/decoded/touch_body.png",
+  "frames": [
+    "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/00.png",
+    "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/01.png",
+    "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/02.png",
+    "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/03.png",
+    "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/04.png",
+    "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/05.png",
+    "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/06.png",
+    "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/07.png"
+  ],
+  "warnings": [
+    "failed used extraction method stable-slots; confirm motion playback remains stable and unclipped"
+  ],
+  "fragmentCleanup": [
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/00.png",
+      "componentCount": 38,
+      "largestComponentPixels": 10329,
+      "removedPixels": 0
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/01.png",
+      "componentCount": 49,
+      "largestComponentPixels": 11500,
+      "removedPixels": 0
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/02.png",
+      "componentCount": 48,
+      "largestComponentPixels": 9721,
+      "removedPixels": 1901
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/03.png",
+      "componentCount": 44,
+      "largestComponentPixels": 11785,
+      "removedPixels": 0
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/04.png",
+      "componentCount": 41,
+      "largestComponentPixels": 11951,
+      "removedPixels": 53
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/05.png",
+      "componentCount": 36,
+      "largestComponentPixels": 11734,
+      "removedPixels": 0
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/06.png",
+      "componentCount": 49,
+      "largestComponentPixels": 11528,
+      "removedPixels": 0
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-33-v2/product-motion/frames/touch_body/07.png",
+      "componentCount": 58,
+      "largestComponentPixels": 10950,
+      "removedPixels": 94
+    }
+  ]
+}

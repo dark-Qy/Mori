@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "characterID": "bili_22",
+  "chromaKey": "#FF00FF",
+  "frameCount": 8,
+  "framesPerSecond": 6,
+  "generationSkill": "$imagegen",
+  "jobs": [
+    {
+      "id": "touch_head",
+      "status": "fallback",
+      "promptFile": "prompts/touch_head.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "accepted pixel identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../decoded/idle.png",
+          "role": "approved idle identity, scale, and baseline reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/touch_head.png",
+      "sourcePath": "decoded/idle.png",
+      "completedAt": "2026-07-25T08:11:42Z",
+      "fallbackState": "idle"
+    },
+    {
+      "id": "touch_body",
+      "status": "complete",
+      "promptFile": "prompts/touch_body.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "accepted pixel identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../decoded/idle.png",
+          "role": "approved idle identity, scale, and baseline reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/touch_body.png",
+      "sourcePath": "product-motion/decoded/touch_body.png",
+      "completedAt": "2026-07-25T07:54:07Z"
+    },
+    {
+      "id": "social_leap",
+      "status": "complete",
+      "promptFile": "prompts/social_leap.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "accepted pixel identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../decoded/idle.png",
+          "role": "approved idle identity, scale, and baseline reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/social_leap.png",
+      "sourcePath": "product-motion/decoded/social_leap.png",
+      "completedAt": "2026-07-25T08:04:11Z"
+    }
+  ]
+}

@@ -76,7 +76,7 @@ final class PhoneAppStore: ObservableObject {
       : mockExperience.selectedSceneID
   }
   var selectedCharacterID: String {
-    CompanionVisualCatalog.defaultCharacterID
+    preferences.selectedCharacterIDs.first ?? CompanionVisualCatalog.defaultCharacterID
   }
 
   private let runtime: AppleCompanionRuntime?
@@ -177,12 +177,22 @@ final class PhoneAppStore: ObservableObject {
       let initialGlobalProfileSource = MoriGlobalProfileSource.real
     #endif
 
-    preferences = AppPreferences(
+    var initialPreferences = AppPreferences(
       hasCompletedOnboarding: initialModel.initialScreen != .onboarding,
       selectedOutfitID: initialModel.wardrobe.selectedOutfitID,
       selectedCharacterIDs: [CompanionVisualCatalog.defaultCharacterID],
       selectedBackgroundID: CompanionVisualCatalog.defaultBackgroundID
     )
+    #if DEBUG
+      if arguments.contains("-UITesting"),
+        let characterID = arguments.first(where: { $0.hasPrefix("--character=") })?
+          .replacingOccurrences(of: "--character=", with: "")
+      {
+        initialPreferences.selectedCharacterIDs =
+          CompanionVisualCatalog.normalizedCharacterIDs([characterID])
+      }
+    #endif
+    preferences = initialPreferences
     hasLaunchScenarioOverride = initialModel.dataMode != .live
     phase =
       hasLaunchScenarioOverride
@@ -627,11 +637,30 @@ final class PhoneAppStore: ObservableObject {
     }
   }
 
+  func selectCharacter(_ id: String) {
+    guard CompanionVisualCatalog.characterIDs.contains(id) else {
+      statusMessage = "无法选择未知角色"
+      return
+    }
+    guard preferences.selectedCharacterIDs != [id] else {
+      statusMessage = "这个角色正在陪伴你"
+      return
+    }
+    preferences.selectedCharacterIDs = [id]
+    #if DEBUG
+      if selectedDataSource.isMock || hasLaunchScenarioOverride {
+        statusMessage = "角色已更新；Mock 场景只保留当前会话"
+        return
+      }
+    #endif
+    persistPreferences(successPrefix: "角色已更新")
+  }
+
   func companionInteraction(_ interaction: PhonePetInteraction) async {
     companionInteractionRevision &+= 1
     let revision = companionInteractionRevision
     if selectedDataSource.isMock || hasLaunchScenarioOverride {
-      statusMessage = interaction.statusMessage
+      statusMessage = interaction.statusMessage(for: interactionSubjectName)
       return
     }
     guard let runtime else { return }
@@ -644,12 +673,23 @@ final class PhoneAppStore: ObservableObject {
         companion: state,
         health: latestHealth
       )
-      statusMessage = interaction.statusMessage
+      statusMessage = interaction.statusMessage(for: interactionSubjectName)
     } catch {
       guard revision == companionInteractionRevision, selectedDataSource == .healthKit else {
         return
       }
-      statusMessage = "这次互动没能保存，但 Mori 已经看见你了"
+      statusMessage = "这次互动没能保存，但 \(interactionSubjectName) 已经看见你了"
+    }
+  }
+
+  private var interactionSubjectName: String {
+    let characterID =
+      preferences.selectedCharacterIDs.first ?? CompanionVisualCatalog.defaultCharacterID
+    return switch characterID {
+    case "bili_22", "bili_33":
+      CompanionVisualCatalog.characterDisplayName(characterID)
+    default:
+      "Mori"
     }
   }
 

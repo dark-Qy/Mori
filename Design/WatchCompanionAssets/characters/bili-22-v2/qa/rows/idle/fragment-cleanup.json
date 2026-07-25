@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "alphaThreshold": 4,
+  "haloRadius": 2,
+  "frames": [
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-22-v2/qa/rows/idle/frames/idle/00.png",
+      "componentCount": 22,
+      "largestComponentPixels": 12490,
+      "removedPixels": 20
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-22-v2/qa/rows/idle/frames/idle/01.png",
+      "componentCount": 17,
+      "largestComponentPixels": 12484,
+      "removedPixels": 154
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-22-v2/qa/rows/idle/frames/idle/02.png",
+      "componentCount": 24,
+      "largestComponentPixels": 12618,
+      "removedPixels": 113
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-22-v2/qa/rows/idle/frames/idle/03.png",
+      "componentCount": 23,
+      "largestComponentPixels": 12583,
+      "removedPixels": 109
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-22-v2/qa/rows/idle/frames/idle/04.png",
+      "componentCount": 22,
+      "largestComponentPixels": 12717,
+      "removedPixels": 3
+    },
+    {
+      "path": "/Users/shubing/.codex/worktrees/bba3/watch-companion/Design/WatchCompanionAssets/characters/bili-22-v2/qa/rows/idle/frames/idle/05.png",
+      "componentCount": 12,
+      "largestComponentPixels": 12235,
+      "removedPixels": 10
+    }
+  ],
+  "removedPixels": 409
+}

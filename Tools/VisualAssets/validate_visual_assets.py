@@ -103,6 +103,39 @@ def check_unit_rect(name: str, value: dict[str, Any], errors: list[str]) -> None
             errors.append(f"{name} extends beyond the bottom edge")
 
 
+def runtime_motion_statuses(run_dir: Path) -> dict[str, str]:
+    motion_manifest_path = run_dir / "product-motion" / "manifest.json"
+    if not motion_manifest_path.is_file():
+        return {}
+    try:
+        motion_manifest = json.loads(motion_manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return {
+        job["id"]: job["status"]
+        for job in motion_manifest.get("jobs", [])
+        if isinstance(job, dict)
+        and isinstance(job.get("id"), str)
+        and isinstance(job.get("status"), str)
+    }
+
+
+def runtime_source_frames(
+    run_dir: Path,
+    state: str,
+    source_row: str,
+    motion_statuses: dict[str, str] | None = None,
+) -> list[Path]:
+    product_motion = run_dir / "product-motion" / "frames" / state
+    product_frames = sorted(product_motion.glob("*.png"))
+    motion_status = (motion_statuses or runtime_motion_statuses(run_dir)).get(state)
+    if product_frames and motion_status in {None, "complete"}:
+        return product_frames
+    return sorted(
+        (run_dir / "qa" / "rows" / source_row / "frames" / source_row).glob("*.png")
+    )
+
+
 def validate_backgrounds(repo_root: Path, allow_pending: bool, errors: list[str]) -> dict[str, Any]:
     path = repo_root / "Design/WatchCompanionAssets/backgrounds/catalog.json"
     catalog = load_json(path, errors)
@@ -216,11 +249,14 @@ def validate_characters(repo_root: Path, allow_pending: bool, errors: list[str])
             )
 
     characters = catalog.get("characters", [])
-    if len(characters) != 2:
-        errors.append(f"{path}: expected exactly 2 characters, got {len(characters)}")
+    if len(characters) < 2:
+        errors.append(f"{path}: expected at least 2 characters, got {len(characters)}")
     ids = [item.get("id") for item in characters if isinstance(item, dict)]
-    if set(ids) != {"penguin", "polar_bear"}:
-        errors.append(f"{path}: character IDs must be penguin and polar_bear")
+    if len(ids) != len(set(ids)):
+        errors.append(f"{path}: duplicate character IDs")
+    for character_id in ids:
+        if not isinstance(character_id, str) or not ID_PATTERN.match(character_id):
+            errors.append(f"{path}: invalid character ID {character_id!r}")
     ready = 0
     for character in characters:
         character_id = character.get("id", "<missing>")
@@ -279,6 +315,60 @@ def validate_characters(repo_root: Path, allow_pending: bool, errors: list[str])
                 preview_path = run_dir / "qa/previews" / f"{state}.gif"
                 if not preview_path.is_file():
                     errors.append(f"{character_id}: missing motion preview {preview_path}")
+        elif status == "basic_ready":
+            ready += 1
+            if character.get("runtimeProfile") != "basic_interaction":
+                errors.append(
+                    f"{character_id}: basic_ready requires runtimeProfile basic_interaction"
+                )
+            jobs = load_json(run_dir / "imagegen-jobs.json", errors).get("jobs", [])
+            completed_job_ids = {
+                job.get("id")
+                for job in jobs
+                if isinstance(job, dict) and job.get("status") == "complete"
+            }
+            if not {"base", "idle"}.issubset(completed_job_ids):
+                errors.append(f"{character_id}: base and idle generation jobs must be complete")
+            idle_review = load_json(run_dir / "qa/rows/idle/review.json", errors)
+            if idle_review.get("ok") is not True:
+                errors.append(f"{character_id}: idle frame QA must pass")
+            motion_root = run_dir / "product-motion"
+            motion_manifest = load_json(motion_root / "manifest.json", errors)
+            motion_jobs = motion_manifest.get("jobs", [])
+            if {job.get("id") for job in motion_jobs if isinstance(job, dict)} != {
+                "touch_head",
+                "touch_body",
+                "social_leap",
+            }:
+                errors.append(f"{character_id}: runtime motion job set is incomplete")
+            if any(job.get("status") not in {"complete", "fallback"} for job in motion_jobs):
+                errors.append(
+                    f"{character_id}: runtime motion jobs must be complete or declare idle fallback"
+                )
+            for job in motion_jobs:
+                state = job.get("id")
+                if job.get("status") == "fallback":
+                    if job.get("fallbackState") != "idle":
+                        errors.append(
+                            f"{character_id}: {state} fallback must use validated idle frames"
+                        )
+                    continue
+                frames = sorted((motion_root / "frames" / state).glob("*.png"))
+                if len(frames) != 8:
+                    errors.append(
+                        f"{character_id}: {state} must provide exactly 8 runtime frames"
+                    )
+                for frame in frames:
+                    check_image(frame, errors, size=(192, 208), require_alpha=True)
+                review = load_json(motion_root / "qa" / state / "review.json", errors)
+                if review.get("ok") is not True:
+                    errors.append(f"{character_id}: {state} frame QA must pass")
+                check_image(motion_root / "qa" / state / "contact-sheet.png", errors)
+                preview_path = motion_root / "qa" / "previews" / f"{state}.gif"
+                if not preview_path.is_file():
+                    errors.append(
+                        f"{character_id}: missing runtime motion preview {preview_path}"
+                    )
         elif not allow_pending:
             errors.append(f"{character_id}: character status is {status!r}, expected ready")
     return {"count": len(characters), "ready": ready}
@@ -313,14 +403,25 @@ def validate_runtime_exports(repo_root: Path, errors: list[str]) -> dict[str, An
                 check_image(path, errors, size=size, require_opaque=True)
                 background_exports += 1
         for character in character_catalog.get("characters", []):
+            run_dir = resolve(repo_root, character.get("runDirectory", ""))
+            is_basic_interaction = character.get("runtimeProfile") == "basic_interaction"
+            motion_statuses = runtime_motion_statuses(run_dir)
+            idle_frames = sorted((run_dir / "qa/rows/idle/frames/idle").glob("*.png"))
             for state in EXPECTED_STATES:
                 row = state_rows.get(state)
-                run_dir = resolve(repo_root, character.get("runDirectory", ""))
-                source_frames = (
-                    sorted((run_dir / "qa" / "rows" / str(row) / "frames" / str(row)).glob("*.png"))
-                    if row
-                    else []
-                )
+                if is_basic_interaction and motion_statuses.get(state) != "complete":
+                    source_frames = idle_frames
+                else:
+                    source_frames = (
+                        runtime_source_frames(
+                            run_dir,
+                            state,
+                            str(row),
+                            motion_statuses,
+                        )
+                        if row
+                        else []
+                    )
                 if not source_frames:
                     errors.append(
                         f"{character['id']}: missing validated source frames for runtime state {state}"
@@ -352,11 +453,19 @@ def validate_scene_composites(repo_root: Path, errors: list[str]) -> dict[str, A
     background_catalog = load_json(
         repo_root / "Design/WatchCompanionAssets/backgrounds/catalog.json", errors
     )
+    character_catalog = load_json(
+        repo_root / "Design/WatchCompanionAssets/characters/catalog.json", errors
+    )
+    character_ids = [
+        character.get("id")
+        for character in character_catalog.get("characters", [])
+        if isinstance(character, dict) and isinstance(character.get("id"), str)
+    ]
     qa_root = repo_root / "Design/WatchCompanionAssets/qa/composites"
     single_count = 0
     duo_count = 0
     for scene in background_catalog.get("backgrounds", []):
-        for character_id in ("penguin", "polar_bear"):
+        for character_id in character_ids:
             check_image(
                 qa_root / "single" / f"{scene['id']}-{character_id}.png",
                 errors,

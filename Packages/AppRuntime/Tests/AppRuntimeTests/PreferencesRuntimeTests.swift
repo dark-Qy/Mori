@@ -91,6 +91,13 @@ struct PreferencesRuntimeTests {
         "polar_bear", "penguin", "polar_bear", "../../unknown",
       ]) == ["polar_bear", "penguin"]
     )
+    #expect(
+      CompanionVisualCatalog.normalizedCharacterIDs([
+        "bili_22", "bili_33", "penguin",
+      ]) == ["bili_22", "bili_33"]
+    )
+    #expect(CompanionVisualCatalog.characterDisplayName("bili_22") == "22 娘")
+    #expect(CompanionVisualCatalog.characterDisplayName("bili_33") == "33 娘")
     #expect(CompanionVisualCatalog.normalizedCharacterIDs(["../../unknown"]) == ["penguin"])
     #expect(
       CompanionVisualCatalog.normalizedBackgroundID("../../unknown")

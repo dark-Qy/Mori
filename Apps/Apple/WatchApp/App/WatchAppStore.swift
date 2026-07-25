@@ -103,7 +103,15 @@ final class WatchAppStore: ObservableObject {
   }
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
-    let initialModel = WatchPresentationModel.initial(arguments: arguments)
+    var initialModel = WatchPresentationModel.initial(arguments: arguments)
+    #if DEBUG
+      if arguments.contains("-UITesting"),
+        let characterID = arguments.first(where: { $0.hasPrefix("--character=") })?
+          .replacingOccurrences(of: "--character=", with: "")
+      {
+        initialModel = initialModel.selectingCharacter(characterID)
+      }
+    #endif
     #if DEBUG
       let touchExchangeDemoSocialState =
         arguments.first(where: { $0.hasPrefix("--touch-exchange-social-state=") })
@@ -661,7 +669,10 @@ final class WatchAppStore: ObservableObject {
           model = model.resolvingMockRelationship()
         }
       #endif
-      statusMessage = animation == .touchHead ? "Mori 开心地眨了眨眼" : "Mori 转过身回应了你"
+      statusMessage =
+        animation == .touchHead
+        ? "\(interactionSubjectName) 开心地眨了眨眼"
+        : "\(interactionSubjectName) 转过身回应了你"
       return
     }
     guard let runtime else { return }
@@ -672,9 +683,23 @@ final class WatchAppStore: ObservableObject {
         health: latestHealth,
         peerValues: latestPeerValues
       )
-      statusMessage = animation == .touchHead ? "Mori 开心地眨了眨眼" : "Mori 转过身回应了你"
+      statusMessage =
+        animation == .touchHead
+        ? "\(interactionSubjectName) 开心地眨了眨眼"
+        : "\(interactionSubjectName) 转过身回应了你"
     } catch {
-      statusMessage = "这次互动没能保存，但 Mori 已经看见你了"
+      statusMessage = "这次互动没能保存，但 \(interactionSubjectName) 已经看见你了"
+    }
+  }
+
+  private var interactionSubjectName: String {
+    let characterID =
+      preferences.selectedCharacterIDs.first ?? CompanionVisualCatalog.defaultCharacterID
+    return switch characterID {
+    case "bili_22", "bili_33":
+      CompanionVisualCatalog.characterDisplayName(characterID)
+    default:
+      "Mori"
     }
   }
 

@@ -7,16 +7,20 @@ enum PhonePetInteraction: String, Equatable {
   case touchBody = "touch_body"
 
   var statusMessage: String {
+    statusMessage(for: "Mori")
+  }
+
+  func statusMessage(for subjectName: String) -> String {
     switch self {
-    case .touchHead: "Mori 开心地眨了眨眼"
-    case .touchBody: "Mori 转过身回应了你"
+    case .touchHead: "\(subjectName) 开心地眨了眨眼"
+    case .touchBody: "\(subjectName) 转过身回应了你"
     }
   }
 
-  fileprivate var feedbackMessage: String {
+  fileprivate func feedbackMessage(for subjectName: String) -> String {
     switch self {
-    case .touchHead: "摸摸头 · Mori 眨了眨眼"
-    case .touchBody: "碰一碰 · Mori 转身靠近"
+    case .touchHead: "摸摸头 · \(subjectName) 眨了眨眼"
+    case .touchBody: "碰一碰 · \(subjectName) 转身靠近"
     }
   }
 
@@ -63,7 +67,7 @@ struct PhoneCompanionSceneView: View {
         animatedCharacter(in: geometry.size)
 
         if let transientInteraction {
-          Text(transientInteraction.feedbackMessage)
+          Text(transientInteraction.feedbackMessage(for: interactionSubjectName))
             .font(.caption.weight(.semibold))
             .foregroundStyle(.white)
             .padding(.horizontal, 12)
@@ -89,7 +93,7 @@ struct PhoneCompanionSceneView: View {
     .aspectRatio(4 / 3, contentMode: .fit)
     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     .overlay(alignment: .topTrailing) {
-      Label("摸摸 Mori", systemImage: "hand.tap.fill")
+      Label("摸摸 \(interactionSubjectName)", systemImage: "hand.tap.fill")
         .font(.caption2.weight(.semibold))
         .foregroundStyle(.white)
         .padding(.horizontal, 9)
@@ -100,7 +104,7 @@ struct PhoneCompanionSceneView: View {
         .accessibilityHidden(true)
     }
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("可以互动的 Mori")
+    .accessibilityLabel("可以互动的 \(interactionSubjectName)")
     .accessibilityValue("\(characterDisplayName)，\(backgroundDisplayName)")
     .accessibilityHint("双击会轻触身体；上下轻扫可选择摸摸头或轻触身体")
     .accessibilityAddTraits(.isButton)
@@ -198,7 +202,10 @@ struct PhoneCompanionSceneView: View {
     let haptic = UIImpactFeedbackGenerator(style: interaction.hapticStyle)
     haptic.prepare()
     haptic.impactOccurred(intensity: interaction.hapticIntensity)
-    UIAccessibility.post(notification: .announcement, argument: interaction.statusMessage)
+    UIAccessibility.post(
+      notification: .announcement,
+      argument: interaction.statusMessage(for: interactionSubjectName)
+    )
     onInteraction(interaction)
 
     Task { @MainActor in
@@ -240,7 +247,14 @@ struct PhoneCompanionSceneView: View {
   }
 
   private var characterDisplayName: String {
-    normalizedCharacterID == "polar_bear" ? "白熊伙伴" : "企鹅伙伴"
+    CompanionVisualCatalog.characterDisplayName(normalizedCharacterID)
+  }
+
+  private var interactionSubjectName: String {
+    switch normalizedCharacterID {
+    case "bili_22", "bili_33": characterDisplayName
+    default: "Mori"
+    }
   }
 
   private var backgroundDisplayName: String {

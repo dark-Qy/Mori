@@ -12,6 +12,8 @@ public enum CompanionVisualCatalog {
   public static let characterIDs = [
     "penguin",
     "polar_bear",
+    "bili_22",
+    "bili_33",
   ]
 
   public static let backgroundIDs = [
@@ -38,6 +40,15 @@ public enum CompanionVisualCatalog {
 
   public static func normalizedBackgroundID(_ value: String) -> String {
     backgroundIDs.contains(value) ? value : defaultBackgroundID
+  }
+
+  public static func characterDisplayName(_ id: String) -> String {
+    switch id {
+    case "polar_bear": "白熊伙伴"
+    case "bili_22": "22 娘"
+    case "bili_33": "33 娘"
+    default: "企鹅伙伴"
+    }
   }
 }
 

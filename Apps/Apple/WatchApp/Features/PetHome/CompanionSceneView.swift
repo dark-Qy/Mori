@@ -1,3 +1,4 @@
+import AppRuntime
 import SwiftUI
 import WatchKit
 
@@ -236,9 +237,6 @@ struct CompanionSceneView: View {
   }
 
   private func characterDisplayName(_ slot: WatchCharacterSlotPresentation) -> String {
-    switch slot.characterID {
-    case "polar_bear": "白熊伙伴"
-    default: "企鹅伙伴"
-    }
+    CompanionVisualCatalog.characterDisplayName(slot.characterID)
   }
 }

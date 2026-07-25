@@ -130,6 +130,10 @@ struct WatchPresentationModel {
     }
   #endif
 
+  func selectingCharacter(_ id: String) -> Self {
+    replacing(scene: scene.selectingCharacter(id))
+  }
+
   private static func invalidMock(_ value: String) -> Self {
     let base = liveNoData()
     return WatchPresentationModel(

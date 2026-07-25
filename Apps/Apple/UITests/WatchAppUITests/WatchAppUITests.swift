@@ -53,6 +53,29 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertFalse(element("watch.event-bubble", in: expired).waitForExistence(timeout: 1))
   }
 
+  func testBiliCharactersRenderAndRespondToTouch() {
+    for (id, displayName) in [("bili_22", "22 娘"), ("bili_33", "33 娘")] {
+      let app = launchApp(
+        scenario: "activity_high",
+        additionalArguments: ["--character=\(id)"]
+      )
+      let scene = app.buttons["watch.pet-home"]
+      XCTAssertTrue(scene.waitForExistence(timeout: 8))
+      XCTAssertEqual(scene.value as? String, "\(displayName)，春日花溪")
+
+      scene.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
+      let bubble = element("watch.event-bubble", in: app)
+      XCTAssertTrue(bubble.waitForExistence(timeout: 5))
+      XCTAssertTrue(bubble.label.contains("我在这里"))
+
+      Thread.sleep(forTimeInterval: 0.4)
+      scene.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.66)).tap()
+      XCTAssertTrue(bubble.waitForExistence(timeout: 5))
+      XCTAssertTrue(bubble.label.contains("再待一会儿也可以"))
+      app.terminate()
+    }
+  }
+
   func testMockGlanceIsPresentedAtMostOnceAcrossRelaunch() {
     let storageID = "glance-once-\(UUID().uuidString)"
     let arguments = [

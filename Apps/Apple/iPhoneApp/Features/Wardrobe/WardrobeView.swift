@@ -1,8 +1,11 @@
+import AppRuntime
 import SwiftUI
 
 struct PhoneCollectionView: View {
   @ObservedObject var store: PhoneAppStore
   @State private var category = PhoneCollectionCategory.clothing
+
+  private let characters = CompanionCharacterOption.all
 
   private var visibleItems: [PhoneCollectionItem] {
     PhoneCollectionItem.catalog.filter { $0.category == category }
@@ -19,6 +22,8 @@ struct PhoneCollectionView: View {
           .padding(.top, CompanionSpacing.small)
 
         collectionPreview
+
+        characterPicker
 
         Picker("收藏分类", selection: $category) {
           ForEach(PhoneCollectionCategory.allCases) { value in
@@ -97,7 +102,7 @@ struct PhoneCollectionView: View {
         endPoint: .bottom
       )
 
-      Image("character_penguin_idle_lively_00")
+      Image("character_\(store.selectedCharacterID)_idle_lively_00")
         .resizable()
         .interpolation(.none)
         .scaledToFit()
@@ -106,7 +111,7 @@ struct PhoneCollectionView: View {
 
       equippedItemSymbols
 
-      Text("黑色 Mori")
+      Text(characterName)
         .font(.caption.bold())
         .foregroundStyle(.white)
         .padding(.horizontal, 10)
@@ -119,8 +124,59 @@ struct PhoneCollectionView: View {
     .aspectRatio(1.55, contentMode: .fit)
     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("收藏预览，黑色 Mori")
+    .accessibilityLabel("收藏预览")
+    .accessibilityValue(characterName)
     .accessibilityIdentifier("phone.collection.preview")
+  }
+
+  private var characterPicker: some View {
+    VStack(alignment: .leading, spacing: CompanionSpacing.small) {
+      Text("伙伴")
+        .font(.headline)
+
+      ScrollView(.horizontal) {
+        HStack(spacing: CompanionSpacing.small) {
+          ForEach(characters) { character in
+            Button {
+              store.selectCharacter(character.id)
+            } label: {
+              VStack(spacing: 6) {
+                Image("character_\(character.id)_idle_neutral_00")
+                  .resizable()
+                  .interpolation(.none)
+                  .scaledToFit()
+                  .frame(width: 68, height: 72)
+
+                Text(character.name)
+                  .font(.caption.bold())
+                  .foregroundStyle(CompanionPalette.ink)
+              }
+              .padding(8)
+              .frame(width: 104)
+              .background(
+                store.selectedCharacterID == character.id
+                  ? CompanionPalette.mintSoft : CompanionPalette.surface,
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+              )
+              .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                  .stroke(
+                    store.selectedCharacterID == character.id
+                      ? CompanionPalette.mint : Color.clear,
+                    lineWidth: 2
+                  )
+              }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+              "\(character.name)\(store.selectedCharacterID == character.id ? "，正在陪伴" : "")"
+            )
+            .accessibilityIdentifier("phone.character.\(character.id)")
+          }
+        }
+      }
+      .scrollIndicators(.hidden)
+    }
   }
 
   @ViewBuilder
@@ -154,6 +210,10 @@ struct PhoneCollectionView: View {
       )
       .accessibilityHidden(true)
     }
+  }
+
+  private var characterName: String {
+    CompanionVisualCatalog.characterDisplayName(store.selectedCharacterID)
   }
 
   private func collectionItem(_ item: PhoneCollectionItem) -> some View {
@@ -222,4 +282,17 @@ struct PhoneCollectionView: View {
         .accessibilityHidden(true)
     }
   }
+}
+
+private struct CompanionCharacterOption: Identifiable {
+  let id: String
+  let name: String
+  let detail: String
+
+  static let all = [
+    CompanionCharacterOption(id: "penguin", name: "企鹅伙伴", detail: "黑发、蓝灰眼睛与企鹅装"),
+    CompanionCharacterOption(id: "polar_bear", name: "白熊伙伴", detail: "灰发、琥珀眼睛与白熊装"),
+    CompanionCharacterOption(id: "bili_22", name: "22 娘", detail: "深蓝长发与闪电形呆毛"),
+    CompanionCharacterOption(id: "bili_33", name: "33 娘", detail: "浅蓝侧马尾与播放发饰"),
+  ]
 }

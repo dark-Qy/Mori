@@ -204,6 +204,28 @@ struct WatchScenePresentation {
     )
   }
 
+  func selectingCharacter(_ requestedID: String) -> Self {
+    let characterID =
+      CompanionVisualCatalog.normalizedCharacterIDs([requestedID]).first
+      ?? CompanionVisualCatalog.defaultCharacterID
+    return WatchScenePresentation(
+      backgroundID: backgroundID,
+      backgroundDisplayName: backgroundDisplayName,
+      accessibilityDescription: accessibilityDescription,
+      foregroundAssetName: foregroundAssetName,
+      slots: slots.enumerated().map { index, slot in
+        guard index == 0 else { return slot }
+        return WatchCharacterSlotPresentation(
+          id: "\(slot.placement.rawValue)-\(characterID)",
+          characterID: characterID,
+          placement: slot.placement,
+          layout: slot.layout,
+          idleAnimation: slot.idleAnimation
+        )
+      }
+    )
+  }
+
   private static func idleAnimation(for mood: PetMood) -> WatchCharacterAnimation {
     switch mood {
     case .neutral: .idleNeutral
