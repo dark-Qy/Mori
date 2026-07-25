@@ -81,6 +81,8 @@ for marker in \
   "--touch-exchange-cancel-confirm-race" \
   "--touch-exchange-cancel-failure" \
   "--touch-exchange-social-state=" \
+  "--mori-experience-relay-control-file=" \
+  "--mori-experience-relay-role=" \
   "--e2e-storage-id=" \
   "--e2e-offline-runtime" \
   "--reset-e2e-storage"; do
