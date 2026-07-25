@@ -424,7 +424,7 @@
           body: "模拟来信：不用解释，要不要和我安静待一会儿？",
           fireDate: now.addingTimeInterval(max(1, delay)),
           route: "pet/care",
-          interruptionLevel: .timeSensitive
+          interruptionLevel: .active
         )
         do {
           let decision = try await ProactiveInteractionService(client: mockNotifications).schedule(

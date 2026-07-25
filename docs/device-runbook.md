@@ -104,10 +104,11 @@ configured quiet hours.
 9. Open and reopen each delivered notification. It may navigate only and cannot
    create a task, settle a coin, or restore deleted content.
 10. In the focused Debug notification run, select `Mock 2`, verify the
-    first-request explanation, schedule the labeled Time Sensitive local
-    notification, and confirm the system setting is enabled.
+    first-request explanation, schedule the labeled ordinary local notification,
+    and confirm notification permission is enabled.
 11. Test the `Mock 2` notification with iPhone foreground, background,
-    terminated, and under Focus. Record normal Apple mirroring to Watch; do not
+    terminated, and under Focus. Record whether normal Focus rules suppress or
+    deliver it and whether Apple mirrors it to Watch; do not
     schedule a second Mock notification directly on Watch.
 12. Reopen the Mock route and verify no duplicate task or reward. Deny
     permission and verify a usable in-app path without repeated prompting.

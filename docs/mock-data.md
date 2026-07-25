@@ -66,7 +66,7 @@ arrival time and wall-clock time are not authority.
 
 `Mock 2` is the one explicit system-notification fixture. On iPhone, a focused
 Debug run may opt in with `--enable-mock-system-notification` and schedule one
-labeled Time Sensitive care message after 60 seconds. General UI tests suppress
+labeled ordinary care notification after 60 seconds. General UI tests suppress
 the system prompt. Normal Apple routing decides whether iPhone delivery mirrors
 to Watch; Watch does not schedule a second notification. The selection token
 makes scheduling once-per-selection, switching sources cancels it, and its

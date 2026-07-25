@@ -16,7 +16,7 @@ public struct ApprovedProactiveInteraction: Equatable, Sendable {
     body: String,
     fireDate: Date,
     route: String,
-    interruptionLevel: LocalNotificationInterruptionLevel = .timeSensitive
+    interruptionLevel: LocalNotificationInterruptionLevel = .active
   ) {
     self.id = id
     self.title = title

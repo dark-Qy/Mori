@@ -119,9 +119,9 @@ Narration: how does the pet express it?
 Quiet hours, active rest, frequency caps, cooldowns, stale-data checks, and user notification settings outrank story urgency. The pet can remain quiet; silence is a valid companion behavior. AI cannot schedule or send a notification directly.
 
 Phase one does not implement custom Focus filters or Focus-status behavior. Approved proactive
-Mori messages use the system Time Sensitive interruption level with the default sound. This can
-break through Focus and notification summaries when the user allows Time Sensitive notifications;
-it does not use the separately approved Critical Alerts entitlement.
+Mori messages use the system active interruption level with the default sound. They follow the
+user's normal Focus and notification-summary rules and cannot bypass them. Phase one does not use
+the separately approved Critical Alerts entitlement.
 
 For the current local-notification slice, the seeded scheduler chooses a replay-stable whole-minute
 delay between 10 and 90 minutes from the latest approved state. Different event histories can lead
