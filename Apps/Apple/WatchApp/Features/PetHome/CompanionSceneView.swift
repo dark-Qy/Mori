@@ -4,6 +4,11 @@ import WatchKit
 struct CompanionSceneView: View {
   let scene: WatchScenePresentation
   var reaction: WatchSceneReaction?
+  var usesStaticArtwork = false
+  var cornerRadius: CGFloat = 22
+  var showsTouchHint = true
+  var sceneAccessibilityIdentifier = "watch.companion-scene"
+  var onLongPress: () -> Void = {}
   var onInteraction: (WatchCharacterAnimation) -> Void = { _ in }
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -42,36 +47,47 @@ struct CompanionSceneView: View {
       }
       .contentShape(Rectangle())
       .gesture(
-        DragGesture(minimumDistance: 0)
+        LongPressGesture(minimumDuration: 0.55)
+          .exclusively(before: SpatialTapGesture())
           .onEnded { value in
-            guard let animation = interaction(at: value.location, in: geometry.size) else {
-              return
+            switch value {
+            case .first:
+              onLongPress()
+            case .second(let tap):
+              guard let animation = interaction(at: tap.location, in: geometry.size) else {
+                return
+              }
+              respondToTouch(animation)
             }
-            respondToTouch(animation)
           }
       )
     }
-    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     .overlay(alignment: .topTrailing) {
-      Image(systemName: "hand.tap.fill")
-        .font(.caption2.weight(.semibold))
-        .foregroundStyle(.white.opacity(0.9))
-        .padding(8)
-        .background(.black.opacity(0.28), in: Circle())
-        .padding(8)
-        .accessibilityHidden(true)
+      if showsTouchHint {
+        Image(systemName: "hand.tap.fill")
+          .font(.caption2.weight(.semibold))
+          .foregroundStyle(.white.opacity(0.9))
+          .padding(8)
+          .background(.black.opacity(0.28), in: Circle())
+          .padding(8)
+          .accessibilityHidden(true)
+      }
     }
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("互动伙伴场景，\(scene.accessibilityDescription)")
     .accessibilityValue(
       "\(scene.slots.map(characterDisplayName).joined(separator: "、"))，\(scene.backgroundDisplayName)"
     )
-    .accessibilityHint("轻点角色头部或身体会得到不同回应")
+    .accessibilityHint("轻点 Mori 会得到回应；长按打开功能菜单")
     .accessibilityAddTraits(.isButton)
     .accessibilityAction {
       respondToTouch(.touchBody)
     }
-    .accessibilityIdentifier("watch.companion-scene")
+    .accessibilityAction(named: Text("打开功能菜单")) {
+      onLongPress()
+    }
+    .accessibilityIdentifier(sceneAccessibilityIdentifier)
     .onChange(of: reaction) { _, value in
       guard let value else { return }
       play(value.animation, recordsInteraction: false)
@@ -85,35 +101,54 @@ struct CompanionSceneView: View {
   ) -> some View {
     let animation = transientAnimation ?? slot.idleAnimation
     let characterSize = characterSize(for: slot, in: size)
-    TimelineView(.animation(minimumInterval: 1 / WatchScenePresentation.framesPerSecond)) {
-      context in
-      let frameIndex =
-        reduceMotion
-        ? animation.reduceMotionFrameIndex
-        : frameIndex(for: animation, at: context.date)
-      Image(
-        scene.frameAssetName(
-          characterID: slot.characterID,
+    if usesStaticArtwork || reduceMotion {
+      characterFrame(
+        slot: slot,
+        animation: animation,
+        frameIndex: animation.reduceMotionFrameIndex,
+        characterSize: characterSize,
+        sceneSize: size
+      )
+    } else {
+      TimelineView(.animation(minimumInterval: 1 / WatchScenePresentation.framesPerSecond)) {
+        context in
+        characterFrame(
+          slot: slot,
           animation: animation,
-          index: frameIndex
+          frameIndex: frameIndex(for: animation, at: context.date),
+          characterSize: characterSize,
+          sceneSize: size
         )
-      )
-      .resizable()
-      .interpolation(.none)
-      .scaledToFit()
-      .frame(
-        width: characterSize.width,
-        height: characterSize.height
-      )
-      .scaleEffect(transientAnimation == .touchHead && !reduceMotion ? 1.04 : 1)
-      .rotationEffect(.degrees(transientAnimation == .touchBody && !reduceMotion ? 2 : 0))
-      .position(
-        x: size.width * slot.layout.normalizedX,
-        y: size.height * slot.layout.normalizedFootY
-          - characterSize.height / 2
-      )
-      .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: transientAnimation)
+      }
     }
+  }
+
+  private func characterFrame(
+    slot: WatchCharacterSlotPresentation,
+    animation: WatchCharacterAnimation,
+    frameIndex: Int,
+    characterSize: CGSize,
+    sceneSize: CGSize
+  ) -> some View {
+    Image(
+      scene.frameAssetName(
+        characterID: slot.characterID,
+        animation: animation,
+        index: frameIndex
+      )
+    )
+    .resizable()
+    .interpolation(.none)
+    .scaledToFit()
+    .frame(width: characterSize.width, height: characterSize.height)
+    .scaleEffect(transientAnimation == .touchHead && !reduceMotion ? 1.04 : 1)
+    .rotationEffect(.degrees(transientAnimation == .touchBody && !reduceMotion ? 2 : 0))
+    .position(
+      x: sceneSize.width * slot.layout.normalizedX,
+      y: sceneSize.height * slot.layout.normalizedFootY
+        - characterSize.height / 2
+    )
+    .animation(reduceMotion ? nil : .smooth(duration: 0.18), value: transientAnimation)
   }
 
   private func interaction(at point: CGPoint, in size: CGSize) -> WatchCharacterAnimation? {

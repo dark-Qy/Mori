@@ -47,6 +47,16 @@ PY
 project_path="$(find "$REPO_ROOT/Apps" -name '*.xcodeproj' -type d -exec test -f '{}/project.pbxproj' \; -print 2>/dev/null | sort | head -n 1 || true)"
 ran_tests=false
 
+scripts_test_directory="$REPO_ROOT/Scripts/tests"
+if [[ -d "$scripts_test_directory" ]]; then
+  echo "Running repository support-script tests."
+  /usr/bin/python3 -m unittest discover \
+    -s "$scripts_test_directory" \
+    -p 'test_*.py' \
+    -v
+  ran_tests=true
+fi
+
 package_manifests=()
 while IFS= read -r manifest; do
   package_manifests+=("$manifest")

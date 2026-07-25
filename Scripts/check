@@ -19,6 +19,14 @@ while IFS= read -r document; do
   /usr/bin/python3 -m json.tool "$document" >/dev/null
 done < <(find "$REPO_ROOT/Fixtures" "$REPO_ROOT/TestPlans" \( -name '*.json' -o -name '*.xctestplan' \) -type f -print 2>/dev/null | sort)
 
+while IFS= read -r document; do
+  /usr/bin/python3 -m json.tool "$document" >/dev/null
+done < <(
+  find \
+    "$REPO_ROOT/Packages/CompanionCore/Tests/MoriPersistenceTests/Fixtures" \
+    -name '*.json' ! -name 'malformed.json' -type f -print 2>/dev/null | sort
+)
+
 required_scenarios=(
   fresh_install
   permission_not_requested

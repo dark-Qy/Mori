@@ -1,6 +1,7 @@
 # ADR 0001: Watch-first product and authority boundaries
 
-- Status: Accepted
+- Status: Accepted for platform boundaries; product/rule/social details
+  superseded by `PRODUCT.md`, `DESIGN.md`, and ADR 0002–0006
 - Date: 2026-07-23
 
 ## Context
@@ -13,7 +14,10 @@ Health-derived gameplay also requires a strict boundary between deterministic pr
 
 ### Product surfaces
 
-Apple Watch is the primary interaction surface for the pet, habits, story, notifications, haptics, and later mutual social interactions. iPhone is a simple companion for settings, privacy, history, collections, and cosmetic wardrobe management.
+Apple Watch is the primary passive-presence surface for Mori, short
+interactions, best-effort reminders, and later mutual social interaction.
+iPhone carries conversation, Today, memories, collection, settings, privacy,
+and development controls.
 
 The product does not include:
 
@@ -24,9 +28,13 @@ The product does not include:
 
 ### Authority
 
-Deterministic rules and reducers own facts, story transitions, growth, rewards, commitments, eligibility, consent, sharing scopes, quiet hours, and notification limits.
+Deterministic rules and reducers own facts, passive events, tasks, coins,
+memories, collection state, eligibility, consent, quiet hours, and notification
+limits.
 
-Seeded randomness may select the timing or presence of an eligible optional event. It cannot create eligibility, alter rewards, change the common main story, or bypass safety constraints.
+Seeded randomness may select the timing or expression of an eligible optional
+event. It cannot create eligibility, alter rewards, or bypass safety
+constraints.
 
 AI may generate bounded expression after an authoritative transition. It cannot modify state, diagnose health, schedule notifications, change permissions, or perform social actions. Invalid or unavailable AI falls back to local templates.
 
@@ -38,7 +46,11 @@ When Personal Team restrictions, simulator limits, missing devices, or unavailab
 
 ### Social connection
 
-Friendship requires mutual confirmation. Health-sharing scope is directional and controlled by the data owner. Nearby Interaction, if device verified later, supplies proximity evidence only; it does not discover peers, transfer business data, establish identity, or replace consent.
+Friendship requires mutual confirmation. The current product transfers only the
+allowlisted public pet card and game-only social state; it has no health-sharing
+scope. Nearby Interaction, if device verified later, supplies proximity evidence
+only; it does not discover peers, transfer business data, establish identity, or
+replace consent.
 
 ## Consequences
 

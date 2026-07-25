@@ -1,104 +1,70 @@
-import AppRuntime
+import MoriRuntime
 import SwiftUI
 
-struct OverviewView: View {
+struct MoriHomeView: View {
   @ObservedObject var store: PhoneAppStore
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  @State private var showsDataSourcePicker = false
   @State private var showsChat = false
   @State private var chatOpeningLine = MoriChatNudge.gentle.openingLine
-
-  private var model: PhonePresentationModel { store.model }
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @FocusState private var isComposerFocused: Bool
+  @State private var conversationIsAtBottom = true
+  @State private var followsConversationBottom = true
+  @State private var isUserScrollingConversation = false
 
   var body: some View {
-    PhonePage {
-      VStack(spacing: CompanionSpacing.medium) {
-        HStack {
-          PhoneDataBadge(model: model)
-          Spacer()
-        }
-        .padding(.top, CompanionSpacing.small)
-
-        PetOverviewCard(
-          model: model,
-          characterID: store.preferences.selectedCharacterIDs.first
-            ?? CompanionVisualCatalog.defaultCharacterID,
-          backgroundID: store.preferences.selectedBackgroundID,
-          chatNudge: store.chatNudge,
-          onCompanionInteraction: { interaction in
+    ScrollViewReader { proxy in
+      ScrollView {
+        LazyVStack(spacing: 0) {
+          MoriSceneHero(
+            sceneID: store.selectedSceneID,
+            characterID: store.selectedCharacterID,
+            model: store.model
+          ) { interaction in
             Task { await store.companionInteraction(interaction) }
-          },
-          onOpenChat: {
-            chatOpeningLine = store.openChatNudge().openingLine
-            showsChat = true
           }
-        )
 
-        metricTiles
-
-        CompanionCard {
-          Label("今日主线", systemImage: "map.fill")
-            .font(.caption.weight(.bold))
-            .foregroundStyle(CompanionPalette.gold)
-          Text(model.questTitle)
-            .font(.headline)
-            .padding(.top, 5)
-            .accessibilityIdentifier("phone.quest-title")
-          Text(model.questDetail)
-            .font(.subheadline)
-            .foregroundStyle(CompanionPalette.secondaryText)
-            .padding(.top, 2)
-            .accessibilityIdentifier("phone.quest-detail")
-          ProgressView(value: model.questProgress)
-            .tint(CompanionPalette.gold)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
+          if let chatNudge = store.chatNudge {
+            MoriChatNudgeBubble(nudge: chatNudge) {
+              chatOpeningLine = store.openChatNudge().openingLine
+              showsChat = true
+            }
+            .padding(.horizontal, CompanionSpacing.page)
             .padding(.top, CompanionSpacing.small)
-            .accessibilityLabel("今日主线进度")
-            .accessibilityValue("\(Int(model.questProgress * 100))%")
-        }
-        .accessibilityIdentifier("phone.today-quest")
-
-        CompanionCard {
-          Label("数据说明", systemImage: "info.circle.fill")
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(CompanionPalette.blue)
-            .accessibilityIdentifier("phone.data-explanation.title")
-          Text(model.dataExplanation)
-            .font(.footnote)
-            .foregroundStyle(CompanionPalette.secondaryText)
-            .padding(.top, 5)
-            .accessibilityIdentifier("phone.data-explanation.detail")
-        }
-
-        if store.dataSourceSelectionAvailable {
-          Button {
-            showsDataSourcePicker = true
-          } label: {
-            Label(
-              store.isRefreshingHealth
-                ? "正在读取…"
-                : "数据来源 · \(store.selectedDataSource.displayName)",
-              systemImage: "heart.text.clipboard"
-            )
-            .frame(maxWidth: .infinity)
           }
-          .buttonStyle(.borderedProminent)
-          .tint(CompanionPalette.mint)
-          .disabled(store.isRefreshingHealth)
-          .accessibilityIdentifier("phone.connect-health")
-        }
 
-        if let status = store.statusMessage {
-          Text(status)
-            .font(.footnote)
-            .foregroundStyle(CompanionPalette.secondaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityIdentifier("phone.status-message")
+          conversation
+            .padding(.horizontal, CompanionSpacing.page)
+            .padding(.top, CompanionSpacing.large)
+            .padding(.bottom, CompanionSpacing.medium)
         }
+      }
+      .background(CompanionPalette.background.ignoresSafeArea())
+      .onScrollGeometryChange(for: Bool.self) { geometry in
+        geometry.contentOffset.y + geometry.containerSize.height
+          >= geometry.contentSize.height - 36
+      } action: { _, isAtBottom in
+        conversationIsAtBottom = isAtBottom
+      }
+      .onScrollPhaseChange { _, newPhase, _ in
+        if newPhase == .interacting {
+          isUserScrollingConversation = true
+        } else if newPhase == .idle, isUserScrollingConversation {
+          followsConversationBottom = conversationIsAtBottom
+          isUserScrollingConversation = false
+        }
+      }
+      .safeAreaInset(edge: .bottom) {
+        composer
+      }
+      .onChange(of: store.conversation.messages.last?.id) {
+        scrollToConversationBottom(proxy)
+      }
+      .onChange(of: streamingText) {
+        scrollToConversationBottom(proxy)
       }
     }
     .navigationTitle("Mori")
+    .navigationBarTitleDisplayMode(.inline)
     .accessibilityIdentifier("phone.overview")
     .task {
       store.scheduleChatNudge()
@@ -106,151 +72,337 @@ struct OverviewView: View {
     .navigationDestination(isPresented: $showsChat) {
       MoriChatView(store: store, openingLine: chatOpeningLine)
     }
-    .sheet(isPresented: $showsDataSourcePicker) {
-      PhoneDataSourcePicker(store: store, isPresented: $showsDataSourcePicker)
+    .alert(
+      "发送前确认",
+      isPresented: Binding(
+        get: {
+          store.conversation.phase
+            == .warningConfirmationRequired
+        },
+        set: { _ in }
+      )
+    ) {
+      Button("取消", role: .cancel) {
+        store.cancelConversationWarning()
+      }
+      Button("仍要发送") {
+        Task { await store.confirmConversationWarning() }
+      }
+      .accessibilityIdentifier("phone.mori.warning-confirm")
+    } message: {
+      Text(
+        store.conversation.warningText
+          ?? "这段话可能包含敏感内容，仍要发送吗？"
+      )
     }
   }
 
-  @ViewBuilder private var metricTiles: some View {
-    if dynamicTypeSize.isAccessibilitySize {
-      VStack(spacing: CompanionSpacing.small) {
-        ForEach(model.metrics) { metric in
-          MetricTile(metric: metric)
-        }
-      }
-    } else {
-      HStack(spacing: CompanionSpacing.small) {
-        ForEach(model.metrics) { metric in
-          MetricTile(metric: metric)
-        }
-      }
-    }
-  }
-}
-
-private struct PetOverviewCard: View {
-  let model: PhonePresentationModel
-  let characterID: String
-  let backgroundID: String
-  let chatNudge: MoriChatNudge?
-  let onCompanionInteraction: (PhonePetInteraction) -> Void
-  let onOpenChat: () -> Void
-
-  var body: some View {
+  @ViewBuilder
+  private var conversation: some View {
     VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
-      PhoneCompanionSceneView(
-        characterID: characterID,
-        backgroundID: backgroundID,
-        onInteraction: onCompanionInteraction
-      )
-      .overlay(alignment: .topLeading) {
-        if let chatNudge {
-          MoriChatNudgeBubble(nudge: chatNudge, action: onOpenChat)
-            .padding(10)
+      HStack(alignment: .firstTextBaseline) {
+        Text("和 Mori 说说话")
+          .font(.title3.bold())
+        Spacer()
+        if store.model.isLive {
+          Text("待接入")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(CompanionPalette.secondaryText)
+        } else {
+          Label("本机预览", systemImage: "iphone")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(CompanionPalette.mint)
         }
       }
-      .animation(.easeOut(duration: 0.22), value: chatNudge?.id)
 
-      VStack(alignment: .leading, spacing: 3) {
-        Text("Mori · Lv.\(model.level)")
-          .font(.title3.weight(.bold))
-          .accessibilityIdentifier("phone.pet-level")
-        Text(model.mood)
-          .font(.subheadline)
-          .foregroundStyle(.white)
+      if store.model.isLive {
+        ContentUnavailableView(
+          "对话暂未开放",
+          systemImage: "bubble.left.and.bubble.right",
+          description: Text("正式对话运行时将在后续接入；这里不会用演示回复冒充真实服务。")
+        )
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 30)
+        .accessibilityIdentifier("phone.mori.chat-unavailable")
+      } else if store.model.allowsInteraction == false {
+        ContentUnavailableView(
+          "Mock 场景无效",
+          systemImage: "exclamationmark.triangle",
+          description: Text("请到设置中选择有效的 Mock 数据。")
+        )
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 30)
+        .accessibilityIdentifier("phone.mori.invalid-mock")
+      } else {
+        if store.conversation.messages.isEmpty {
+          MoriMessageRow(
+            message: PhoneConversationDisplayMessage(
+              id: "welcome",
+              role: .mori,
+              text: "我在这里。今天想和我说什么？"
+            )
+          )
+        }
+
+        ForEach(store.conversation.messages) { message in
+          MoriMessageRow(message: message)
+            .id(message.id)
+        }
+
+        if case .streaming(let text) = store.conversation.phase {
+          MoriMessageRow(
+            message: PhoneConversationDisplayMessage(
+              id: "streaming",
+              role: .mori,
+              text: text
+            ),
+            isStreaming: true
+          )
+          .id("streaming")
+        }
+
+        conversationStatus
+
+        Color.clear
+          .frame(height: 1)
+          .id("phone.mori.conversation-bottom")
+          .accessibilityHidden(true)
+
+        Text("本机回复不会完成任务、发放金币或声称知道没有感知到的事实。")
+          .font(.caption)
+          .foregroundStyle(CompanionPalette.secondaryText)
           .fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("phone.mori.local-disclosure")
       }
+    }
+  }
 
-      VStack(spacing: 5) {
-        HStack {
-          Label("生命力", systemImage: "leaf.fill")
-            .accessibilityIdentifier("phone.pet-vitality-label")
-          Spacer()
-          Text("\(model.vitality)/100")
-            .monospacedDigit()
+  @ViewBuilder
+  private var conversationStatus: some View {
+    switch store.conversation.phase {
+    case .scanning:
+      ConversationProgressRow(text: "正在检查这段话")
+        .accessibilityIdentifier("phone.mori.chat-scanning")
+    case .sending:
+      ConversationProgressRow(text: "Mori 正在听")
+        .accessibilityIdentifier("phone.mori.chat-sending")
+    case .failed(let failure):
+      VStack(alignment: .leading, spacing: CompanionSpacing.small) {
+        Label(
+          failure == .cancelled ? "已停止" : failure.phoneMessage,
+          systemImage:
+            failure == .cancelled
+            ? "stop.circle"
+            : "exclamationmark.circle"
+        )
+        .font(.footnote)
+        .foregroundStyle(CompanionPalette.secondaryText)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityLabel(failure.phoneMessage)
+        .accessibilityIdentifier("phone.mori.chat-failure")
+
+        if store.conversation.canRetry {
+          Button("重试刚才的话") {
+            Task { await store.retryConversation() }
+          }
+          .buttonStyle(.borderless)
+          .font(.footnote.weight(.semibold))
+          .accessibilityIdentifier("phone.mori.retry")
         }
-        .font(.subheadline.weight(.semibold))
-        ProgressView(value: Double(model.vitality), total: 100)
-          .tint(.white)
-          .frame(minHeight: 44)
-          .contentShape(Rectangle())
-          .accessibilityLabel("生命力")
-          .accessibilityValue("\(model.vitality)/100")
       }
+      .accessibilityElement(children: .contain)
+    case .idle, .warningConfirmationRequired, .streaming:
+      EmptyView()
+    }
+  }
 
-      Label(model.syncStatus, systemImage: "applewatch.radiowaves.left.and.right")
-        .font(.caption)
-        .foregroundStyle(.white)
-    }
-    .foregroundStyle(.white)
-    .padding(CompanionSpacing.large)
-    .background {
-      LinearGradient(
-        colors: [Color(red: 0.055, green: 0.34, blue: 0.27), CompanionPalette.heroMint],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
+  private var composer: some View {
+    HStack(alignment: .bottom, spacing: CompanionSpacing.small) {
+      TextField(
+        composerPlaceholder,
+        text: Binding(
+          get: { store.conversation.draft },
+          set: store.setConversationDraft
+        ),
+        axis: .vertical
       )
-      .clipShape(RoundedRectangle(cornerRadius: CompanionRadius.hero, style: .continuous))
+      .lineLimit(1...4)
+      .textFieldStyle(.plain)
+      .focused($isComposerFocused)
+      .submitLabel(.send)
+      .onSubmit(send)
+      .disabled(store.companionExperienceAvailable == false)
+      .accessibilityIdentifier("phone.mori.composer")
+
+      if store.conversation.phase.isBusy {
+        Button(action: store.cancelConversationResponse) {
+          Image(systemName: "stop.circle.fill")
+            .font(.title2)
+        }
+        .accessibilityLabel("停止回复")
+        .accessibilityIdentifier("phone.mori.cancel")
+      } else {
+        Button(action: send) {
+          Image(systemName: "arrow.up.circle.fill")
+            .font(.title2)
+        }
+        .disabled(canSend == false)
+        .accessibilityLabel("发送")
+        .accessibilityIdentifier("phone.mori.send")
+      }
     }
-    .accessibilityElement(children: .contain)
-    .accessibilityIdentifier("phone.pet-overview")
+    .padding(.horizontal, CompanionSpacing.page)
+    .padding(.vertical, 11)
+    .background(.regularMaterial)
+  }
+
+  private var canSend: Bool {
+    store.conversation.draft
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .isEmpty == false
+      && store.companionExperienceAvailable
+      && store.conversation.phase.isBusy == false
+  }
+
+  private var streamingText: String? {
+    if case .streaming(let text) = store.conversation.phase {
+      return text
+    }
+    return nil
+  }
+
+  private var composerPlaceholder: String {
+    store.model.isLive
+      ? "正式对话尚未开放"
+      : "给 Mori 留句话"
+  }
+
+  private func send() {
+    let value = store.conversation.draft
+    guard value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    else {
+      return
+    }
+    Task {
+      await store.sendConversationMessage(value)
+    }
+  }
+
+  private func scrollToConversationBottom(
+    _ proxy: ScrollViewProxy
+  ) {
+    guard followsConversationBottom else { return }
+    if reduceMotion {
+      proxy.scrollTo("phone.mori.conversation-bottom", anchor: .bottom)
+    } else {
+      withAnimation(.easeOut(duration: 0.2)) {
+        proxy.scrollTo("phone.mori.conversation-bottom", anchor: .bottom)
+      }
+    }
   }
 }
 
-private struct PhoneDataSourcePicker: View {
-  @ObservedObject var store: PhoneAppStore
-  @Binding var isPresented: Bool
+struct MoriSceneHero: View {
+  let sceneID: String
+  let characterID: String
+  let model: PhonePresentationModel
+  let onInteraction: (PhonePetInteraction) -> Void
 
   var body: some View {
-    NavigationStack {
-      List(CompanionDataSource.allCases, id: \.self) { source in
-        Button {
-          isPresented = false
-          Task { await store.selectDataSource(source) }
-        } label: {
-          HStack {
-            Label(
-              source.displayName, systemImage: source == .healthKit ? "heart.fill" : "testtube.2")
-            Spacer()
-            if source == store.selectedDataSource {
-              Image(systemName: "checkmark")
-                .foregroundStyle(CompanionPalette.mint)
+    PhoneCompanionSceneView(
+      characterID: characterID,
+      backgroundID: sceneID,
+      onInteraction: onInteraction
+    )
+    .overlay(alignment: .bottom) {
+      HStack {
+        PhoneDataBadge(model: model)
+        Spacer()
+        Text("Mori 在这里")
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.white)
+          .padding(.horizontal, 10)
+          .padding(.vertical, 6)
+          .background(.black.opacity(0.72), in: Capsule())
+      }
+      .padding(CompanionSpacing.medium)
+      .allowsHitTesting(false)
+    }
+    .padding(.horizontal, CompanionSpacing.page)
+    .padding(.top, CompanionSpacing.small)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("phone.mori.scene")
+  }
+}
+
+private struct MoriMessageRow: View {
+  let message: PhoneConversationDisplayMessage
+  var isStreaming = false
+
+  @ViewBuilder
+  var body: some View {
+    if message.role == .localSystem {
+      Text(message.text)
+        .font(.footnote)
+        .foregroundStyle(CompanionPalette.secondaryText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityIdentifier(
+          "phone.mori.message.\(message.id)"
+        )
+        .accessibilityLabel("本机提示：\(message.text)")
+    } else {
+      HStack(alignment: .bottom) {
+        if message.role == .user {
+          Spacer(minLength: 54)
+        }
+        Text(message.text)
+          .font(.body)
+          .foregroundStyle(
+            message.role == .user ? Color.white : CompanionPalette.ink
+          )
+          .padding(.horizontal, 14)
+          .padding(.vertical, 10)
+          .background(
+            message.role == .user
+              ? CompanionPalette.mint
+              : CompanionPalette.surface,
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+          )
+          .overlay(alignment: .bottomTrailing) {
+            if isStreaming {
+              ProgressView()
+                .controlSize(.mini)
+                .padding(6)
                 .accessibilityHidden(true)
             }
           }
+          .accessibilityLabel(
+            "\(message.role == .user ? "你" : "Mori")：\(message.text)"
+          )
+          .accessibilityIdentifier(
+            "phone.mori.message.\(message.id)"
+          )
+        if message.role == .mori {
+          Spacer(minLength: 54)
         }
-        .accessibilityIdentifier("phone.data-source.option.\(source.rawValue)")
       }
-      .navigationTitle("选择数据来源")
-      .accessibilityIdentifier("phone.data-source-picker")
+      .frame(maxWidth: .infinity)
     }
-    .presentationDetents([.medium])
   }
 }
 
-private struct MetricTile: View {
-  let metric: PhoneMetric
+private struct ConversationProgressRow: View {
+  let text: String
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 5) {
-      Image(systemName: metric.symbol)
-        .foregroundStyle(CompanionPalette.mint)
-      Text(metric.value)
-        .font(.title3.monospacedDigit().weight(.bold))
-      Text(metric.title)
-        .font(.caption.weight(.semibold))
-      Text(metric.detail)
-        .font(.caption)
+    HStack(spacing: CompanionSpacing.small) {
+      ProgressView()
+        .controlSize(.small)
+      Text(text)
+        .font(.footnote)
         .foregroundStyle(CompanionPalette.secondaryText)
-        .lineLimit(2)
     }
-    .frame(maxWidth: .infinity, minHeight: 116, alignment: .leading)
-    .padding(CompanionSpacing.small)
-    .background(
-      CompanionPalette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-    )
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("\(metric.title)，\(metric.accessibilityValue)。\(metric.detail)")
-    .accessibilityIdentifier("phone.metric.\(metric.id)")
   }
 }

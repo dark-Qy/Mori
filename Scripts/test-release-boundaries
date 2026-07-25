@@ -76,6 +76,7 @@ for marker in \
   "-UITesting" \
   "--notification-route=" \
   "--enable-mock-system-notification" \
+  "--chat-behavior=" \
   "--touch-exchange-demo" \
   "--touch-exchange-peer-first" \
   "--touch-exchange-cancel-confirm-race" \
@@ -83,6 +84,8 @@ for marker in \
   "--touch-exchange-social-state=" \
   "--touch-exchange-sharing-disabled" \
   "--touch-exchange-phone-authority-missing" \
+  "--mori-experience-relay-control-file=" \
+  "--mori-experience-relay-role=" \
   "--e2e-storage-id=" \
   "--e2e-offline-runtime" \
   "--reset-e2e-storage"; do

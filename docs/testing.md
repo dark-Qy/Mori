@@ -1,5 +1,11 @@
 # Testing Strategy
 
+> **Historical prototype test strategy — non-authoritative for the rebuild.**
+> Growth, fixed-story, commitment, and legacy phase requirements below describe
+> the code being removed. `docs/mori-rebuild-test-matrix.md` owns current test
+> requirements. G1–G9 must replace this file with the implemented strategy
+> before release quality closes.
+
 ## Test philosophy
 
 Tests must prove product invariants, not merely exercise lines. Simulator success is not evidence for physical sensors, haptics, background execution, or UWB. Mocks prove application behavior under a declared scenario; they never prove that Apple hardware supplies that scenario.

@@ -1,5 +1,12 @@
 # Architecture
 
+> **Historical implementation architecture — non-authoritative for new product
+> work.** This document explains the current prototype and is useful for
+> migration. New architecture must follow `PRODUCT.md`, `DESIGN.md`,
+> `docs/mori-rebuild-goal-plan.md`, and ADR 0002–0006. G1–G3 will replace this
+> file with the implemented Mori domain, profile, synchronization, and
+> conversation architecture before those Goals are closed.
+
 ## Goals
 
 The architecture must keep the Apple Watch experience functional offline, make product rules deterministic and testable, isolate sensitive platform data, and allow unavailable capabilities to be replaced by clearly labeled mocks without changing domain behavior.

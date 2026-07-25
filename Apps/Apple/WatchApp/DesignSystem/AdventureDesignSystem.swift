@@ -16,25 +16,6 @@ enum AdventureSpacing {
   static let page: CGFloat = 10
 }
 
-enum AdventureRadius {
-  static let card: CGFloat = 14
-  static let hero: CGFloat = 22
-}
-
-struct AdventureCard<Content: View>: View {
-  @ViewBuilder let content: Content
-
-  var body: some View {
-    content
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(AdventureSpacing.medium)
-      .background(
-        AdventurePalette.surface,
-        in: RoundedRectangle(cornerRadius: AdventureRadius.card, style: .continuous)
-      )
-  }
-}
-
 struct MockBadge: View {
   let scenarioName: String
 
@@ -72,5 +53,22 @@ struct WatchDataBadge: View {
         .accessibilityLabel("真实模式，本机 HealthKit 数据")
         .accessibilityIdentifier("watch.live-badge")
     }
+  }
+}
+
+struct MoriCoinMark: View {
+  var body: some View {
+    ZStack {
+      Circle()
+        .fill(AdventurePalette.gold)
+      Circle()
+        .stroke(.white.opacity(0.58), lineWidth: 1)
+        .padding(2)
+      Text("M")
+        .font(.system(size: 8, weight: .black, design: .rounded))
+        .foregroundStyle(.black.opacity(0.72))
+    }
+    .frame(width: 16, height: 16)
+    .accessibilityHidden(true)
   }
 }

@@ -1,5 +1,10 @@
 # Validation Status
 
+> **Historical prototype validation ledger.** Current Mori rebuild evidence and
+> Goal state live in `docs/mori-rebuild-status.md`. Preserve the dated evidence
+> below as migration history; do not use it to claim the rebuilt UI or physical
+> device capability has passed.
+
 This document records reproducible evidence separately from physical-device claims. A Simulator or
 mock result never upgrades a hardware-dependent capability to `PASS`.
 

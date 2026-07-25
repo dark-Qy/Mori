@@ -18,8 +18,21 @@ implementation.
 - `NearbyRangingClient` exchanges encoded discovery tokens and reports distance. Nearby
   Interaction is **not a data transport**; token and business-data exchange require another
   channel.
+- `BroadMotionActivityClient` emits only a broad activity, classifier confidence, and observation
+  time. It never exposes accelerometer, gyroscope, or other raw motion samples. Live updates stop
+  while the app is suspended; the adapter makes no background-continuity claim.
+- `ApprovedPlaceMonitoringClient` accepts user-approved device-local circular regions but emits
+  only the approved category, enter/exit state, and observation time. Coordinates and routes are
+  never emitted. Circular-region monitoring is implemented on iPhone/macOS; watchOS reports an
+  explicit unavailable state and can consume privacy-minimized category observations transferred
+  by the companion app.
 - `SmartAlarmCapabilityProviding` is only a capability boundary. It intentionally makes no claim
   about extended-runtime delivery without physical-watch verification.
+
+Both passive-sensing clients expose availability and permission state, provide deterministic
+mocks, and fence callbacks from stopped or replaced sessions. Cancelling a consumer's
+`AsyncStream` subscription releases that subscription; call `stop()` to stop the underlying
+capability.
 
 ## Verification
 
@@ -36,4 +49,8 @@ shape only; the following remain `UNVERIFIED` until tested with signed builds on
 - WatchConnectivity pairing, reachability, transfer timing, and conflict behavior across devices.
 - Nearby Interaction discovery-token exchange, UWB distance stability, foreground constraints, and
   unsupported-device fallback.
+- Core Motion classification availability, authorization prompts, classifier quality, update
+  timing, suspension behavior, and power impact.
+- Core Location authorization prompts, circular-region capacity and accuracy, enter/exit timing,
+  relaunch behavior, and power impact. No simulator or SDK build verifies background continuity.
 - Smart Alarm extended-runtime eligibility, scheduling, wake delivery, and battery impact.

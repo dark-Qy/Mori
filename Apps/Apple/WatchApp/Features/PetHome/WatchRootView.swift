@@ -1,4 +1,5 @@
 import AppRuntime
+import MoriRuntime
 import SwiftUI
 import WatchKit
 
@@ -6,8 +7,10 @@ struct WatchRootView: View {
   @ObservedObject var store: WatchAppStore
   @StateObject private var exchange: TouchExchangeViewModel
   @Environment(\.scenePhase) private var scenePhase
-  @State private var interactionCount = 0
-  @State private var showsDataSourcePicker = false
+  @State private var navigationPath: [WatchProductRoute] = []
+  @State private var showsMoriMenu = false
+  @State private var bubbleMessage: String?
+  @State private var bubbleToken = 0
   @State private var sceneReactionSequence = 0
   @State private var sceneReaction: WatchSceneReaction?
   @State private var restartsExchangeAfterCancellation = false
@@ -65,7 +68,7 @@ struct WatchRootView: View {
       case .loading:
         ProgressView("载入中…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(AdventurePalette.background)
+          .background(Color.black)
           .accessibilityIdentifier("watch.loading")
       case .onboarding:
         WatchOnboardingView(store: store, isPetIntroduction: false)
@@ -83,13 +86,22 @@ struct WatchRootView: View {
             onDismiss: store.dismissNotificationDestination
           )
         } else {
-          petHome
+          experience
         }
       }
     }
     .task {
       await store.start()
+      prepareReadyExperience()
       startAutomaticTouchExchangeIfAllowed()
+    }
+    .onChange(of: store.phase) { _, phase in
+      guard phase == .ready else { return }
+      prepareReadyExperience()
+    }
+    .onChange(of: store.activeGlance) { _, glance in
+      guard let glance else { return }
+      present(glance)
     }
     .task(id: exchange.phase) {
       guard exchange.phase == .completed else { return }
@@ -130,6 +142,9 @@ struct WatchRootView: View {
     .onChange(of: scenePhase) { _, phase in
       switch phase {
       case .active:
+        if store.phase == .ready {
+          activateExperience()
+        }
         if exchange.phase == .cancelling {
           restartsExchangeAfterCancellation = true
         } else {
@@ -157,135 +172,204 @@ struct WatchRootView: View {
     exchange.start()
   }
 
-  private var petHome: some View {
-    NavigationStack {
-      ScrollView {
-        VStack(spacing: AdventureSpacing.medium) {
-          PetHeroCard(model: model, reaction: sceneReaction) { interaction in
-            interactionCount += 1
-            Task { await store.interact(with: interaction) }
-          }
-          statusHeader
-          if let status = store.statusMessage {
-            Text(status)
-              .font(.caption2)
-              .foregroundStyle(.secondary)
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .accessibilityIdentifier("watch.status-message")
-          }
-          TodayQuestCard(
-            quest: model.quest,
-            isAdvancing: store.isAdvancingStory,
-            showsAction: model.isLive,
-            onAdvance: {
-              Task {
-                if await store.advanceMainStory() {
-                  triggerSceneReaction(.storyReaction)
-                }
-              }
-            }
-          )
-          HealthPillRow(metrics: model.metrics)
-          interactionCard
-          destinationLinks
-          DataSourceCard(model: model)
-          if store.dataSourceSelectionAvailable {
-            Button {
-              showsDataSourcePicker = true
-            } label: {
-              Label(
-                store.isRefreshingHealth
-                  ? "读取中…"
-                  : "数据 · \(store.selectedDataSource.displayName)",
-                systemImage: "heart.text.clipboard"
-              )
-              .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(AdventurePalette.mint)
-            .disabled(store.isRefreshingHealth)
-            .accessibilityIdentifier("watch.connect-health")
-          }
+  private var experience: some View {
+    NavigationStack(path: $navigationPath) {
+      home
+        .navigationDestination(for: WatchProductRoute.self) { route in
+          destination(for: route)
         }
-        .padding(.horizontal, AdventureSpacing.page)
-        .padding(.bottom, AdventureSpacing.large)
-      }
-      .background(AdventurePalette.background.ignoresSafeArea())
-      .navigationTitle("Mori")
-      .navigationBarTitleDisplayMode(.inline)
     }
     .tint(AdventurePalette.mint)
-    .accessibilityIdentifier("watch.pet-home")
-    .sheet(isPresented: $showsDataSourcePicker) {
-      WatchDataSourcePicker(store: store, isPresented: $showsDataSourcePicker)
-    }
   }
 
-  private var statusHeader: some View {
-    HStack(spacing: AdventureSpacing.small) {
-      WatchDataBadge(model: model)
-      Spacer(minLength: 4)
-      Label(model.dayStatus, systemImage: "sparkles")
-        .font(.caption2.weight(.semibold))
-        .foregroundStyle(AdventurePalette.gold)
-        .accessibilityIdentifier("watch.day-status")
-    }
-  }
-
-  private var interactionCard: some View {
-    AdventureCard {
-      VStack(alignment: .leading, spacing: AdventureSpacing.small) {
-        if interactionCount == 0
-          && (model.requestsCompanionInteraction || !store.actionCompleted)
-        {
-          Text(model.petPrompt)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityIdentifier("watch.pet-prompt")
-        } else {
-          Label("Mori 蹭了蹭你：一起慢慢变好。", systemImage: "heart.fill")
-            .font(.caption.weight(.medium))
-            .foregroundStyle(AdventurePalette.rose)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityIdentifier("watch.interaction-response")
-        }
-
-        Button {
-          if model.requestsCompanionInteraction {
-            interactionCount += 1
-            triggerSceneReaction(.touchHead)
-            Task { await store.interact(with: .touchHead) }
-          } else if model.isLive {
-            Task {
-              if await store.completeSuggestedAction() {
-                triggerSceneReaction(.actionSuccess)
-              }
-            }
-          } else {
-            interactionCount += 1
-            triggerSceneReaction(.touchHead)
-            Task { await store.interact(with: .touchHead) }
-          }
-        } label: {
-          Label(
-            interactionCount == 0
-              && (model.requestsCompanionInteraction || !store.actionCompleted)
-              ? model.actionTitle : "今天已回应",
-            systemImage: "hand.tap.fill"
-          )
-          .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(AdventurePalette.mint)
-        .disabled(
-          store.isCompletingAction
-            || (store.actionCompleted && !model.requestsCompanionInteraction)
-            || !model.allowsInteraction
+  private var home: some View {
+    GeometryReader { geometry in
+      ZStack {
+        CompanionSceneView(
+          scene: model.scene,
+          reaction: sceneReaction,
+          usesStaticArtwork: true,
+          cornerRadius: 0,
+          showsTouchHint: false,
+          sceneAccessibilityIdentifier: "watch.pet-home",
+          onLongPress: { showsMoriMenu = true },
+          onInteraction: respondToMori
         )
-        .accessibilityIdentifier("watch.interact")
+        .frame(width: geometry.size.width, height: geometry.size.height)
+        .ignoresSafeArea()
+
+        LinearGradient(
+          colors: [
+            .black.opacity(0.35),
+            .clear,
+            .clear,
+            .black.opacity(0.42),
+          ],
+          startPoint: .top,
+          endPoint: .bottom
+        )
+        .allowsHitTesting(false)
+        .ignoresSafeArea()
+
+        homeOverlay
+          .padding(.horizontal, 10)
+          .padding(.top, 12)
+          .padding(.bottom, 6)
+
+        if let bubbleMessage {
+          MoriSpeechBubble(message: bubbleMessage)
+            .frame(maxWidth: max(80, min(geometry.size.width - 34, 176)))
+            .offset(y: -geometry.size.height * 0.17)
+            .transition(.opacity)
+        }
+      }
+      .frame(width: geometry.size.width, height: geometry.size.height)
+    }
+    .ignoresSafeArea()
+    .toolbar(.hidden, for: .navigationBar)
+    .background(Color.black)
+    .confirmationDialog("和 Mori 去哪里？", isPresented: $showsMoriMenu) {
+      Button("今天") { navigate(to: .today) }
+      Button("Mori 来信") { navigate(to: .letters) }
+      Button("碰一碰") { navigate(to: .touchExchange) }
+      Button("设置") { navigate(to: .settings) }
+      Button("取消", role: .cancel) {}
+    }
+  }
+
+  private var homeOverlay: some View {
+    VStack(spacing: 0) {
+      Label(model.homeSleepText, systemImage: "moon.fill")
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.white)
+        .lineLimit(1)
+        .minimumScaleFactor(0.72)
+        .shadow(color: .black.opacity(0.7), radius: 2, y: 1)
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+        .background(Color.black.opacity(0.001))
+        .contentShape(Rectangle())
+        .accessibilityLabel(model.homeSleepText)
+        .accessibilityRespondsToUserInteraction(false)
+        .accessibilityIdentifier("watch.home.sleep")
+
+      Spacer(minLength: 0)
+
+      Label(model.homeStepsText, systemImage: "shoeprints.fill")
+        .font(.caption.weight(.bold))
+        .monospacedDigit()
+        .foregroundStyle(.white)
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
+        .shadow(color: .black.opacity(0.7), radius: 2, y: 1)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)
+        .padding(.bottom, 7)
+        .background(Color.black.opacity(0.001))
+        .contentShape(Rectangle())
+        .accessibilityLabel(model.homeStepsText)
+        .accessibilityRespondsToUserInteraction(false)
+        .accessibilityIdentifier("watch.home.steps")
+
+      Button {
+        navigate(to: .companionSettings)
+      } label: {
+        Label(
+          companionStatusTitle,
+          systemImage: companionStatusSymbol
+        )
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .frame(minHeight: 44)
+        .background(.black.opacity(0.46), in: Capsule())
+        .overlay {
+          Capsule().stroke(.white.opacity(0.5), lineWidth: 0.75)
+        }
+      }
+      .buttonStyle(.plain)
+      .accessibilityHint("调整随行感知、提醒方式和安静时段")
+      .accessibilityIdentifier("watch.open-companion-settings")
+    }
+  }
+
+  private var companionStatusTitle: String {
+    guard store.companionExperienceAvailable else {
+      return "Mori 随行待连接"
+    }
+    return store.companionSensingEnabled ? "Mori 随行中" : "Mori 随行已关闭"
+  }
+
+  private var companionStatusSymbol: String {
+    guard store.companionExperienceAvailable else {
+      return "location.slash"
+    }
+    return store.companionSensingEnabled
+      ? "location.fill"
+      : "location.slash.fill"
+  }
+
+  @ViewBuilder
+  private func destination(for route: WatchProductRoute) -> some View {
+    switch route {
+    case .today:
+      WatchTodayView(store: store)
+    case .letters:
+      MessageInboxView(messages: model.messages)
+    case .touchExchange:
+      TouchExchangeView(
+        exchange: exchange,
+        socialSharingEnabled: store.isTouchExchangeSharingEnabled
+      )
+    case .settings:
+      WatchSettingsView(store: store)
+    case .companionSettings:
+      WatchCompanionSettingsView(store: store)
+    case .dailyMemory:
+      WatchDailyMemoryView(model: model)
+    }
+  }
+
+  private func prepareReadyExperience() {
+    guard store.phase == .ready else { return }
+    activateExperience()
+    if let route = store.consumeLaunchProductRoute() {
+      navigate(to: route)
+    }
+  }
+
+  private func activateExperience() {
+    Task {
+      await store.handleForegroundActivation()
+      if let glance = store.activeGlance {
+        present(glance)
       }
     }
+  }
+
+  private func present(_ glance: WatchGlancePresentation) {
+    guard bubbleMessage != glance.message else { return }
+    showBubble(glance.message, duration: .seconds(8))
+    triggerSceneReaction(glance.reaction)
+    if glance.shouldPlayHaptic {
+      WKInterfaceDevice.current().play(.click)
+    }
+  }
+
+  private func navigate(to route: WatchProductRoute) {
+    guard navigationPath.last != route else { return }
+    navigationPath.append(route)
+  }
+
+  private func respondToMori(_ animation: WatchCharacterAnimation) {
+    guard model.allowsInteraction else {
+      showBubble("Mock 场景无效，当前不会读取真实数据。", duration: .seconds(4))
+      return
+    }
+    let response =
+      animation == .touchHead
+      ? "我在这里。"
+      : "再待一会儿也可以。"
+    showBubble(response, duration: .seconds(3))
+    Task { await store.interact(with: animation) }
   }
 
   private func triggerSceneReaction(_ animation: WatchCharacterAnimation) {
@@ -296,299 +380,45 @@ struct WatchRootView: View {
     )
   }
 
-  private var destinationLinks: some View {
-    VStack(spacing: AdventureSpacing.small) {
-      NavigationLink {
-        TrendView(model: model)
-      } label: {
-        DestinationRow(
-          title: "7 日趋势",
-          detail: model.trendSummary,
-          systemImage: "chart.xyaxis.line"
-        )
+  private func showBubble(_ message: String, duration: Duration) {
+    bubbleToken += 1
+    let token = bubbleToken
+    withAnimation(.easeOut(duration: 0.18)) {
+      bubbleMessage = message
+    }
+    Task { @MainActor in
+      try? await Task.sleep(for: duration)
+      guard token == bubbleToken else { return }
+      withAnimation(.easeIn(duration: 0.15)) {
+        bubbleMessage = nil
       }
-      .buttonStyle(.plain)
-      .accessibilityIdentifier("watch.open-trends")
-
-      NavigationLink {
-        MessageInboxView(messages: model.messages)
-      } label: {
-        DestinationRow(
-          title: "Mori 来信",
-          detail: "\(model.unreadMessageCount) 条新消息",
-          systemImage: "envelope.badge.fill"
-        )
-      }
-      .buttonStyle(.plain)
-      .accessibilityIdentifier("watch.open-messages")
-
-      NavigationLink {
-        TouchExchangeView(
-          exchange: exchange,
-          socialSharingEnabled: store.isTouchExchangeSharingEnabled
-        )
-      } label: {
-        DestinationRow(
-          title: "触碰交换",
-          detail:
-            store.isTouchExchangeSharingEnabled
-            ? "和附近的宠物交换遇见卡"
-            : "好友分享已关闭",
-          systemImage: "wave.3.right.circle.fill"
-        )
-      }
-      .buttonStyle(.plain)
-      .accessibilityIdentifier("watch.open-touch-exchange")
+      store.dismissActiveGlance()
     }
   }
 }
 
-private struct WatchDataSourcePicker: View {
-  @ObservedObject var store: WatchAppStore
-  @Binding var isPresented: Bool
+private struct MoriSpeechBubble: View {
+  let message: String
 
   var body: some View {
-    NavigationStack {
-      List(CompanionDataSource.allCases, id: \.self) { source in
-        Button {
-          isPresented = false
-          Task { await store.selectDataSource(source) }
-        } label: {
-          HStack {
-            Text(source.displayName)
-            Spacer()
-            if source == store.selectedDataSource {
-              Image(systemName: "checkmark")
-                .foregroundStyle(AdventurePalette.mint)
-                .accessibilityHidden(true)
-            }
-          }
-        }
-        .accessibilityIdentifier("watch.data-source.option.\(source.rawValue)")
-      }
-      .navigationTitle("数据来源")
-      .accessibilityIdentifier("watch.data-source-picker")
-    }
-  }
-}
-
-private struct PetHeroCard: View {
-  let model: WatchPresentationModel
-  let reaction: WatchSceneReaction?
-  let onInteraction: (WatchCharacterAnimation) -> Void
-
-  var body: some View {
-    VStack(spacing: AdventureSpacing.small) {
-      CompanionSceneView(
-        scene: model.scene,
-        reaction: reaction,
-        onInteraction: onInteraction
-      )
-      .aspectRatio(352 / 430, contentMode: .fit)
-
-      HStack(alignment: .firstTextBaseline) {
-        Text("Mori · Lv.\(model.level)")
-          .font(.headline)
-          .accessibilityIdentifier("watch.pet-level")
-        Spacer(minLength: 6)
-        Label("\(model.vitality)", systemImage: "leaf.fill")
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(AdventurePalette.mint)
-      }
-
-      Text(model.petMood)
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .fixedSize(horizontal: false, vertical: true)
-
-      ProgressView(value: Double(model.vitality), total: 100)
-        .tint(AdventurePalette.mint)
-        .accessibilityIdentifier("watch.vitality-progress")
-        .accessibilityLabel("生命力")
-        .accessibilityValue("\(model.vitality)/100")
-    }
-    .accessibilityElement(children: .contain)
-    .accessibilityIdentifier("watch.pet-hero")
-  }
-}
-
-private struct WatchOutfitAccessory {
-  let symbol: String
-  let color: Color
-
-  static func make(for outfitID: String?) -> Self? {
-    switch outfitID {
-    case "scarf", "soccer_scarf": Self(symbol: "wind", color: AdventurePalette.rose)
-    case "leaf": Self(symbol: "leaf.fill", color: AdventurePalette.mint)
-    case "star": Self(symbol: "star.fill", color: AdventurePalette.gold)
-    case "drop": Self(symbol: "drop.fill", color: AdventurePalette.blue)
-    default: nil
-    }
-  }
-}
-
-private struct HealthPillRow: View {
-  let metrics: [WatchMetric]
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-  var body: some View {
-    Group {
-      if dynamicTypeSize.isAccessibilitySize {
-        VStack(spacing: 5) {
-          ForEach(metrics) { metric in
-            metricPill(metric, horizontal: true)
-          }
-        }
-      } else {
-        HStack(spacing: 5) {
-          ForEach(metrics) { metric in
-            metricPill(metric, horizontal: false)
-          }
-        }
-      }
-    }
-  }
-
-  @ViewBuilder private func metricPill(_ metric: WatchMetric, horizontal: Bool) -> some View {
-    Group {
-      if horizontal {
-        HStack(spacing: AdventureSpacing.small) {
-          metricIcon(metric)
-          Text(metric.shortTitle)
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-          Spacer(minLength: 2)
-          Text(metric.shortValue)
-            .font(.caption2.weight(.bold))
-            .monospacedDigit()
-        }
-      } else {
-        VStack(spacing: 3) {
-          metricIcon(metric)
-          Text(metric.shortValue)
-            .font(.caption2.weight(.bold))
-            .monospacedDigit()
-          Text(metric.shortTitle)
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-        }
-      }
-    }
-    .frame(maxWidth: .infinity)
-    .padding(.vertical, 8)
-    .padding(.horizontal, horizontal ? 8 : 2)
-    .background(
-      AdventurePalette.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-    )
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel("\(metric.title)，\(metric.value)")
-    .accessibilityIdentifier("watch.metric.\(metric.id)")
-  }
-
-  private func metricIcon(_ metric: WatchMetric) -> some View {
-    Image(systemName: metric.symbol)
-      .font(.caption2)
-      .foregroundStyle(metric.color)
-  }
-}
-
-private struct TodayQuestCard: View {
-  let quest: WatchQuest
-  let isAdvancing: Bool
-  let showsAction: Bool
-  let onAdvance: () -> Void
-
-  var body: some View {
-    AdventureCard {
-      VStack(alignment: .leading, spacing: AdventureSpacing.small) {
-        HStack {
-          Label("今日主线", systemImage: "map.fill")
-            .font(.caption2.weight(.bold))
-            .foregroundStyle(AdventurePalette.gold)
-          Spacer()
-          Text("+\(quest.reward) XP")
-            .font(.caption2.monospacedDigit().weight(.bold))
-            .foregroundStyle(AdventurePalette.mint)
-        }
-        if showsAction {
-          Button(action: onAdvance) {
-            Label(isAdvancing ? "保存中…" : "继续今日主线", systemImage: "book.pages.fill")
-              .frame(maxWidth: .infinity)
-          }
-          .buttonStyle(.bordered)
-          .disabled(isAdvancing)
-          .accessibilityIdentifier("watch.advance-story")
-        }
-        Text(quest.title)
-          .font(.subheadline.weight(.semibold))
-          .accessibilityIdentifier("watch.quest-title")
-        Text(quest.detail)
-          .font(.caption2)
-          .foregroundStyle(.secondary)
-          .fixedSize(horizontal: false, vertical: true)
-        HStack(spacing: 6) {
-          ProgressView(value: quest.progress)
-            .tint(AdventurePalette.gold)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-            .accessibilityLabel("今日主线进度")
-            .accessibilityValue(quest.progressLabel)
-          Text(quest.progressLabel)
-            .font(.caption2.monospacedDigit())
-            .foregroundStyle(.secondary)
-        }
-        if let sideStoryTitle = quest.sideStoryTitle {
-          Label(sideStoryTitle, systemImage: "sparkles")
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(AdventurePalette.mint)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(sideStoryTitle)
-            .accessibilityIdentifier("watch.side-story")
-        }
-      }
-    }
-    .accessibilityElement(children: .contain)
-    .accessibilityIdentifier("watch.today-quest")
-  }
-}
-
-private struct DestinationRow: View {
-  let title: String
-  let detail: String
-  let systemImage: String
-
-  var body: some View {
-    HStack(spacing: AdventureSpacing.small) {
-      Image(systemName: systemImage)
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(AdventurePalette.mint)
-        .frame(width: 26, height: 26)
-        .background(AdventurePalette.mint.opacity(0.13), in: Circle())
-      VStack(alignment: .leading, spacing: 1) {
-        Text(title)
-          .font(.caption.weight(.semibold))
-        Text(detail)
-          .font(.caption2)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
-      }
-      Spacer(minLength: 2)
-      Image(systemName: "chevron.right")
-        .font(.caption2.weight(.bold))
-        .foregroundStyle(.tertiary)
-    }
-    .padding(AdventureSpacing.small)
-    .background(
-      AdventurePalette.surface,
-      in: RoundedRectangle(cornerRadius: AdventureRadius.card, style: .continuous))
+    Text(message)
+      .font(.caption2.weight(.semibold))
+      .foregroundStyle(.black)
+      .multilineTextAlignment(.leading)
+      .fixedSize(horizontal: false, vertical: true)
+      .padding(.horizontal, 10)
+      .padding(.vertical, 8)
+      .background(.white.opacity(0.96), in: RoundedRectangle(cornerRadius: 10))
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("Mori 说，\(message)")
+      .accessibilityIdentifier("watch.event-bubble")
   }
 }
 
 #if DEBUG
   #Preview {
     WatchRootView(
-      store: WatchAppStore(arguments: ["-UITesting", "--mock-scenario=health_normal"])
+      store: WatchAppStore(arguments: ["-UITesting", "--mock-scenario=mock1"])
     )
   }
 #endif

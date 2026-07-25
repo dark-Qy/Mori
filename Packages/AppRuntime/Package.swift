@@ -10,7 +10,8 @@ let package = Package(
     .macOS(.v14),
   ],
   products: [
-    .library(name: "AppRuntime", targets: ["AppRuntime"])
+    .library(name: "AppRuntime", targets: ["AppRuntime"]),
+    .library(name: "MoriRuntime", targets: ["MoriRuntime"]),
   ],
   dependencies: [
     .package(path: "../AppleAdapters"),
@@ -28,6 +29,14 @@ let package = Package(
         .product(name: "Story", package: "CompanionCore"),
       ]
     ),
+    .target(
+      name: "MoriRuntime",
+      dependencies: [
+        .product(name: "AppleAdapters", package: "AppleAdapters"),
+        .product(name: "MoriDomain", package: "CompanionCore"),
+        .product(name: "MoriPersistence", package: "CompanionCore"),
+      ]
+    ),
     .testTarget(
       name: "AppRuntimeTests",
       dependencies: [
@@ -38,6 +47,15 @@ let package = Package(
         .product(name: "Persistence", package: "CompanionCore"),
         .product(name: "Rules", package: "CompanionCore"),
         .product(name: "Story", package: "CompanionCore"),
+      ]
+    ),
+    .testTarget(
+      name: "MoriRuntimeTests",
+      dependencies: [
+        "MoriRuntime",
+        .product(name: "AppleAdapters", package: "AppleAdapters"),
+        .product(name: "MoriDomain", package: "CompanionCore"),
+        .product(name: "MoriPersistence", package: "CompanionCore"),
       ]
     ),
   ]

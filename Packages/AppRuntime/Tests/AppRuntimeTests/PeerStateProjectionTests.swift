@@ -25,7 +25,7 @@ struct PeerStateProjectionTests {
     let state = PeerStateProjection().makeState(
       companion: CompanionState(),
       preferences: preferences,
-      dataSource: .mock2,
+      dataSource: .healthKit,
       dataSourceSelectionToken: "selection-2",
       revision: 42,
       updatedAt: date
@@ -36,7 +36,7 @@ struct PeerStateProjectionTests {
     #expect(state.values["outfit"] == "soccer_scarf")
     #expect(state.values["characters"] == "polar_bear,penguin")
     #expect(state.values["background"] == "aurora_observatory")
-    #expect(state.values["dataSource"] == "mock2")
+    #expect(state.values["dataSource"] == "healthKit")
     #expect(state.values["dataSourceSelectionToken"] == "selection-2")
     #expect(state.values["proactiveMessagesEnabled"] == "true")
     #expect(state.values["proactiveNotificationConsentVersion"] == "1")
@@ -49,19 +49,21 @@ struct PeerStateProjectionTests {
     #expect(state.values.keys.allSatisfy { !$0.localizedCaseInsensitiveContains("health") })
   }
 
-  @Test("Seven-day demo data source round-trips through peer values")
-  func projectsSevenDayDataSource() {
-    let state = PeerStateProjection().makeState(
-      companion: CompanionState(),
-      preferences: nil,
-      dataSource: .mock7Rhythm,
-      revision: 1,
-      updatedAt: .distantPast
-    )
+  #if DEBUG
+    @Test("Seven-day demo data source round-trips through peer values")
+    func projectsSevenDayDataSource() {
+      let state = PeerStateProjection().makeState(
+        companion: CompanionState(),
+        preferences: nil,
+        dataSource: .mock7Rhythm,
+        revision: 1,
+        updatedAt: .distantPast
+      )
 
-    #expect(state.values["dataSource"] == "mock7_rhythm")
-    #expect(CompanionDataSource(rawValue: state.values["dataSource"] ?? "") == .mock7Rhythm)
-  }
+      #expect(state.values["dataSource"] == "mock7_rhythm")
+      #expect(CompanionDataSource(rawValue: state.values["dataSource"] ?? "") == .mock7Rhythm)
+    }
+  #endif
 
   @Test("Watch projection omits phone-owned social consent")
   func watchOmitsPhoneOwnedSocialSettings() {
@@ -90,7 +92,7 @@ struct PeerStateProjectionTests {
 
     #expect(state.values["outfit"] == "default")
     #expect(state.values["characters"] == "penguin")
-    #expect(state.values["background"] == "ice_ocean_day")
+    #expect(state.values["background"] == "spring_meadow_stream")
     #expect(state.values["socialSharingEnabled"] == nil)
     #expect(state.values["phoneSocialSettingsAuthorityVersion"] == nil)
     #expect(state.values["publicPetSocialState"] == nil)

@@ -16,7 +16,7 @@ struct PreferencesRuntimeTests {
     #expect(!value.proactiveMessagesEnabled)
     #expect(value.proactiveNotificationConsentVersion == 0)
     #expect(value.selectedCharacterIDs == ["penguin"])
-    #expect(value.selectedBackgroundID == "ice_ocean_day")
+    #expect(value.selectedBackgroundID == "spring_meadow_stream")
   }
 
   @Test("Legacy preferences without a social setting adopt the new default")
@@ -63,7 +63,7 @@ struct PreferencesRuntimeTests {
     #expect(decoded.phoneSocialSettingsAuthorityVersion == nil)
     #expect(decoded.publicPetSocialState == .greeting)
     #expect(decoded.selectedCharacterIDs == ["penguin"])
-    #expect(decoded.selectedBackgroundID == "ice_ocean_day")
+    #expect(decoded.selectedBackgroundID == "spring_meadow_stream")
   }
 
   @Test("Preferences persist across repository instances")

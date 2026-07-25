@@ -120,6 +120,10 @@ actor ManagementSyncOutbox<Storage: ManagementSyncOutboxStorage> {
     try await persist(document)
   }
 
+  func clearForDeletion() async throws {
+    try await persist(ManagementSyncOutboxDocument())
+  }
+
   private func loadDocument() async throws -> ManagementSyncOutboxDocument {
     if let cachedDocument { return cachedDocument }
     guard let data = try await storage.load() else {

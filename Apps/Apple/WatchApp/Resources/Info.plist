@@ -21,7 +21,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Mori uses sleep, activity, heart-rate, and workout data to explain your personal trends and grow your companion.</string>
+	<string>Mori uses permitted sleep, activity, heart-rate, and workout records to create private companion memories on your devices.</string>
 	<key>NSNearbyInteractionUsageDescription</key>
 	<string>在双方主动进入触碰交换时，Mori 使用近距离测量确认两块手表已经靠近。</string>
 	<key>SocialGatewayBaseURL</key>

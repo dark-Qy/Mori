@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "hasCompletedOnboarding": true,
+  "proactiveMessagesEnabled": true,
+  "proactiveNotificationConsentVersion": 1,
+  "socialSharingEnabled": true,
+  "healthSharingScope": "careSummary",
+  "selectedOutfitID": "raincoat",
+  "selectedCharacterIDs": ["polar_bear", "unsupported"],
+  "selectedBackgroundID": "spring_valley",
+  "reminderMode": "lightHaptic",
+  "quietHoursStartMinute": 1320,
+  "quietHoursEndMinute": 420
+}

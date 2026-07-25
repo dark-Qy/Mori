@@ -3,6 +3,14 @@
 `AppRuntime` is the composition boundary between Apple framework adapters and the deterministic
 product domain. It owns mapping, local proactive-interaction orchestration, and user preferences.
 
+The package exposes two runtime layers during the Mori rebuild:
+
+- `AppRuntime` keeps the existing Apple application composition available while the presentation
+  stores migrate.
+- `MoriRuntime` owns the new profile-aware evidence, inference, and sensing boundary. It composes
+  either a complete production dependency set or a complete deterministic local dependency set;
+  it never mixes the two.
+
 - Adapter models are normalized before they reach rules.
 - Missing HealthKit values remain `nil`; request completion is never treated as read permission.
 - Sleep stages exclude `inBed` and `awake` from asleep duration.
@@ -23,3 +31,15 @@ product domain. It owns mapping, local proactive-interaction orchestration, and 
 - Notification responses map to bounded presentation destinations and never settle rewards.
 - Apple-platform composition keeps HealthKit, notifications, WatchConnectivity, and durable event
   storage outside SwiftUI views.
+
+## Current Implementation Priority
+
+The active implementation path is Mock-first. Debug builds use isolated, deterministic Mori
+profiles and the seven scenarios documented in [`docs/mock-data.md`](../../docs/mock-data.md).
+They exercise the real reducers, persistence, profile transitions, and presentation inputs without
+requesting system permissions or constructing production adapters.
+
+The current gate proves application behavior and data isolation. It does not claim physical-device
+HealthKit, motion, location, background delivery, haptics, paired-device transport, power, or
+thermal behavior. Those adapters remain behind the production composition boundary and are a later
+device-validation goal.

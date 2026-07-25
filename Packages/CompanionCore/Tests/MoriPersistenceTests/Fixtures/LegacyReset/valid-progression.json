@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "state": {
+    "schemaVersion": 1,
+    "growth": {
+      "level": 99,
+      "xp": 999999,
+      "vitality": 999999,
+      "bond": 999999,
+      "insight": 999999
+    },
+    "story": {
+      "completedBeatIDs": ["day-1", "day-2", "day-3", "day-4", "day-5", "day-6", "day-7"],
+      "memories": ["legacy string memory"]
+    }
+  }
+}

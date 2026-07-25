@@ -25,8 +25,12 @@ Maintainers should acknowledge a report within seven days, provide an initial as
 ## Sensitive-data expectations
 
 - Use synthetic fixtures in tests and issue reports.
-- Keep HealthKit samples on device unless a documented feature requires bounded server processing and the user has explicitly consented.
-- Minimize fields and time windows sent to a server or narration provider.
+- Keep raw HealthKit samples, precise location, GPS routes, and motion windows on
+  device without a product-level exception.
+- Remote Chat may receive the message a person explicitly sends and the
+  disclosed recent-message window. App-added context is restricted to
+  separately consented approved derived facts, memory references, and at most
+  one bounded memory excerpt under the current privacy contract.
 - Never use health data for advertising, data brokerage, or unrelated profiling.
 - Redact secrets and health payloads from diagnostics, crash metadata, analytics, screenshots, and AI request logs.
 - Delete server-side request bodies after processing unless a documented retention policy and user-facing purpose require storage.
@@ -42,8 +46,10 @@ Any credential pasted into chat, an issue, a commit, a screenshot, or applicatio
 
 AI output is untrusted. Validate it against a strict schema and content rules. The narration model must not:
 
-- modify growth, inventory, quests, commitments, relationships, or story facts;
-- bypass quiet hours, notification budgets, consent, or sharing scopes;
+- modify facts, tasks, coins, collection, memories, letters, relationships, or
+  profile state;
+- bypass quiet hours, notification budgets, consent, or game-only social
+  boundaries;
 - diagnose, label a health measurement as abnormal, or prescribe treatment;
 - perform social actions on a user's behalf.
 
