@@ -7,10 +7,6 @@ struct PhoneTodayView: View {
     store.mockExperience.recommendedTask
   }
 
-  private var isCompleted: Bool {
-    task.map { store.mockExperience.completedTaskIDs.contains($0.id) } ?? false
-  }
-
   var body: some View {
     PhonePage {
       VStack(alignment: .leading, spacing: CompanionSpacing.large) {
@@ -46,7 +42,11 @@ struct PhoneTodayView: View {
       VStack(alignment: .leading, spacing: 4) {
         Text("Mori 今天想和你做一件小事")
           .font(.title2.bold())
-        Text(isCompleted ? "今天已完成 1 件" : "今天还没有完成")
+        Text(
+          store.mockExperience.completedTaskIDs.isEmpty
+            ? "今天还没有完成"
+            : "今天已完成 \(store.mockExperience.completedTaskIDs.count) 件"
+        )
           .font(.subheadline)
           .foregroundStyle(CompanionPalette.secondaryText)
           .accessibilityIdentifier("phone.today.completed-count")
@@ -87,14 +87,11 @@ struct PhoneTodayView: View {
         Button {
           Task { await store.completeRecommendedTask() }
         } label: {
-          Label(
-            isCompleted ? "已经记下" : "我完成了",
-            systemImage: isCompleted ? "checkmark.circle.fill" : "checkmark"
-          )
+          Label("我完成了", systemImage: "checkmark")
         }
         .buttonStyle(.borderedProminent)
         .tint(CompanionPalette.mint)
-        .disabled(isCompleted || store.isSavingMockExperience)
+        .disabled(store.isSavingMockExperience)
         .accessibilityIdentifier("phone.today.complete-recommended")
       }
     }

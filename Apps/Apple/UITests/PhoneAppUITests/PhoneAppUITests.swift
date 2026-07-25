@@ -22,7 +22,7 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertFalse(app.buttons["同步"].exists)
   }
 
-  func testTodaySettlesOneCoinExactlyOnceAcrossRelaunch() {
+  func testTodayCompleteThenPurchasePersistAcrossRelaunch() {
     let storageID = "phone-task-ledger"
     let app = launchMock(storageID: storageID, reset: true)
 
@@ -37,18 +37,32 @@ final class PhoneAppUITests: XCTestCase {
       element("phone.today.coins", in: app).waitForExistence(timeout: 5)
         && element("phone.today.coins", in: app).label == "金币 19 枚"
     )
-    XCTAssertFalse(app.buttons["phone.today.complete-recommended"].isEnabled)
+    XCTAssertFalse(app.buttons["phone.today.complete-recommended"].exists)
+
+    app.tabBars.buttons["收藏"].tap()
+    let buy = app.buttons["phone.collection.buy.scarf"]
+    scrollToElement(buy, in: app)
+    buy.tap()
+    XCTAssertTrue(
+      app.buttons["phone.collection.use.scarf"].waitForExistence(timeout: 5)
+    )
+    XCTAssertEqual(
+      element("phone.collection.coins", in: app).label,
+      "金币 11 枚"
+    )
     app.terminate()
 
     let relaunched = launchMock(storageID: storageID, reset: false)
-    relaunched.tabBars.buttons["今天"].tap()
+    relaunched.tabBars.buttons["收藏"].tap()
     XCTAssertTrue(
-      element("phone.today.coins", in: relaunched).waitForExistence(timeout: 5)
-        && element("phone.today.coins", in: relaunched).label == "金币 19 枚"
+      element("phone.collection.coins", in: relaunched)
+        .waitForExistence(timeout: 5)
+        && element("phone.collection.coins", in: relaunched).label
+          == "金币 11 枚"
     )
-    XCTAssertFalse(
-      relaunched.buttons["phone.today.complete-recommended"].isEnabled
-    )
+    XCTAssertFalse(relaunched.buttons["phone.collection.buy.scarf"].exists)
+    relaunched.tabBars.buttons["今天"].tap()
+    XCTAssertFalse(relaunched.buttons["phone.today.complete-recommended"].exists)
   }
 
   func testLocalConversationPersistsWithoutMutatingToday() {

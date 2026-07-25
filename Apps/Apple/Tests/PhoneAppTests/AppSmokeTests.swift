@@ -1,5 +1,6 @@
 import AppRuntime
 import Domain
+import MoriDomain
 import MoriRuntime
 import XCTest
 
@@ -21,39 +22,26 @@ final class AppSmokeTests: XCTestCase {
     XCTAssertTrue(model.sharedMemories.isEmpty)
   }
 
-  func testMockModeRequiresUITestingAndAllowlistedScenario() {
-    let model = PhonePresentationModel.initial(
+  func testInvalidMockArgumentFailsClosed() async {
+    let identifier = "invalid-\(UUID().uuidString)"
+    let store = PhoneAppStore(
       arguments: [
-        "WatchCompanion", "-UITesting", "--mock-scenario=mock1",
+        "WatchCompanion",
+        "-UITesting",
+        "--mock-scenario=not_allowlisted",
+        "--e2e-storage-id=\(identifier)",
+        "--reset-e2e-storage",
+        "--e2e-offline-runtime",
       ]
     )
 
-    XCTAssertEqual(model.mockScenario?.id, "mock1")
-    XCTAssertEqual(model.stepCount, 3_250)
-    XCTAssertEqual(model.sleepMinutes, 450)
-    XCTAssertEqual(model.initialScreen, .mori)
-  }
+    await store.start()
 
-  func testMockArgumentWithoutUITestingIsIgnored() {
-    let model = PhonePresentationModel.initial(
-      arguments: ["WatchCompanion", "--mock-scenario=mock1"]
-    )
-
-    XCTAssertTrue(model.isLive)
-    XCTAssertNil(model.mockScenario)
-  }
-
-  func testInvalidMockArgumentFailsClosed() {
-    let model = PhonePresentationModel.initial(
-      arguments: [
-        "WatchCompanion", "-UITesting", "--mock-scenario=not_allowlisted",
-      ]
-    )
-
-    XCTAssertFalse(model.isLive)
-    XCTAssertFalse(model.allowsInteraction)
-    XCTAssertNil(model.mockScenario)
-    XCTAssertNil(model.stepCount)
+    XCTAssertFalse(store.model.isLive)
+    XCTAssertFalse(store.model.allowsInteraction)
+    XCTAssertFalse(store.companionExperienceAvailable)
+    XCTAssertEqual(store.activeCoinBalance, 0)
+    XCTAssertEqual(store.mockExperience, .empty)
   }
 
   func testLivePresentationKeepsOnlyExactFacts() {
@@ -80,427 +68,176 @@ final class AppSmokeTests: XCTestCase {
     XCTAssertFalse(model.currentFactNarrative.contains("状态"))
   }
 
-  func testCollectionPricesUseOneCoinAsMinimumUnit() {
-    let prices = PhoneCollectionItem.catalog.map(\.price)
+  func testCollectionCatalogMatchesProductAuthority() {
+    let presentation = Dictionary(
+      uniqueKeysWithValues: PhoneCollectionItem.catalog.map {
+        (CosmeticID($0.id), ($0.price, $0.category))
+      }
+    )
 
-    XCTAssertTrue(prices.allSatisfy { $0 >= 0 })
-    XCTAssertTrue(prices.filter { $0 > 0 }.allSatisfy { $0 >= 1 })
-    XCTAssertEqual(
-      Set(prices),
-      Set([0, 4, 8, 12, 50])
-    )
-  }
-
-  func testRecommendedTaskRequiresSensingAndAConfirmableMockEvent() async throws {
-    let model = PhonePresentationModel.initial(
-      arguments: [
-        "WatchCompanion", "-UITesting", "--mock-scenario=mock1",
-      ]
-    )
-    let directory = FileManager.default.temporaryDirectory
-      .appendingPathComponent(UUID().uuidString, isDirectory: true)
-    let authority = try MoriGlobalPreferenceRuntime(
-      storageURL: directory.appendingPathComponent("authority.json"),
-      originDeviceID: "phone",
-      initialProfileSource: .mock(scenarioID: "mock1")
-    )
-    let enabledSensing = try await authority.current().sensingScope
-    XCTAssertNil(
-      model.recommendedTaskCandidate(sensingScope: nil)
-    )
-    let task = try XCTUnwrap(
-      model.recommendedTaskCandidate(sensingScope: enabledSensing)
-    )
-    XCTAssertEqual(task.scenarioID, "mock1")
-    XCTAssertTrue(task.sourceEventID.contains("steps-3250"))
-    XCTAssertEqual(task.cooldownKey, "reflect-walk-summary")
-    XCTAssertEqual(task.reward, 1)
-    XCTAssertTrue(task.isValid)
-    let disabledSensing =
-      try await authority.setCompanionSensing(enabled: false).sensingScope
-    XCTAssertNil(
-      model.recommendedTaskCandidate(sensingScope: disabledSensing)
-    )
-    XCTAssertNil(
-      PhonePresentationModel.liveNoData()
-        .recommendedTaskCandidate(sensingScope: enabledSensing)
-    )
+    for item in MoriProductCosmeticCatalog.product.purchasableItems {
+      let decorated = presentation[item.id]
+      XCTAssertEqual(decorated?.0, item.coinPrice)
+      switch item.slot {
+      case .outfit:
+        XCTAssertEqual(decorated?.1, .clothing)
+      case .accessory:
+        XCTAssertEqual(decorated?.1, .accessories)
+      case .scene:
+        XCTAssertEqual(decorated?.1, .scenes)
+      }
+    }
   }
 
   #if DEBUG
-    func testMockRepositorySettlesAndPurchasesAtMostOnce() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      let repository = PhoneMockExperienceRepository(
-        fileURL: directory.appendingPathComponent("experience.json")
-      )
-      let context = try await makeMockContext(
-        scenarioID: "mock1",
-        directory: directory
-      )
-      let profile = context.profileScope
-      let sensing = context.sensingScope
-      let task = try XCTUnwrap(
-        PhonePresentationModel.initial(
-          arguments: [
-            "WatchCompanion", "-UITesting", "--mock-scenario=mock1",
-          ]
-        ).recommendedTaskCandidate(sensingScope: sensing)
-      )
-      _ = try repository.prepareRecommendedTask(
-        profile: profile,
-        sensing: sensing,
-        candidate: task
-      )
-
-      let first = try repository.settleTask(
-        profile: profile,
-        sensing: sensing,
-        taskID: task.id
-      )
-      let replay = try repository.settleTask(
-        profile: profile,
-        sensing: sensing,
-        taskID: task.id
-      )
-      XCTAssertFalse(first.wasAlreadySettled)
-      XCTAssertTrue(replay.wasAlreadySettled)
-      XCTAssertEqual(replay.projection.coinBalance, 19)
-
-      guard
-        case .purchased(let purchased) = try repository.purchase(
-          profile: profile,
-          itemID: "scarf"
-        )
-      else {
-        return XCTFail("Expected first purchase")
-      }
-      guard
-        case .alreadyOwned(let replayed) = try repository.purchase(
-          profile: profile,
-          itemID: "scarf"
-        )
-      else {
-        return XCTFail("Expected idempotent purchase replay")
-      }
-      XCTAssertEqual(purchased.coinBalance, 11)
-      XCTAssertEqual(replayed.coinBalance, 11)
-    }
-
-    func testMockRepositoryKeepsProfilesIsolated() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      let repository = PhoneMockExperienceRepository(
-        fileURL: directory.appendingPathComponent("experience.json")
-      )
-      let authority = try MoriGlobalPreferenceRuntime(
-        storageURL: directory.appendingPathComponent("authority.json"),
-        originDeviceID: "phone",
-        initialProfileSource: .mock(scenarioID: "mock1")
-      )
-      let mock1Context = try await authority.current()
-      let mock1Profile = mock1Context.profileScope
-      let sensing = mock1Context.sensingScope
-      let mock2Profile = try await authority.selectProfile(
-        .mock(scenarioID: "mock2")
-      ).profileScope
-      let task = try XCTUnwrap(
-        PhonePresentationModel.initial(
-          arguments: [
-            "WatchCompanion", "-UITesting", "--mock-scenario=mock1",
-          ]
-        ).recommendedTaskCandidate(sensingScope: sensing)
-      )
-      _ = try repository.prepareRecommendedTask(
-        profile: mock1Profile,
-        sensing: sensing,
-        candidate: task
-      )
-
-      _ = try repository.settleTask(
-        profile: mock1Profile,
-        sensing: sensing,
-        taskID: task.id
-      )
-      let mock1 = try repository.projection(profile: mock1Profile)
-      let mock2 = try repository.projection(profile: mock2Profile)
-
-      XCTAssertEqual(mock1.coinBalance, 19)
-      XCTAssertEqual(mock2.coinBalance, 18)
-    }
-
-    func testMockRepositoryScrubsDeprecatedConversationFieldsOnLoad()
+    func testProductLoopRestartAndDuplicateCommandsStayIdempotent()
       async throws
     {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      try FileManager.default.createDirectory(
-        at: directory,
-        withIntermediateDirectories: true
-      )
-      let fileURL = directory.appendingPathComponent("experience.json")
-      let profile = try await makeMockProfile(
+      let directory = temporaryDirectory()
+      let context = try await makeProductLoop(
         scenarioID: "mock1",
         directory: directory
       )
-      var projection = try XCTUnwrap(
-        JSONSerialization.jsonObject(
-          with: JSONEncoder().encode(PhoneMockExperienceProjection.initial)
-        ) as? [String: Any]
+      var snapshot = try await context.runtime.snapshot()
+      var projection = PhoneMockExperienceProjection(
+        snapshot: snapshot,
+        sensingEnabled: true
       )
-      projection["conversation"] = [
-        [
-          "id": UUID().uuidString,
-          "role": "user",
-          "text": "deprecated private text",
-        ]
-      ]
-      projection["usesMemoryContext"] = true
-      let snapshot: [String: Any] = [
-        "schemaVersion": 1,
-        "profiles": [profile.storageKey: projection],
-      ]
-      try JSONSerialization.data(
-        withJSONObject: snapshot,
-        options: [.sortedKeys]
-      ).write(to: fileURL, options: [.atomic])
-
-      let repository = PhoneMockExperienceRepository(fileURL: fileURL)
-      _ = try repository.projection(profile: profile)
-
-      let rewritten = try XCTUnwrap(
-        JSONSerialization.jsonObject(
-          with: Data(contentsOf: fileURL)
-        ) as? [String: Any]
-      )
-      let profiles = try XCTUnwrap(
-        rewritten["profiles"] as? [String: Any]
-      )
-      let scrubbed = try XCTUnwrap(
-        profiles[profile.storageKey] as? [String: Any]
-      )
-      XCTAssertNil(scrubbed["conversation"])
-      XCTAssertNil(scrubbed["usesMemoryContext"])
-    }
-
-    func testRepeatedSelectionOfSameScenarioUsesFreshExperience() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      let repository = PhoneMockExperienceRepository(
-        fileURL: directory.appendingPathComponent("experience.json")
-      )
-      let authority = try MoriGlobalPreferenceRuntime(
-        storageURL: directory.appendingPathComponent("authority.json"),
-        originDeviceID: "phone",
-        initialProfileSource: .mock(scenarioID: "mock1")
-      )
-      let firstContext = try await authority.current()
-      let firstProfile = firstContext.profileScope
-      let sensing = firstContext.sensingScope
-      let secondProfile = try await authority.selectProfile(
-        .mock(scenarioID: "mock1")
-      ).profileScope
-      let task = try XCTUnwrap(
-        PhonePresentationModel.initial(
-          arguments: [
-            "WatchCompanion", "-UITesting", "--mock-scenario=mock1",
-          ]
-        ).recommendedTaskCandidate(sensingScope: sensing)
-      )
-      _ = try repository.prepareRecommendedTask(
-        profile: firstProfile,
-        sensing: sensing,
-        candidate: task
-      )
-      _ = try repository.settleTask(
-        profile: firstProfile,
-        sensing: sensing,
-        taskID: task.id
-      )
-      let firstExperience = try repository.projection(
-        profile: firstProfile
-      )
-      let secondExperience = try repository.projection(
-        profile: secondProfile
-      )
-
-      XCTAssertNotEqual(firstProfile, secondProfile)
-      XCTAssertEqual(firstExperience.coinBalance, 19)
-      XCTAssertEqual(secondExperience.coinBalance, 18)
-    }
-
-    func testRepositoryUsesCatalogPriceInsteadOfCallerInput() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      let repository = PhoneMockExperienceRepository(
-        fileURL: directory.appendingPathComponent("experience.json")
-      )
-      let profile = try await makeMockProfile(
-        scenarioID: "mock1",
-        directory: directory
-      )
-
-      guard
-        case .purchased(let projection) = try repository.purchase(
-          profile: profile,
-          itemID: "scarf"
-        )
-      else {
-        return XCTFail("Expected catalog purchase")
-      }
-      XCTAssertEqual(projection.coinBalance, 10)
-    }
-
-    func testTaskGenerationUsesOneSourceEventAndTypeCooldown() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      let repository = PhoneMockExperienceRepository(
-        fileURL: directory.appendingPathComponent("experience.json")
-      )
-      let context = try await makeMockContext(
-        scenarioID: "mock1",
-        directory: directory
-      )
-      let profile = context.profileScope
-      let sensing = context.sensingScope
-      let first = try XCTUnwrap(
-        PhonePresentationModel.initial(
-          arguments: [
-            "WatchCompanion", "-UITesting", "--mock-scenario=mock1",
-          ]
-        ).recommendedTaskCandidate(sensingScope: sensing)
-      )
-      _ = try repository.prepareRecommendedTask(
-        profile: profile,
-        sensing: sensing,
-        candidate: first
-      )
-      _ = try repository.settleTask(
-        profile: profile,
-        sensing: sensing,
-        taskID: first.id
-      )
-
-      let duringCooldown = PhoneRecommendedTask(
-        id: "\(first.id).second",
-        scenarioID: first.scenarioID,
-        sourceEventID: "\(first.sourceEventID).second",
-        cooldownKey: first.cooldownKey,
-        kind: first.kind,
-        sensingEpochCounter: sensing.epochCounter,
-        sensingEpochOriginDeviceID: sensing.epochOriginDeviceID,
-        issuedAt: first.issuedAt.addingTimeInterval(60 * 60),
-        cooldownDuration: first.cooldownDuration,
-        reward: first.reward
-      )
-      let blocked = try repository.prepareRecommendedTask(
-        profile: profile,
-        sensing: sensing,
-        candidate: duringCooldown
-      )
-      XCTAssertNil(blocked.recommendedTask)
-
-      let afterCooldown = PhoneRecommendedTask(
-        id: "\(first.id).third",
-        scenarioID: first.scenarioID,
-        sourceEventID: "\(first.sourceEventID).third",
-        cooldownKey: first.cooldownKey,
-        kind: first.kind,
-        sensingEpochCounter: sensing.epochCounter,
-        sensingEpochOriginDeviceID: sensing.epochOriginDeviceID,
-        issuedAt: first.issuedAt.addingTimeInterval(7 * 60 * 60),
-        cooldownDuration: first.cooldownDuration,
-        reward: first.reward
-      )
-      let issued = try repository.prepareRecommendedTask(
-        profile: profile,
-        sensing: sensing,
-        candidate: afterCooldown
-      )
-      XCTAssertEqual(issued.recommendedTask, afterCooldown)
+      XCTAssertEqual(projection.coinBalance, 18)
       XCTAssertEqual(
-        issued.generatedTaskSourceEventIDs,
-        Set([first.sourceEventID, afterCooldown.sourceEventID])
+        projection.ownedItemIDs,
+        Set(["default", "spring_meadow_stream"])
       )
+
+      let task = try XCTUnwrap(projection.recommendedTask)
+      let firstSettlement = try await context.runtime.completeTask(
+        taskID: TaskID(task.id),
+        method: .userConfirmed,
+        at: Date()
+      )
+      let replayedSettlement = try await context.runtime.completeTask(
+        taskID: TaskID(task.id),
+        method: .userConfirmed,
+        at: Date()
+      )
+      XCTAssertTrue(firstSettlement.didRecordReward)
+      XCTAssertFalse(replayedSettlement.didRecordCompletion)
+      XCTAssertFalse(replayedSettlement.didRecordReward)
+      XCTAssertEqual(replayedSettlement.balance, 19)
+
+      let operationID = CollectionOperationID(
+        rawValue: "phone.purchase.restart-scarf"
+      )
+      let firstPurchase = try await context.runtime.purchase(
+        cosmeticID: CosmeticID("scarf"),
+        operationID: operationID,
+        at: Date()
+      )
+      let replayedPurchase = try await context.runtime.purchase(
+        cosmeticID: CosmeticID("scarf"),
+        operationID: operationID,
+        at: Date()
+      )
+      XCTAssertTrue(firstPurchase.didRecordPurchase)
+      XCTAssertFalse(replayedPurchase.didRecordPurchase)
+      XCTAssertEqual(replayedPurchase.balance, 11)
+
+      let reopened = try ProductLoopAppRuntime(
+        applicationSupportURL: directory,
+        profile: context.profile,
+        sensing: context.sensing,
+        originDeviceID: "phone"
+      )
+      _ = try await reopened.activate()
+      snapshot = try await reopened.snapshot()
+      projection = PhoneMockExperienceProjection(
+        snapshot: snapshot,
+        sensingEnabled: true
+      )
+      XCTAssertEqual(projection.coinBalance, 11)
+      XCTAssertTrue(projection.ownedItemIDs.contains("scarf"))
+      XCTAssertNil(projection.recommendedTask)
     }
 
-    func testSensingRevocationHidesAndRejectsOutstandingTask() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      let repository = PhoneMockExperienceRepository(
-        fileURL: directory.appendingPathComponent("experience.json")
+    func testPhoneStorePersistsCompleteThenPurchaseAcrossRestart()
+      async throws
+    {
+      let identifier = "restart-\(UUID().uuidString)"
+      let first = await makeReadyStore(
+        storageID: identifier,
+        source: .mock1,
+        reset: true
       )
-      let authority = try MoriGlobalPreferenceRuntime(
-        storageURL: directory.appendingPathComponent("authority.json"),
-        originDeviceID: "phone",
-        initialProfileSource: .mock(scenarioID: "mock1")
-      )
-      let enabledContext = try await authority.current()
-      let task = try XCTUnwrap(
-        PhonePresentationModel.initial(
-          arguments: [
-            "WatchCompanion", "-UITesting", "--mock-scenario=mock1",
-          ]
-        ).recommendedTaskCandidate(sensingScope: enabledContext.sensingScope)
-      )
-      _ = try repository.prepareRecommendedTask(
-        profile: enabledContext.profileScope,
-        sensing: enabledContext.sensingScope,
-        candidate: task
-      )
+      XCTAssertEqual(first.activeCoinBalance, 18)
+      XCTAssertNotNil(first.mockExperience.recommendedTask)
 
-      let disabledContext =
-        try await authority.setCompanionSensing(enabled: false)
-
-      // Production settlements revalidate inside the authority actor. The
-      // repository still contains the old authorization at this point, so
-      // this covers the late-callback window before disabled preparation.
-      await assertThrowsErrorAsync {
-        _ =
-          try await authority.performAuthorizedSensingMutation(
-            profileScope: enabledContext.profileScope,
-            sensingScope: enabledContext.sensingScope
-          ) {
-            try repository.settleTask(
-              profile: enabledContext.profileScope,
-              sensing: enabledContext.sensingScope,
-              taskID: task.id
-            )
-          }
-      }
-
-      let revoked = try repository.prepareRecommendedTask(
-        profile: disabledContext.profileScope,
-        sensing: disabledContext.sensingScope,
-        candidate: nil
+      await first.completeRecommendedTask()
+      XCTAssertEqual(first.activeCoinBalance, 19)
+      let scarf = try XCTUnwrap(
+        PhoneCollectionItem.catalog.first { $0.id == "scarf" }
       )
+      await first.purchase(scarf)
+      XCTAssertEqual(first.activeCoinBalance, 11)
 
-      XCTAssertNil(revoked.recommendedTask)
-      await assertThrowsErrorAsync {
-        _ = try repository.settleTask(
-          profile: disabledContext.profileScope,
-          sensing: disabledContext.sensingScope,
-          taskID: task.id
-        )
-      }
-      await assertThrowsErrorAsync {
-        _ = try repository.settleTask(
-          profile: disabledContext.profileScope,
-          sensing: enabledContext.sensingScope,
-          taskID: task.id
-        )
-      }
-      let afterRevocation = try repository.projection(
-        profile: disabledContext.profileScope
+      let reopened = await makeReadyStore(
+        storageID: identifier,
+        source: .mock1,
+        reset: false
       )
-      XCTAssertEqual(afterRevocation.coinBalance, 18)
+      XCTAssertEqual(reopened.activeCoinBalance, 11)
+      XCTAssertTrue(reopened.mockExperience.ownedItemIDs.contains("scarf"))
+      XCTAssertNil(reopened.mockExperience.recommendedTask)
     }
 
-    func testMockPreferencesStayInsideSelectedProfileGeneration() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      let repository = PhoneMockExperienceRepository(
-        fileURL: directory.appendingPathComponent("experience.json")
+    func testResetCreatesFreshMockGenerationWithoutReusingProductState()
+      async throws
+    {
+      let store = await makeReadyStore(
+        storageID: "reset-\(UUID().uuidString)",
+        source: .mock1,
+        reset: true
+      )
+      await store.completeRecommendedTask()
+      XCTAssertEqual(store.activeCoinBalance, 19)
+
+      await store.resetCurrentMockState()
+
+      XCTAssertEqual(store.selectedDataSource, .mock1)
+      XCTAssertEqual(store.activeCoinBalance, 18)
+      XCTAssertEqual(
+        store.mockExperience.ownedItemIDs,
+        Set(["default", "spring_meadow_stream"])
+      )
+      XCTAssertNotNil(store.mockExperience.recommendedTask)
+    }
+
+    func testProfileSwitchRaceNeverPublishesOldCollectionState()
+      async throws
+    {
+      let store = await makeReadyStore(
+        storageID: "race-\(UUID().uuidString)",
+        source: .mock1,
+        reset: true
+      )
+      let scarf = try XCTUnwrap(
+        PhoneCollectionItem.catalog.first { $0.id == "scarf" }
+      )
+
+      async let purchase: Void = store.purchase(scarf)
+      async let switchProfile: Void = store.selectDataSource(.mock2)
+      _ = await (purchase, switchProfile)
+
+      XCTAssertEqual(store.selectedDataSource, .mock2)
+      XCTAssertEqual(store.activeCoinBalance, 18)
+      XCTAssertFalse(store.mockExperience.ownedItemIDs.contains("scarf"))
+    }
+
+    func testMockProfileSettingsRemainSeparateAndProfileLocal()
+      async throws
+    {
+      let directory = temporaryDirectory()
+      let repository = PhoneMockProfileSettingsRepository(
+        fileURL: directory.appendingPathComponent("settings.json")
       )
       let authority = try MoriGlobalPreferenceRuntime(
         storageURL: directory.appendingPathComponent("authority.json"),
@@ -509,67 +246,71 @@ final class AppSmokeTests: XCTestCase {
       )
       let first = try await authority.current().profileScope
       let second = try await authority.selectProfile(
-        .mock(scenarioID: "mock1")
+        .mock(scenarioID: "mock2")
       ).profileScope
 
       _ = try repository.setAppPreferences(
         profile: first,
         proactiveMessagesEnabled: true,
         socialSharingEnabled: true,
-        publicPetSocialStateRawValue: "greeting"
+        publicPetSocialStateRawValue:
+          PublicPetSocialStateV1.greeting.rawValue
       )
-      let firstProjection = try repository.projection(profile: first)
-      let secondProjection = try repository.projection(profile: second)
+      _ = try repository.setConversationMemoryContext(
+        profile: first,
+        enabled: true
+      )
 
-      XCTAssertEqual(firstProjection.proactiveMessagesEnabled, true)
-      XCTAssertEqual(firstProjection.socialSharingEnabled, true)
-      XCTAssertNil(secondProjection.proactiveMessagesEnabled)
-      XCTAssertNil(secondProjection.socialSharingEnabled)
-      XCTAssertFalse(
-        secondProjection.appPreferenceState.proactiveMessagesEnabled
+      XCTAssertTrue(
+        try repository.settings(profile: first)
+          .conversationMemoryContextEnabled
       )
-      XCTAssertFalse(secondProjection.appPreferenceState.socialSharingEnabled)
-      XCTAssertEqual(
-        secondProjection.appPreferenceState.publicPetSocialStateRawValue,
-        PublicPetSocialStateV1.greeting.rawValue
+      XCTAssertFalse(
+        try repository.settings(profile: second)
+          .conversationMemoryContextEnabled
+      )
+      XCTAssertFalse(
+        try repository.settings(profile: second)
+          .proactiveMessagesEnabled
       )
     }
 
-    func testMockConversationMemoryConsentIsProfileLocal() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      let repository = PhoneMockExperienceRepository(
-        fileURL: directory.appendingPathComponent("experience.json")
+    func testSensingReconcileRemovesRecommendedTaskAndKeepsLedger()
+      async throws
+    {
+      let directory = temporaryDirectory()
+      let context = try await makeProductLoop(
+        scenarioID: "mock1",
+        directory: directory
       )
-      let authority = try MoriGlobalPreferenceRuntime(
-        storageURL: directory.appendingPathComponent("authority.json"),
-        originDeviceID: "phone",
-        initialProfileSource: .mock(scenarioID: "mock1")
-      )
-      let first = try await authority.current().profileScope
-      let second = try await authority.selectProfile(
-        .mock(scenarioID: "mock2")
-      ).profileScope
-
-      let firstProjection =
-        try repository.setConversationMemoryContext(
-          profile: first,
-          enabled: true
+      let disabled = CompanionSensingPreference(
+        enabled: false,
+        epoch: SensingEpoch(
+          LamportRevision(
+            counter: context.sensing.epoch.revision.counter + 1,
+            originDeviceID: "phone"
+          )
         )
-      let secondProjection = try repository.projection(profile: second)
-
-      XCTAssertEqual(
-        firstProjection.conversationMemoryContextEnabled,
-        true
       )
-      XCTAssertNil(secondProjection.conversationMemoryContextEnabled)
-      let globalAuthority = try await authority.currentChatAuthority()
-      XCTAssertFalse(globalAuthority.memoryContextIsAuthorized)
+
+      _ = try await context.runtime.reconcileSensing(
+        disabled,
+        effectiveAt: Date()
+      )
+      let snapshot = try await context.runtime.snapshot()
+      let projection = PhoneMockExperienceProjection(
+        snapshot: snapshot,
+        sensingEnabled: false
+      )
+
+      XCTAssertNil(projection.recommendedTask)
+      XCTAssertEqual(projection.coinBalance, 18)
+      XCTAssertFalse(snapshot.localState.companionSensingEnabled)
+      XCTAssertEqual(snapshot.localState.currentSensingEpoch, disabled.epoch)
     }
 
     func testMockChatAuthorityDoesNotExpandGlobalConsent() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+      let directory = temporaryDirectory()
       let global = try MoriGlobalPreferenceRuntime(
         storageURL: directory.appendingPathComponent("authority.json"),
         originDeviceID: "phone",
@@ -587,102 +328,67 @@ final class AppSmokeTests: XCTestCase {
       XCTAssertFalse(globalAuthority.memoryContextIsAuthorized)
     }
 
-    func testClothingAndAccessoryEquipmentRemainIndependent() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      let repository = PhoneMockExperienceRepository(
-        fileURL: directory.appendingPathComponent("experience.json")
-      )
-      let profile = try await makeMockProfile(
-        scenarioID: "mock1",
-        directory: directory
-      )
-      _ = try repository.purchase(profile: profile, itemID: "scarf")
-      _ = try repository.purchase(profile: profile, itemID: "leaf")
-      _ = try repository.equip(profile: profile, itemID: "scarf")
-      let equipped = try repository.equip(
-        profile: profile,
-        itemID: "leaf"
-      )
-
-      XCTAssertEqual(equipped.equippedItemID, "scarf")
-      XCTAssertEqual(equipped.equippedAccessoryID, "leaf")
+    private func makeReadyStore(
+      storageID: String,
+      source: CompanionDataSource,
+      reset: Bool
+    ) async -> PhoneAppStore {
+      var arguments = [
+        "WatchCompanion",
+        "-UITesting",
+        "--e2e-storage-id=\(storageID)",
+        "--e2e-data-source=\(source.rawValue)",
+        "--e2e-offline-runtime",
+      ]
+      if reset {
+        arguments.append("--reset-e2e-storage")
+      }
+      let store = PhoneAppStore(arguments: arguments)
+      await store.start()
+      if store.phase == .onboarding {
+        await store.completeOnboarding()
+      }
+      return store
     }
 
-    func testGlobalMockDeletionClearsEveryProfileGeneration() async throws {
-      let directory = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-      let repository = PhoneMockExperienceRepository(
-        fileURL: directory.appendingPathComponent("experience.json")
-      )
-      let authority = try MoriGlobalPreferenceRuntime(
+    private func makeProductLoop(
+      scenarioID: String,
+      directory: URL
+    ) async throws -> (
+      runtime: ProductLoopAppRuntime,
+      profile: RuntimeProfile,
+      sensing: CompanionSensingPreference
+    ) {
+      let global = try MoriGlobalPreferenceRuntime(
         storageURL: directory.appendingPathComponent("authority.json"),
-        originDeviceID: "phone",
-        initialProfileSource: .mock(scenarioID: "mock1")
-      )
-      let first = try await authority.current().profileScope
-      let second = try await authority.selectProfile(
-        .mock(scenarioID: "mock2")
-      ).profileScope
-      _ = try repository.purchase(profile: first, itemID: "scarf")
-      _ = try repository.purchase(profile: second, itemID: "leaf")
-
-      let deletion = try await authority.deleteAllData(
-        expectedProfileScope: second,
-        requestID: "delete-phone-mock-test"
-      )
-      try repository.deleteAll(fence: deletion.profileScope)
-
-      await assertThrowsErrorAsync {
-        _ = try repository.projection(profile: first)
-      }
-      await assertThrowsErrorAsync {
-        _ = try repository.projection(profile: second)
-      }
-      let postDeletionProfile = try await authority.selectProfile(
-        .mock(scenarioID: "mock3")
-      ).profileScope
-      let postDeletionExperience = try repository.projection(
-        profile: postDeletionProfile
-      )
-      XCTAssertEqual(postDeletionExperience, .initial)
-    }
-
-    private func makeMockProfile(
-      scenarioID: String,
-      directory: URL
-    ) async throws -> MoriGlobalProfileScope {
-      try await makeMockContext(
-        scenarioID: scenarioID,
-        directory: directory
-      ).profileScope
-    }
-
-    private func makeMockContext(
-      scenarioID: String,
-      directory: URL
-    ) async throws -> MoriGlobalPreferenceProjection {
-      let authority = try MoriGlobalPreferenceRuntime(
-        storageURL: directory.appendingPathComponent(
-          "authority-\(UUID().uuidString).json"
-        ),
         originDeviceID: "phone",
         initialProfileSource: .mock(scenarioID: scenarioID)
       )
-      return try await authority.current()
-    }
-
-    private func assertThrowsErrorAsync(
-      _ expression: () async throws -> Void,
-      file: StaticString = #filePath,
-      line: UInt = #line
-    ) async {
-      do {
-        try await expression()
-        XCTFail("Expected expression to throw", file: file, line: line)
-      } catch {
-        // Expected.
-      }
+      let projection = try await global.current()
+      let authority = try await global.currentChatAuthority()
+      let sensing = CompanionSensingPreference(
+        enabled: projection.sensingScope.enabled,
+        epoch: SensingEpoch(
+          LamportRevision(
+            counter: projection.sensingScope.epochCounter,
+            originDeviceID:
+              projection.sensingScope.epochOriginDeviceID
+          )
+        )
+      )
+      let runtime = try ProductLoopAppRuntime(
+        applicationSupportURL: directory,
+        profile: authority.profile,
+        sensing: sensing,
+        originDeviceID: "phone"
+      )
+      _ = try await runtime.activate()
+      return (runtime, authority.profile, sensing)
     }
   #endif
+
+  private func temporaryDirectory() -> URL {
+    FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString, isDirectory: true)
+  }
 }

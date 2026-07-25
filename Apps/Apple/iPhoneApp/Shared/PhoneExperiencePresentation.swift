@@ -1,5 +1,6 @@
 import AppRuntime
 import Foundation
+import MoriDomain
 import MoriRuntime
 
 nonisolated enum PhoneCollectionCategory: String, CaseIterable, Identifiable,
@@ -88,101 +89,43 @@ nonisolated struct PhoneCollectionItem: Identifiable, Equatable, Sendable {
   ]
 }
 
-nonisolated struct PhoneMockSensingAuthorization: Codable, Equatable, Sendable {
-  let enabled: Bool
-  let epochCounter: UInt64
-  let epochOriginDeviceID: String
-
-  init(_ scope: MoriGlobalSensingScope) {
-    enabled = scope.enabled
-    epochCounter = scope.epochCounter
-    epochOriginDeviceID = scope.epochOriginDeviceID
-  }
-}
-
-nonisolated struct PhoneMockAppPreferenceState: Equatable, Sendable {
-  let proactiveMessagesEnabled: Bool
-  let socialSharingEnabled: Bool
-  let publicPetSocialStateRawValue: String
-}
-
-nonisolated enum PhoneRecommendedTaskKind: String, Codable, Sendable {
-  case reflectOnWalk
-  case reflectOnSleep
-}
-
-nonisolated struct PhoneRecommendedTask: Codable, Equatable, Identifiable,
-  Sendable
-{
+nonisolated struct PhoneRecommendedTask: Equatable, Identifiable, Sendable {
   let id: String
-  let scenarioID: String
-  let sourceEventID: String
-  let cooldownKey: String
-  let kind: PhoneRecommendedTaskKind
-  let sensingEpochCounter: UInt64
-  let sensingEpochOriginDeviceID: String
-  let issuedAt: Date
-  let cooldownDuration: TimeInterval
+  let kind: MoriTaskKind
   let reward: Int
 
   var title: String {
     switch kind {
-    case .reflectOnWalk:
+    case .walkTogether:
+      "和 Mori 一起走一小段"
+    case .pauseTogether:
+      "和 Mori 一起停下来歇一会儿"
+    case .bedtimeWindDown:
+      "和 Mori 一起准备休息"
+    case .hydrate:
+      "陪 Mori 喝点水"
+    case .mindfulPause:
+      "和 Mori 安静地待一会儿"
+    case .exploreNearby:
+      "和 Mori 看看附近"
+    case .reflectOnDay:
       "和 Mori 回想今天走过的路"
-    case .reflectOnSleep:
-      "和 Mori 说说昨晚的休息"
     }
   }
 
   var detail: String {
-    "这段记录来自当前 Mock 事件；系统无法判断你是否完成了回想，所以由你主动确认。"
-  }
-
-  var isValid: Bool {
-    guard
-      id.isEmpty == false,
-      scenarioID.isEmpty == false,
-      sourceEventID.isEmpty == false,
-      cooldownKey.isEmpty == false,
-      sensingEpochOriginDeviceID.isEmpty == false,
-      reward >= 1,
-      cooldownDuration >= 0,
-      cooldownDuration.isFinite
-    else {
-      return false
-    }
-    return [
-      id, scenarioID, sourceEventID, cooldownKey,
-      sensingEpochOriginDeviceID,
-    ].allSatisfy {
-      $0.count <= 160
-        && $0.allSatisfy { character in
-          character.isASCII
-            && (character.isLetter
-              || character.isNumber
-              || character == "."
-              || character == "-"
-              || character == "_")
-        }
-    }
+    "这件事无法由设备可靠判断，所以由你主动确认；确认后只结算一次。"
   }
 }
 
-nonisolated struct PhoneMockExperienceProjection: Codable, Equatable, Sendable {
-  var coinBalance: Int
-  var completedTaskIDs: Set<String>
-  var ownedItemIDs: Set<String>
-  var equippedItemID: String
-  var equippedAccessoryID: String?
-  var selectedSceneID: String
-  var recommendedTask: PhoneRecommendedTask?
-  var generatedTaskSourceEventIDs: Set<String>?
-  var taskCooldownUntilByKey: [String: Date]?
-  var proactiveMessagesEnabled: Bool?
-  var socialSharingEnabled: Bool?
-  var publicPetSocialStateRawValue: String?
-  var conversationMemoryContextEnabled: Bool?
-  var sensingAuthorization: PhoneMockSensingAuthorization?
+nonisolated struct PhoneMockExperienceProjection: Equatable, Sendable {
+  let coinBalance: Int
+  let completedTaskIDs: Set<String>
+  let ownedItemIDs: Set<String>
+  let equippedItemID: String
+  let equippedAccessoryID: String?
+  let selectedSceneID: String
+  let recommendedTask: PhoneRecommendedTask?
 
   static let empty = PhoneMockExperienceProjection(
     coinBalance: 0,
@@ -191,40 +134,60 @@ nonisolated struct PhoneMockExperienceProjection: Codable, Equatable, Sendable {
     equippedItemID: "default",
     equippedAccessoryID: nil,
     selectedSceneID: "spring_meadow_stream",
-    recommendedTask: nil,
-    generatedTaskSourceEventIDs: nil,
-    taskCooldownUntilByKey: nil,
-    proactiveMessagesEnabled: nil,
-    socialSharingEnabled: nil,
-    publicPetSocialStateRawValue: nil,
-    conversationMemoryContextEnabled: nil,
-    sensingAuthorization: nil
+    recommendedTask: nil
   )
 
-  static let initial = PhoneMockExperienceProjection(
-    coinBalance: 18,
-    completedTaskIDs: [],
-    ownedItemIDs: ["default", "spring_meadow_stream"],
-    equippedItemID: "default",
-    equippedAccessoryID: nil,
-    selectedSceneID: "spring_meadow_stream",
-    recommendedTask: nil,
-    generatedTaskSourceEventIDs: nil,
-    taskCooldownUntilByKey: nil,
-    proactiveMessagesEnabled: nil,
-    socialSharingEnabled: nil,
-    publicPetSocialStateRawValue: nil,
-    conversationMemoryContextEnabled: nil,
-    sensingAuthorization: nil
-  )
+  private init(
+    coinBalance: Int,
+    completedTaskIDs: Set<String>,
+    ownedItemIDs: Set<String>,
+    equippedItemID: String,
+    equippedAccessoryID: String?,
+    selectedSceneID: String,
+    recommendedTask: PhoneRecommendedTask?
+  ) {
+    self.coinBalance = coinBalance
+    self.completedTaskIDs = completedTaskIDs
+    self.ownedItemIDs = ownedItemIDs
+    self.equippedItemID = equippedItemID
+    self.equippedAccessoryID = equippedAccessoryID
+    self.selectedSceneID = selectedSceneID
+    self.recommendedTask = recommendedTask
+  }
 
-  var appPreferenceState: PhoneMockAppPreferenceState {
-    PhoneMockAppPreferenceState(
-      proactiveMessagesEnabled: proactiveMessagesEnabled ?? false,
-      socialSharingEnabled: socialSharingEnabled ?? false,
-      publicPetSocialStateRawValue:
-        publicPetSocialStateRawValue ?? PublicPetSocialStateV1.greeting.rawValue
+  init(
+    snapshot: ProductLoopAppSnapshot,
+    sensingEnabled: Bool,
+    at now: Date = Date()
+  ) {
+    let state = snapshot.localState
+    let today = ProfileQueries.phoneToday(from: state, at: now)
+    coinBalance = state.coinLedger.balance
+    completedTaskIDs = Set(
+      state.tasks.compactMap { task in
+        task.lifecycle.isCompleted ? task.header.recordID.rawValue : nil
+      }
     )
+    ownedItemIDs = Set(
+      state.collection.ownership.map(\.cosmeticID.rawValue)
+    )
+    equippedItemID =
+      state.collection.equipped[.outfit]?.cosmeticID.rawValue ?? "default"
+    equippedAccessoryID =
+      state.collection.equipped[.accessory]?.cosmeticID.rawValue
+    selectedSceneID =
+      state.collection.equipped[.scene]?.cosmeticID.rawValue
+      ?? "spring_meadow_stream"
+    recommendedTask =
+      sensingEnabled
+      ? today.recommended.map {
+        PhoneRecommendedTask(
+          id: $0.header.recordID.rawValue,
+          kind: $0.kind,
+          reward: $0.rewardTier.rawValue
+        )
+      }
+      : nil
   }
 
   func isEquipped(_ item: PhoneCollectionItem) -> Bool {
@@ -252,47 +215,6 @@ struct PhoneMemoryPresentation: Identifiable, Equatable {
 }
 
 extension PhonePresentationModel {
-  func recommendedTaskCandidate(
-    sensingScope: MoriGlobalSensingScope?
-  ) -> PhoneRecommendedTask? {
-    guard
-      let sensingScope,
-      sensingScope.enabled,
-      let scenario = mockScenario
-    else {
-      return nil
-    }
-    let eventTime = Int(scenario.evaluatedAt.timeIntervalSince1970)
-    let kind: PhoneRecommendedTaskKind
-    let eventMetric: String
-    let cooldownKey: String
-    if let stepCount, stepCount > 0 {
-      kind = .reflectOnWalk
-      eventMetric = "steps-\(stepCount)"
-      cooldownKey = "reflect-walk-summary"
-    } else if let sleepMinutes, sleepMinutes > 0 {
-      kind = .reflectOnSleep
-      eventMetric = "sleep-\(sleepMinutes)"
-      cooldownKey = "reflect-sleep-summary"
-    } else {
-      return nil
-    }
-    let sourceEventID =
-      "mock-event-v1.\(scenario.id).\(eventTime).\(eventMetric)"
-    return PhoneRecommendedTask(
-      id: "mock-task-v1.\(sourceEventID)",
-      scenarioID: scenario.id,
-      sourceEventID: sourceEventID,
-      cooldownKey: cooldownKey,
-      kind: kind,
-      sensingEpochCounter: sensingScope.epochCounter,
-      sensingEpochOriginDeviceID: sensingScope.epochOriginDeviceID,
-      issuedAt: scenario.evaluatedAt,
-      cooldownDuration: 6 * 60 * 60,
-      reward: 1
-    )
-  }
-
   var sharedMemories: [PhoneMemoryPresentation] {
     sealedMemories
   }

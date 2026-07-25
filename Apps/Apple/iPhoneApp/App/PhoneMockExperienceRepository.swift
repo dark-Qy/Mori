@@ -1,29 +1,29 @@
 #if DEBUG
+  import AppRuntime
   import Foundation
   import MoriDomain
   import MoriRuntime
 
-  struct PhoneMockTaskSettlement: Sendable {
-    let projection: PhoneMockExperienceProjection
-    let wasAlreadySettled: Bool
-  }
-
-  enum PhoneMockPurchaseResult: Sendable {
-    case purchased(PhoneMockExperienceProjection)
-    case alreadyOwned(PhoneMockExperienceProjection)
-    case insufficientBalance(PhoneMockExperienceProjection)
-  }
-
-  enum PhoneMockExperienceError: Error {
+  enum PhoneMockProfileSettingsError: Error {
     case invalidProfile
-    case invalidTask
-    case unknownItem
-    case itemNotOwned
+    case invalidPublicPetState
   }
 
-  /// Debug-only durable preview state. Every selected Mock profile generation
-  /// has an isolated namespace; a scenario name by itself is never a key.
-  nonisolated final class PhoneMockExperienceRepository: @unchecked Sendable {
+  /// Profile-local, non-product preferences used by the Debug Mock experience.
+  ///
+  /// Tasks, coins, collection ownership, and equipment are deliberately absent:
+  /// `ProductLoopAppRuntime` is the only authority for those product states.
+  nonisolated struct PhoneMockProfileSettings: Codable, Equatable, Sendable {
+    var proactiveMessagesEnabled = false
+    var socialSharingEnabled = false
+    var publicPetSocialStateRawValue =
+      PublicPetSocialStateV1.greeting.rawValue
+    var conversationMemoryContextEnabled = false
+  }
+
+  nonisolated final class PhoneMockProfileSettingsRepository:
+    @unchecked Sendable
+  {
     private struct DeletionFence: Codable {
       let requestID: String
       let epochCounter: UInt64
@@ -65,7 +65,7 @@
       static let currentSchemaVersion = 1
 
       var schemaVersion = currentSchemaVersion
-      var profiles: [String: PhoneMockExperienceProjection] = [:]
+      var profiles: [String: PhoneMockProfileSettings] = [:]
       var deletionFence: DeletionFence?
     }
 
@@ -77,29 +77,16 @@
       self.fileURL = fileURL
     }
 
-    func projection(
+    func settings(
       profile: MoriGlobalProfileScope
-    ) throws -> PhoneMockExperienceProjection {
+    ) throws -> PhoneMockProfileSettings {
       lock.lock()
       defer { lock.unlock() }
       let snapshot = try loadValidated(profile)
-      return snapshot.profiles[profile.storageKey] ?? .initial
+      return snapshot.profiles[profile.storageKey] ?? PhoneMockProfileSettings()
     }
 
-    func reset(
-      profile: MoriGlobalProfileScope
-    ) throws -> PhoneMockExperienceProjection {
-      lock.lock()
-      defer { lock.unlock() }
-      var snapshot = try loadValidated(profile)
-      snapshot.profiles[profile.storageKey] = .initial
-      try save(snapshot)
-      return .initial
-    }
-
-    func remove(
-      profile: MoriGlobalProfileScope
-    ) throws {
+    func remove(profile: MoriGlobalProfileScope) throws {
       lock.lock()
       defer { lock.unlock() }
       var snapshot = try loadValidated(profile)
@@ -111,7 +98,7 @@
       lock.lock()
       defer { lock.unlock() }
       guard fence.isMock == false else {
-        throw PhoneMockExperienceError.invalidProfile
+        throw PhoneMockProfileSettingsError.invalidProfile
       }
       try save(
         Snapshot(
@@ -121,226 +108,55 @@
       )
     }
 
-    func prepareRecommendedTask(
-      profile profileScope: MoriGlobalProfileScope,
-      sensing sensingScope: MoriGlobalSensingScope,
-      candidate: PhoneRecommendedTask?
-    ) throws -> PhoneMockExperienceProjection {
-      lock.lock()
-      defer { lock.unlock() }
-      var snapshot = try loadValidated(profileScope)
-      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
-      profile.sensingAuthorization =
-        PhoneMockSensingAuthorization(sensingScope)
-
-      guard sensingScope.enabled, let candidate else {
-        profile.recommendedTask = nil
-        snapshot.profiles[profileScope.storageKey] = profile
-        try save(snapshot)
-        return profile
-      }
-      guard
-        candidate.isValid,
-        candidate.scenarioID == profileScope.mockScenarioID,
-        candidate.sensingEpochCounter == sensingScope.epochCounter,
-        candidate.sensingEpochOriginDeviceID
-          == sensingScope.epochOriginDeviceID
-      else {
-        throw PhoneMockExperienceError.invalidTask
-      }
-      if let current = profile.recommendedTask,
-        profile.completedTaskIDs.contains(current.id) == false
-      {
-        guard
-          current.sensingEpochCounter != sensingScope.epochCounter
-            || current.sensingEpochOriginDeviceID
-              != sensingScope.epochOriginDeviceID
-        else {
-          return profile
-        }
-        profile.recommendedTask = nil
-      }
-
-      var generated = profile.generatedTaskSourceEventIDs ?? []
-      guard generated.contains(candidate.sourceEventID) == false else {
-        return profile
-      }
-      let cooldowns = profile.taskCooldownUntilByKey ?? [:]
-      if let nextEligibleAt = cooldowns[candidate.cooldownKey],
-        candidate.issuedAt < nextEligibleAt
-      {
-        profile.recommendedTask = nil
-        snapshot.profiles[profileScope.storageKey] = profile
-        try save(snapshot)
-        return profile
-      }
-
-      generated.insert(candidate.sourceEventID)
-      profile.generatedTaskSourceEventIDs = generated
-      profile.recommendedTask = candidate
-      var updatedCooldowns = cooldowns
-      updatedCooldowns[candidate.cooldownKey] =
-        candidate.issuedAt.addingTimeInterval(candidate.cooldownDuration)
-      profile.taskCooldownUntilByKey = updatedCooldowns
-      snapshot.profiles[profileScope.storageKey] = profile
-      try save(snapshot)
-      return profile
-    }
-
-    func settleTask(
-      profile profileScope: MoriGlobalProfileScope,
-      sensing sensingScope: MoriGlobalSensingScope,
-      taskID: String
-    ) throws -> PhoneMockTaskSettlement {
-      lock.lock()
-      defer { lock.unlock() }
-      var snapshot = try loadValidated(profileScope)
-      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
-      guard
-        let task = profile.recommendedTask,
-        task.id == taskID,
-        task.isValid,
-        sensingScope.enabled,
-        profile.sensingAuthorization
-          == PhoneMockSensingAuthorization(sensingScope),
-        task.sensingEpochCounter == sensingScope.epochCounter,
-        task.sensingEpochOriginDeviceID
-          == sensingScope.epochOriginDeviceID
-      else {
-        throw PhoneMockExperienceError.invalidTask
-      }
-      guard profile.completedTaskIDs.contains(taskID) == false else {
-        return PhoneMockTaskSettlement(
-          projection: profile,
-          wasAlreadySettled: true
-        )
-      }
-      profile.completedTaskIDs.insert(taskID)
-      profile.coinBalance += task.reward
-      snapshot.profiles[profileScope.storageKey] = profile
-      try save(snapshot)
-      return PhoneMockTaskSettlement(
-        projection: profile,
-        wasAlreadySettled: false
-      )
-    }
-
-    func purchase(
-      profile profileScope: MoriGlobalProfileScope,
-      itemID: String
-    ) throws -> PhoneMockPurchaseResult {
-      lock.lock()
-      defer { lock.unlock() }
-      guard let item = PhoneCollectionItem.catalog.first(where: { $0.id == itemID })
-      else {
-        throw PhoneMockExperienceError.unknownItem
-      }
-      var snapshot = try loadValidated(profileScope)
-      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
-      if profile.ownedItemIDs.contains(itemID) {
-        return .alreadyOwned(profile)
-      }
-      let cost = item.price
-      guard profile.coinBalance >= cost else {
-        return .insufficientBalance(profile)
-      }
-      profile.coinBalance -= cost
-      profile.ownedItemIDs.insert(itemID)
-      snapshot.profiles[profileScope.storageKey] = profile
-      try save(snapshot)
-      return .purchased(profile)
-    }
-
-    func equip(
-      profile profileScope: MoriGlobalProfileScope,
-      itemID: String
-    ) throws -> PhoneMockExperienceProjection {
-      lock.lock()
-      defer { lock.unlock() }
-      guard
-        let item = PhoneCollectionItem.catalog.first(where: { $0.id == itemID }),
-        item.sceneID == nil
-      else {
-        throw PhoneMockExperienceError.unknownItem
-      }
-      var snapshot = try loadValidated(profileScope)
-      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
-      guard profile.ownedItemIDs.contains(itemID) else {
-        throw PhoneMockExperienceError.itemNotOwned
-      }
-      switch item.category {
-      case .clothing:
-        profile.equippedItemID = itemID
-      case .accessories:
-        profile.equippedAccessoryID = itemID
-      case .scenes:
-        throw PhoneMockExperienceError.unknownItem
-      }
-      snapshot.profiles[profileScope.storageKey] = profile
-      try save(snapshot)
-      return profile
-    }
-
-    func selectScene(
-      profile profileScope: MoriGlobalProfileScope,
-      sceneID: String
-    ) throws -> PhoneMockExperienceProjection {
-      lock.lock()
-      defer { lock.unlock() }
-      guard
-        PhoneCollectionItem.catalog.contains(where: {
-          $0.id == sceneID && $0.sceneID == sceneID
-        })
-      else {
-        throw PhoneMockExperienceError.unknownItem
-      }
-      var snapshot = try loadValidated(profileScope)
-      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
-      guard profile.ownedItemIDs.contains(sceneID) else {
-        throw PhoneMockExperienceError.itemNotOwned
-      }
-      profile.selectedSceneID = sceneID
-      snapshot.profiles[profileScope.storageKey] = profile
-      try save(snapshot)
-      return profile
-    }
-
     func setAppPreferences(
-      profile profileScope: MoriGlobalProfileScope,
+      profile: MoriGlobalProfileScope,
       proactiveMessagesEnabled: Bool,
       socialSharingEnabled: Bool,
       publicPetSocialStateRawValue: String
-    ) throws -> PhoneMockExperienceProjection {
-      lock.lock()
-      defer { lock.unlock() }
+    ) throws -> PhoneMockProfileSettings {
       guard
         publicPetSocialStateRawValue.isEmpty == false,
         publicPetSocialStateRawValue.count <= 80
       else {
-        throw PhoneMockExperienceError.invalidProfile
+        throw PhoneMockProfileSettingsError.invalidPublicPetState
       }
-      var snapshot = try loadValidated(profileScope)
-      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
-      profile.proactiveMessagesEnabled = proactiveMessagesEnabled
-      profile.socialSharingEnabled = socialSharingEnabled
-      profile.publicPetSocialStateRawValue = publicPetSocialStateRawValue
-      snapshot.profiles[profileScope.storageKey] = profile
+      lock.lock()
+      defer { lock.unlock() }
+      var snapshot = try loadValidated(profile)
+      var value =
+        snapshot.profiles[profile.storageKey] ?? PhoneMockProfileSettings()
+      value.proactiveMessagesEnabled = proactiveMessagesEnabled
+      value.socialSharingEnabled = socialSharingEnabled
+      value.publicPetSocialStateRawValue = publicPetSocialStateRawValue
+      snapshot.profiles[profile.storageKey] = value
       try save(snapshot)
-      return profile
+      return value
     }
 
     func setConversationMemoryContext(
-      profile profileScope: MoriGlobalProfileScope,
+      profile: MoriGlobalProfileScope,
       enabled: Bool
-    ) throws -> PhoneMockExperienceProjection {
+    ) throws -> PhoneMockProfileSettings {
       lock.lock()
       defer { lock.unlock() }
-      var snapshot = try loadValidated(profileScope)
-      var profile = snapshot.profiles[profileScope.storageKey] ?? .initial
-      profile.conversationMemoryContextEnabled = enabled
-      snapshot.profiles[profileScope.storageKey] = profile
+      var snapshot = try loadValidated(profile)
+      var value =
+        snapshot.profiles[profile.storageKey] ?? PhoneMockProfileSettings()
+      value.conversationMemoryContextEnabled = enabled
+      snapshot.profiles[profile.storageKey] = value
       try save(snapshot)
-      return profile
+      return value
+    }
+
+    private func loadValidated(
+      _ profile: MoriGlobalProfileScope
+    ) throws -> Snapshot {
+      try validate(profile)
+      let snapshot = try load()
+      guard snapshot.deletionFence?.rejects(profile) != true else {
+        throw PhoneMockProfileSettingsError.invalidProfile
+      }
+      return snapshot
     }
 
     private func validate(_ profile: MoriGlobalProfileScope) throws {
@@ -352,19 +168,8 @@
           $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_")
         })
       else {
-        throw PhoneMockExperienceError.invalidProfile
+        throw PhoneMockProfileSettingsError.invalidProfile
       }
-    }
-
-    private func loadValidated(
-      _ profile: MoriGlobalProfileScope
-    ) throws -> Snapshot {
-      try validate(profile)
-      let snapshot = try load()
-      guard snapshot.deletionFence?.rejects(profile) != true else {
-        throw PhoneMockExperienceError.invalidProfile
-      }
-      return snapshot
     }
 
     private func load() throws -> Snapshot {
@@ -381,10 +186,7 @@
       guard snapshot.schemaVersion == Snapshot.currentSchemaVersion else {
         throw CocoaError(.coderReadCorrupt)
       }
-      // G6 stored preview conversation text and memory consent in this
-      // Debug-only file. G7 owns both in profile-scoped authoritative stores,
-      // so rewrite the decoded projection to remove those deprecated fields.
-      try save(snapshot)
+      cached = snapshot
       return snapshot
     }
 

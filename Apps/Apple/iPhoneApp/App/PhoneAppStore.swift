@@ -1,5 +1,6 @@
 import AppRuntime
 import Combine
+import CryptoKit
 import Domain
 import Foundation
 import MoriDomain
@@ -103,8 +104,14 @@ final class PhoneAppStore: ObservableObject {
   private var memoryContextWriteTask: Task<Void, Never>?
   private var memoryContextWriteRevision: UInt64 = 0
   #if DEBUG
-    private let mockExperienceRepository: PhoneMockExperienceRepository
+    private let mockProfileSettingsRepository:
+      PhoneMockProfileSettingsRepository
     private let mockChatBehavior: DeterministicMockChatBehavior
+    private var productLoopRuntime: ProductLoopAppRuntime?
+    private var productLoopProfileScope: MoriGlobalProfileScope?
+    private var productLoopSnapshot: ProductLoopAppSnapshot?
+    private var productLoopGeneration: UInt64 = 0
+    private var productCommandTask: Task<Void, Never>?
   #endif
 
   init(arguments: [String] = ProcessInfo.processInfo.arguments) {
@@ -169,9 +176,9 @@ final class PhoneAppStore: ObservableObject {
       initialProfileSource: initialGlobalProfileSource
     )
     #if DEBUG
-      mockExperienceRepository = PhoneMockExperienceRepository(
+      mockProfileSettingsRepository = PhoneMockProfileSettingsRepository(
         fileURL: runtimeConfiguration.storageDirectory
-          .appendingPathComponent("phone-mock-experience-v1.json")
+          .appendingPathComponent("phone-mock-profile-settings-v1.json")
       )
       mockChatBehavior = Self.mockChatBehavior(arguments: arguments)
     #endif
@@ -192,8 +199,10 @@ final class PhoneAppStore: ObservableObject {
     guard !hasStarted else { return }
     hasStarted = true
     await loadGlobalPreferences()
+    if hasLaunchScenarioOverride {
+      await loadMockExperience()
+    }
     await configureConversation()
-    await loadMockExperience()
     guard !hasLaunchScenarioOverride else { return }
     observeNotificationRoutes()
     if let launchNotificationRoute {
@@ -277,6 +286,7 @@ final class PhoneAppStore: ObservableObject {
     }
     isSwitchingDataSource = true
     defer { isSwitchingDataSource = false }
+    retireProductLoop()
     await stopConversationRuntime(clearPresentation: true)
     do {
       try await selectGlobalProfile(for: source)
@@ -331,50 +341,60 @@ final class PhoneAppStore: ObservableObject {
     #if DEBUG
       guard
         let profile = activeMockProfile,
-        let sensing = authoritativeSensingScope,
-        sensing.enabled,
         let task = mockExperience.recommendedTask,
-        let globalPreferenceRuntime
+        let productRuntime = productLoopRuntime,
+        productLoopProfileScope == profile
       else {
         statusMessage = "当前没有可确认的 Mock 任务"
         return
       }
-      let repository = mockExperienceRepository
+      let generation = productLoopGeneration
       isSavingMockExperience = true
-      defer { isSavingMockExperience = false }
-      do {
-        let settlement =
-          try await globalPreferenceRuntime.performAuthorizedSensingMutation(
-            profileScope: profile,
-            sensingScope: sensing
-          ) {
-            try repository.settleTask(
-              profile: profile,
-              sensing: sensing,
-              taskID: task.id
-            )
-          }
-        guard
-          applyMockExperience(
-            settlement.projection,
-            for: profile,
-            sensing: sensing
+      let command = Task { [weak self] in
+        guard let self else { return }
+        do {
+          let settlement = try await productRuntime.completeTask(
+            taskID: TaskID(task.id),
+            method: .userConfirmed,
+            at: Date()
           )
-        else {
+          try Task.checkCancellation()
+          guard
+            self.productLoopMatches(
+              profile: profile,
+              generation: generation
+            )
+          else {
+            return
+          }
+          try await self.refreshProductLoopSnapshot(
+            productRuntime,
+            profile: profile,
+            generation: generation
+          )
+          self.statusMessage =
+            settlement.didRecordReward
+            ? "已经记下，获得 \(task.reward) 枚金币"
+            : "这件小事已经记下，金币不会重复增加"
+        } catch is CancellationError {
           return
+        } catch {
+          guard
+            self.productLoopMatches(
+              profile: profile,
+              generation: generation
+            )
+          else {
+            return
+          }
+          self.statusMessage = "这件小事暂时没能保存"
         }
-        statusMessage =
-          settlement.wasAlreadySettled
-          ? "这件小事已经记下，金币不会重复增加"
-          : "已经记下，获得 \(task.reward) 枚金币"
-      } catch {
-        guard
-          activeMockProfile == profile,
-          authoritativeSensingScope == sensing
-        else {
-          return
-        }
-        statusMessage = "这件小事暂时没能保存"
+      }
+      productCommandTask = command
+      await command.value
+      if productLoopMatches(profile: profile, generation: generation) {
+        productCommandTask = nil
+        isSavingMockExperience = false
       }
     #endif
   }
@@ -385,30 +405,80 @@ final class PhoneAppStore: ObservableObject {
       return
     }
     #if DEBUG
-      guard let profile = activeMockProfile else {
+      guard
+        let profile = activeMockProfile,
+        let productRuntime = productLoopRuntime,
+        productLoopProfileScope == profile
+      else {
         statusMessage = "当前 Mock profile 不可用"
         return
       }
+      let generation = productLoopGeneration
+      let operationID = stableCollectionOperationID(
+        kind: "purchase",
+        profile: profile,
+        itemID: item.id
+      )
       isSavingMockExperience = true
-      defer { isSavingMockExperience = false }
-      do {
-        switch try mockExperienceRepository.purchase(
-          profile: profile,
-          itemID: item.id
-        ) {
-        case .purchased(let projection):
-          guard applyMockExperience(projection, for: profile) else { return }
-          statusMessage = "已收藏 \(item.title)"
-        case .alreadyOwned(let projection):
-          guard applyMockExperience(projection, for: profile) else { return }
-          statusMessage = "\(item.title) 已经在收藏中"
-        case .insufficientBalance(let projection):
-          guard applyMockExperience(projection, for: profile) else { return }
-          statusMessage = "还差 \(max(0, item.price - projection.coinBalance)) 枚金币"
+      let command = Task { [weak self] in
+        guard let self else { return }
+        do {
+          let result = try await productRuntime.purchase(
+            cosmeticID: CosmeticID(item.id),
+            operationID: operationID,
+            at: Date()
+          )
+          try Task.checkCancellation()
+          guard
+            self.productLoopMatches(
+              profile: profile,
+              generation: generation
+            )
+          else {
+            return
+          }
+          try await self.refreshProductLoopSnapshot(
+            productRuntime,
+            profile: profile,
+            generation: generation
+          )
+          self.statusMessage =
+            result.didRecordPurchase
+            ? "已收藏 \(item.title)"
+            : "\(item.title) 已经在收藏中"
+        } catch let error as CollectionMutationRuntimeError {
+          guard
+            self.productLoopMatches(
+              profile: profile,
+              generation: generation
+            )
+          else {
+            return
+          }
+          if case .insufficientBalance(let required, let available) = error {
+            self.statusMessage = "还差 \(max(0, required - available)) 枚金币"
+          } else {
+            self.statusMessage = "购买暂时没能保存"
+          }
+        } catch is CancellationError {
+          return
+        } catch {
+          guard
+            self.productLoopMatches(
+              profile: profile,
+              generation: generation
+            )
+          else {
+            return
+          }
+          self.statusMessage = "购买暂时没能保存"
         }
-      } catch {
-        guard activeMockProfile == profile else { return }
-        statusMessage = "购买暂时没能保存"
+      }
+      productCommandTask = command
+      await command.value
+      if productLoopMatches(profile: profile, generation: generation) {
+        productCommandTask = nil
+        isSavingMockExperience = false
       }
     #endif
   }
@@ -419,31 +489,75 @@ final class PhoneAppStore: ObservableObject {
       return
     }
     #if DEBUG
-      guard let profile = activeMockProfile else {
+      guard
+        let profile = activeMockProfile,
+        let productRuntime = productLoopRuntime,
+        let snapshot = productLoopSnapshot,
+        productLoopProfileScope == profile
+      else {
         statusMessage = "当前 Mock profile 不可用"
         return
       }
+      let generation = productLoopGeneration
+      let slot = collectionSlot(for: item)
+      let priorTransitionID =
+        snapshot.localState.collection.equipped[slot]?
+        .transitionID.rawValue ?? "none"
+      let operationID = stableCollectionOperationID(
+        kind: "equip",
+        profile: profile,
+        itemID: "\(slot.rawValue).\(priorTransitionID).\(item.id)"
+      )
       isSavingMockExperience = true
-      defer { isSavingMockExperience = false }
-      do {
-        if let sceneID = item.sceneID {
-          let projection = try mockExperienceRepository.selectScene(
-            profile: profile,
-            sceneID: sceneID
+      let command = Task { [weak self] in
+        guard let self else { return }
+        do {
+          let result = try await productRuntime.equip(
+            cosmeticID: CosmeticID(item.id),
+            operationID: operationID,
+            at: Date()
           )
-          guard applyMockExperience(projection, for: profile) else { return }
-          statusMessage = "场景已切换为 \(item.title)"
-        } else {
-          let projection = try mockExperienceRepository.equip(
+          try Task.checkCancellation()
+          guard
+            self.productLoopMatches(
+              profile: profile,
+              generation: generation
+            )
+          else {
+            return
+          }
+          try await self.refreshProductLoopSnapshot(
+            productRuntime,
             profile: profile,
-            itemID: item.id
+            generation: generation
           )
-          guard applyMockExperience(projection, for: profile) else { return }
-          statusMessage = "已装备 \(item.title)"
+          guard result.isEquipped else {
+            self.statusMessage = "装备状态已经变化，请再试一次"
+            return
+          }
+          self.statusMessage =
+            item.sceneID == nil
+            ? "已装备 \(item.title)"
+            : "场景已切换为 \(item.title)"
+        } catch is CancellationError {
+          return
+        } catch {
+          guard
+            self.productLoopMatches(
+              profile: profile,
+              generation: generation
+            )
+          else {
+            return
+          }
+          self.statusMessage = "请先收藏这件物品"
         }
-      } catch {
-        guard activeMockProfile == profile else { return }
-        statusMessage = "请先收藏这件物品"
+      }
+      productCommandTask = command
+      await command.value
+      if productLoopMatches(profile: profile, generation: generation) {
+        productCommandTask = nil
+        isSavingMockExperience = false
       }
     #endif
   }
@@ -668,10 +782,10 @@ final class PhoneAppStore: ObservableObject {
               profile == capturedProfile,
               let mockChatAuthority
             else {
-              throw PhoneMockExperienceError.invalidProfile
+              throw PhoneMockProfileSettingsError.invalidProfile
             }
-            let projection =
-              try mockExperienceRepository.setConversationMemoryContext(
+            _ =
+              try mockProfileSettingsRepository.setConversationMemoryContext(
                 profile: profile,
                 enabled: enabled
               )
@@ -682,7 +796,6 @@ final class PhoneAppStore: ObservableObject {
             else {
               return
             }
-            _ = applyMockExperience(projection, for: profile)
             if enabled == false, let processor = conversationProcessor {
               applyConversation(
                 await processor.clearMemoryContextIndex()
@@ -741,6 +854,7 @@ final class PhoneAppStore: ObservableObject {
       }
       isSwitchingDataSource = true
       defer { isSwitchingDataSource = false }
+      retireProductLoop()
       await stopConversationRuntime(clearPresentation: true)
       var removedOldConversationNamespace = false
       do {
@@ -767,7 +881,7 @@ final class PhoneAppStore: ObservableObject {
           selectionAuthority: selectionAuthority
         ).deleteSelectedMockNamespace(namespace: namespace)
         removedOldConversationNamespace = true
-        try mockExperienceRepository.remove(profile: oldScope)
+        try mockProfileSettingsRepository.remove(profile: oldScope)
         try await selectGlobalProfile(for: selectedDataSource)
       } catch {
         if removedOldConversationNamespace == false {
@@ -783,19 +897,17 @@ final class PhoneAppStore: ObservableObject {
         statusMessage = "新的 Mock profile 不可用"
         return
       }
-      do {
-        let projection = try mockExperienceRepository.reset(
-          profile: profile
-        )
-        guard applyMockExperience(projection, for: profile) else { return }
-        model = PhonePresentationModel.demo(selectedDataSource)
-        await configureConversation()
-        await loadMockExperience()
-        statusMessage = "当前 Mock 状态已重置；真实记录未改变"
-      } catch {
-        guard activeMockProfile == profile else { return }
+      model = PhonePresentationModel.demo(selectedDataSource)
+      await loadMockExperience()
+      guard
+        activeMockProfile == profile,
+        productLoopProfileScope == profile
+      else {
         statusMessage = "当前 Mock 状态暂时没能重置"
+        return
       }
+      await configureConversation()
+      statusMessage = "当前 Mock 状态已重置；真实记录未改变"
     #endif
   }
 
@@ -853,6 +965,7 @@ final class PhoneAppStore: ObservableObject {
     notificationRouteTask = nil
     peerSyncRetryTask?.cancel()
     peerSyncRetryTask = nil
+    retireProductLoop()
     let retiringConversationProcessor = conversationProcessor
     await stopConversationRuntime(clearPresentation: false)
 
@@ -864,7 +977,7 @@ final class PhoneAppStore: ObservableObject {
     }
     #if DEBUG
       do {
-        try mockExperienceRepository.deleteAll(
+        try mockProfileSettingsRepository.deleteAll(
           fence: deletionProjection.profileScope
         )
       } catch {
@@ -911,6 +1024,7 @@ final class PhoneAppStore: ObservableObject {
     Task { [weak self] in
       guard let self else { return }
       defer { endCompanionPreferenceWrite() }
+      var authorityWasSaved = false
       guard let globalPreferenceRuntime else {
         companionSensingEnabled = previous
         statusMessage = "随行设置暂时没能保存"
@@ -921,17 +1035,39 @@ final class PhoneAppStore: ObservableObject {
           try await globalPreferenceRuntime.setCompanionSensing(
             enabled: enabled
           )
+        authorityWasSaved = true
         guard projection.profileScope == authoritativeProfileScope else {
           return
         }
-        apply(
-          projection
-        )
-        await loadMockExperience()
+        apply(projection)
+        #if DEBUG
+          if
+            let productRuntime = productLoopRuntime,
+            productLoopProfileScope == projection.profileScope
+          {
+            let generation = productLoopGeneration
+            _ = try await productRuntime.reconcileSensing(
+              Self.sensingPreference(from: projection.sensingScope),
+              effectiveAt: Date()
+            )
+            try await refreshProductLoopSnapshot(
+              productRuntime,
+              profile: projection.profileScope,
+              generation: generation
+            )
+          } else {
+            await loadMockExperience()
+          }
+        #endif
       } catch {
         guard authoritativeProfileScope == capturedProfile else { return }
-        companionSensingEnabled = previous
-        statusMessage = "随行设置暂时没能保存"
+        if authorityWasSaved {
+          mockExperience = .empty
+          statusMessage = "随行设置已保存；Mock 产品状态暂时无法更新"
+        } else {
+          companionSensingEnabled = previous
+          statusMessage = "随行设置暂时没能保存"
+        }
       }
     }
   }
@@ -1066,6 +1202,7 @@ final class PhoneAppStore: ObservableObject {
       #endif
       return
     }
+    retireProductLoop()
     mockExperience = .empty
     do {
       preferences = try await runtime?.loadPreferences() ?? AppPreferences()
@@ -1079,36 +1216,80 @@ final class PhoneAppStore: ObservableObject {
 
   private func loadMockExperience() async {
     #if DEBUG
+      retireProductLoop()
       guard selectedDataSource.isMock, model.allowsInteraction else {
         mockExperience = .empty
         return
       }
+      if hasLaunchScenarioOverride {
+        guard model.mockScenario?.id == selectedDataSource.rawValue else {
+          mockExperience = .empty
+          statusMessage = "Mock 场景无效，未创建产品数据"
+          return
+        }
+      }
       guard
         let profile = activeMockProfile,
-        let sensing = authoritativeSensingScope
+        let sensing = authoritativeSensingScope,
+        let globalPreferenceRuntime
       else {
         mockExperience = .empty
         statusMessage = "Mock profile 或感知状态暂时无法载入"
         return
       }
+      let generation = productLoopGeneration
       do {
-        let projection = try mockExperienceRepository.prepareRecommendedTask(
+        let authority =
+          try await globalPreferenceRuntime.currentChatAuthority()
+        let layout = try RuntimeStorageLayout(
+          applicationSupportURL: runtimeStorageDirectory
+        )
+        let namespace = try layout.namespace(for: authority.profile)
+        guard
+          authority.profile.isMock,
+          namespace.namespaceID == profile.storageKey
+        else {
+          throw ProductLoopAppRuntimeError.profileScopeMismatch
+        }
+        let productRuntime = try ProductLoopAppRuntime(
+          applicationSupportURL: runtimeStorageDirectory,
+          profile: authority.profile,
+          sensing: Self.sensingPreference(from: sensing),
+          originDeviceID: "phone"
+        )
+        guard productLoopMatches(profile: profile, generation: generation) else {
+          return
+        }
+        productLoopRuntime = productRuntime
+        productLoopProfileScope = profile
+        _ = try await productRuntime.activate()
+        _ = try await productRuntime.reconcileSensing(
+          Self.sensingPreference(from: sensing),
+          effectiveAt: Date()
+        )
+        try await refreshProductLoopSnapshot(
+          productRuntime,
           profile: profile,
-          sensing: sensing,
-          candidate: model.recommendedTaskCandidate(sensingScope: sensing)
+          generation: generation
         )
-        _ = applyMockExperience(
-          projection,
-          for: profile,
-          sensing: sensing
+        let settings = try mockProfileSettingsRepository.settings(
+          profile: profile
         )
+        guard productLoopMatches(profile: profile, generation: generation) else {
+          return
+        }
+        applyMockProfileSettings(settings)
       } catch {
         guard
           activeMockProfile == profile,
-          authoritativeSensingScope == sensing
+          authoritativeSensingScope == sensing,
+          productLoopGeneration == generation
         else {
           return
         }
+        productLoopRuntime = nil
+        productLoopProfileScope = nil
+        productLoopSnapshot = nil
         mockExperience = .empty
         statusMessage = "Mock 体验状态暂时无法载入"
       }
@@ -1139,8 +1320,8 @@ final class PhoneAppStore: ObservableObject {
             return
           }
           do {
-            let projection =
-              try self.mockExperienceRepository.setAppPreferences(
+            let settings =
+              try self.mockProfileSettingsRepository.setAppPreferences(
                 profile: profile,
                 proactiveMessagesEnabled: value.proactiveMessagesEnabled,
                 socialSharingEnabled: value.socialSharingEnabled,
@@ -1150,10 +1331,11 @@ final class PhoneAppStore: ObservableObject {
             guard revision == self.preferenceRevision else {
               return
             }
-            guard self.applyMockExperience(projection, for: profile) else {
+            guard self.activeMockProfile == profile else {
               self.isSavingPreferences = false
               return
             }
+            self.applyMockProfileSettings(settings)
             self.isSavingPreferences = false
             self.statusMessage = "\(successPrefix)；Mock 与真实记录保持隔离"
           } catch {
@@ -1283,13 +1465,13 @@ final class PhoneAppStore: ObservableObject {
       let chatAuthority: any ChatAuthorityProviding
       #if DEBUG
         if authority.profile.isMock {
-          let projection = try mockExperienceRepository.projection(
+          let settings = try mockProfileSettingsRepository.settings(
             profile: expectedScope
           )
           let localAuthority = PhoneMockChatAuthority(
             profile: authority.profile,
             memoryContextEnabled:
-              projection.conversationMemoryContextEnabled ?? false
+              settings.conversationMemoryContextEnabled
           )
           mockChatAuthority = localAuthority
           chatAuthority = localAuthority
@@ -1420,6 +1602,19 @@ final class PhoneAppStore: ObservableObject {
     quietHours = projection.quietHours
   }
 
+  private func retireProductLoop() {
+    #if DEBUG
+      productLoopGeneration &+= 1
+      productCommandTask?.cancel()
+      productCommandTask = nil
+      productLoopRuntime = nil
+      productLoopProfileScope = nil
+      productLoopSnapshot = nil
+    #endif
+    isSavingMockExperience = false
+    mockExperience = .empty
+  }
+
   #if DEBUG
     private var activeMockProfile: MoriGlobalProfileScope? {
       guard
@@ -1433,32 +1628,89 @@ final class PhoneAppStore: ObservableObject {
       return profile
     }
 
-    @discardableResult
-    private func applyMockExperience(
-      _ projection: PhoneMockExperienceProjection,
-      for capturedProfile: MoriGlobalProfileScope,
-      sensing capturedSensing: MoriGlobalSensingScope? = nil
+    private func productLoopMatches(
+      profile: MoriGlobalProfileScope,
+      generation: UInt64
     ) -> Bool {
+      productLoopGeneration == generation
+        && activeMockProfile == profile
+    }
+
+    private func refreshProductLoopSnapshot(
+      _ runtime: ProductLoopAppRuntime,
+      profile: MoriGlobalProfileScope,
+      generation: UInt64
+    ) async throws {
+      let snapshot = try await runtime.snapshot()
       guard
-        activeMockProfile == capturedProfile,
-        capturedSensing.map({ $0 == authoritativeSensingScope }) ?? true
+        productLoopMatches(profile: profile, generation: generation),
+        productLoopProfileScope == profile,
+        snapshot.localState.runtimeProfile == runtime.profile
       else {
-        return false
+        return
       }
-      mockExperience = projection
-      let mockPreferences = projection.appPreferenceState
+      productLoopSnapshot = snapshot
+      mockExperience = PhoneMockExperienceProjection(
+        snapshot: snapshot,
+        sensingEnabled: authoritativeSensingScope?.enabled == true
+      )
+    }
+
+    private func applyMockProfileSettings(
+      _ settings: PhoneMockProfileSettings
+    ) {
       preferences.proactiveMessagesEnabled =
-        mockPreferences.proactiveMessagesEnabled
+        settings.proactiveMessagesEnabled
       preferences.proactiveNotificationConsentVersion =
-        mockPreferences.proactiveMessagesEnabled
+        settings.proactiveMessagesEnabled
         ? AppPreferences.currentNotificationConsentVersion : 0
       preferences.socialSharingEnabled =
-        mockPreferences.socialSharingEnabled
+        settings.socialSharingEnabled
       preferences.publicPetSocialState =
         PublicPetSocialStateV1(
-          rawValue: mockPreferences.publicPetSocialStateRawValue
+          rawValue: settings.publicPetSocialStateRawValue
         ) ?? .greeting
-      return true
+    }
+
+    private func collectionSlot(
+      for item: PhoneCollectionItem
+    ) -> CosmeticSlot {
+      switch item.category {
+      case .clothing:
+        .outfit
+      case .accessories:
+        .accessory
+      case .scenes:
+        .scene
+      }
+    }
+
+    private func stableCollectionOperationID(
+      kind: String,
+      profile: MoriGlobalProfileScope,
+      itemID: String
+    ) -> CollectionOperationID {
+      let input = "phone.\(kind).v1|\(profile.storageKey)|\(itemID)"
+      let digest = SHA256.hash(data: Data(input.utf8))
+        .map { String(format: "%02x", $0) }
+        .joined()
+      return CollectionOperationID(
+        rawValue: "phone.\(kind).\(digest)"
+      )
+    }
+
+    private static func sensingPreference(
+      from scope: MoriGlobalSensingScope
+    ) -> CompanionSensingPreference {
+      CompanionSensingPreference(
+        enabled: scope.enabled,
+        epoch: SensingEpoch(
+          LamportRevision(
+            counter: scope.epochCounter,
+            originDeviceID: scope.epochOriginDeviceID
+          )
+        )
+      )
     }
   #endif
 

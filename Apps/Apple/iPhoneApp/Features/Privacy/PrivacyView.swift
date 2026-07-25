@@ -294,7 +294,7 @@ struct PhoneSettingsView: View {
       }
       .accessibilityIdentifier("phone.settings.sync-status")
     } footer: {
-      Text("当前设置、Mock 任务、金币与收藏只保存在本机。Watch 自动同步将在正式接线后启用；这里没有手动同步或测试按钮。")
+      Text("当前设置、Mock 任务、金币与收藏只保存在本机。iPhone 与 Watch 的配对中继尚未接入；接入后会自动同步，这里不提供手动同步或测试按钮。")
     }
   }
 
