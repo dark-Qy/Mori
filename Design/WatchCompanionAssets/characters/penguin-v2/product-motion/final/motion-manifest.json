@@ -1,0 +1,461 @@
+{
+  "schemaVersion": 1,
+  "characterID": "penguin",
+  "status": "ready",
+  "foundationAtlasSha256": "56f7faa9ad13b1b808c3369467db4e9adb92d571a23645bcb6aebd1e44b5897b",
+  "frameCount": 8,
+  "cell": {
+    "width": 192,
+    "height": 208
+  },
+  "motions": [
+    {
+      "id": "idle_neutral",
+      "sourceKind": "hatchV2Row",
+      "playback": "loop",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 0,
+      "sequenceSha256": "2175e394bfc7835602631259a4bac41ad1db7353e8dfab013e58e3b2f37ee4a2",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/01.png"
+      ],
+      "assetNames": [
+        "character_penguin_idle_neutral_00",
+        "character_penguin_idle_neutral_01",
+        "character_penguin_idle_neutral_02",
+        "character_penguin_idle_neutral_03",
+        "character_penguin_idle_neutral_04",
+        "character_penguin_idle_neutral_05",
+        "character_penguin_idle_neutral_06",
+        "character_penguin_idle_neutral_07"
+      ]
+    },
+    {
+      "id": "idle_resting",
+      "sourceKind": "productClip",
+      "playback": "loop",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 2,
+      "sequenceSha256": "732776f8cabbd7ea6dfda61599314d089c7947b5c4f1b80ff010ee0a001e93a1",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_idle_resting_00",
+        "character_penguin_idle_resting_01",
+        "character_penguin_idle_resting_02",
+        "character_penguin_idle_resting_03",
+        "character_penguin_idle_resting_04",
+        "character_penguin_idle_resting_05",
+        "character_penguin_idle_resting_06",
+        "character_penguin_idle_resting_07"
+      ]
+    },
+    {
+      "id": "idle_curious",
+      "sourceKind": "productClip",
+      "playback": "loop",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 2,
+      "sequenceSha256": "c8fdf91c9aef44a1f1c2a366c4708033252214214ac1179399eb5a3b9abe7ba2",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_idle_curious_00",
+        "character_penguin_idle_curious_01",
+        "character_penguin_idle_curious_02",
+        "character_penguin_idle_curious_03",
+        "character_penguin_idle_curious_04",
+        "character_penguin_idle_curious_05",
+        "character_penguin_idle_curious_06",
+        "character_penguin_idle_curious_07"
+      ]
+    },
+    {
+      "id": "idle_lively",
+      "sourceKind": "productClip",
+      "playback": "loop",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 2,
+      "sequenceSha256": "4a3869ab0b9744d7532efc966de8b47d800c16739d412fcd78be3d7f65bc473d",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_idle_lively_00",
+        "character_penguin_idle_lively_01",
+        "character_penguin_idle_lively_02",
+        "character_penguin_idle_lively_03",
+        "character_penguin_idle_lively_04",
+        "character_penguin_idle_lively_05",
+        "character_penguin_idle_lively_06",
+        "character_penguin_idle_lively_07"
+      ]
+    },
+    {
+      "id": "touch_head",
+      "sourceKind": "productClip",
+      "playback": "oneShot",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 3,
+      "sequenceSha256": "7219940b51c3a7b511792bbc78749ea44d4b18194409f18c6d894d34c6b6e543",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_touch_head_00",
+        "character_penguin_touch_head_01",
+        "character_penguin_touch_head_02",
+        "character_penguin_touch_head_03",
+        "character_penguin_touch_head_04",
+        "character_penguin_touch_head_05",
+        "character_penguin_touch_head_06",
+        "character_penguin_touch_head_07"
+      ]
+    },
+    {
+      "id": "touch_body",
+      "sourceKind": "productClip",
+      "playback": "oneShot",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 3,
+      "sequenceSha256": "ae5718c7b626fc0cb340c28c6aa30b65d97f76f573c51c24e1b24d6153114618",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_touch_body_00",
+        "character_penguin_touch_body_01",
+        "character_penguin_touch_body_02",
+        "character_penguin_touch_body_03",
+        "character_penguin_touch_body_04",
+        "character_penguin_touch_body_05",
+        "character_penguin_touch_body_06",
+        "character_penguin_touch_body_07"
+      ]
+    },
+    {
+      "id": "walk",
+      "sourceKind": "productClip",
+      "playback": "loop",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 1,
+      "sequenceSha256": "3f30c050b84563053c81d95d8e0d5bc0c290be9433ddacabb5ae3c3a33f4c4f6",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_walk_00",
+        "character_penguin_walk_01",
+        "character_penguin_walk_02",
+        "character_penguin_walk_03",
+        "character_penguin_walk_04",
+        "character_penguin_walk_05",
+        "character_penguin_walk_06",
+        "character_penguin_walk_07"
+      ]
+    },
+    {
+      "id": "brisk_move",
+      "sourceKind": "productClip",
+      "playback": "loop",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 3,
+      "sequenceSha256": "0da11c2deeb167fe1feb3746087571ebc220f85b5c052ce9fce4eb78629f11d9",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_brisk_move_00",
+        "character_penguin_brisk_move_01",
+        "character_penguin_brisk_move_02",
+        "character_penguin_brisk_move_03",
+        "character_penguin_brisk_move_04",
+        "character_penguin_brisk_move_05",
+        "character_penguin_brisk_move_06",
+        "character_penguin_brisk_move_07"
+      ]
+    },
+    {
+      "id": "sit_down",
+      "sourceKind": "productClip",
+      "playback": "oneShot",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 7,
+      "sequenceSha256": "51589df8815b14033bd2b33897018e14c7b3d660810d3da4a055324bf8563381",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_sit_down_00",
+        "character_penguin_sit_down_01",
+        "character_penguin_sit_down_02",
+        "character_penguin_sit_down_03",
+        "character_penguin_sit_down_04",
+        "character_penguin_sit_down_05",
+        "character_penguin_sit_down_06",
+        "character_penguin_sit_down_07"
+      ]
+    },
+    {
+      "id": "catch_breath",
+      "sourceKind": "productClip",
+      "playback": "oneShot",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 4,
+      "sequenceSha256": "1ef083ba0340c62b25b356a4ff62e4a01b1159073daee79d473fc7a471b13038",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_catch_breath_00",
+        "character_penguin_catch_breath_01",
+        "character_penguin_catch_breath_02",
+        "character_penguin_catch_breath_03",
+        "character_penguin_catch_breath_04",
+        "character_penguin_catch_breath_05",
+        "character_penguin_catch_breath_06",
+        "character_penguin_catch_breath_07"
+      ]
+    },
+    {
+      "id": "route_reflection",
+      "sourceKind": "productClip",
+      "playback": "oneShot",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 4,
+      "sequenceSha256": "4a0b3c41398d91f2329096e69780e432da57579d59c1944da03bdf04f5d3731d",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_route_reflection_00",
+        "character_penguin_route_reflection_01",
+        "character_penguin_route_reflection_02",
+        "character_penguin_route_reflection_03",
+        "character_penguin_route_reflection_04",
+        "character_penguin_route_reflection_05",
+        "character_penguin_route_reflection_06",
+        "character_penguin_route_reflection_07"
+      ]
+    },
+    {
+      "id": "speaking",
+      "sourceKind": "productClip",
+      "playback": "loop",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 2,
+      "sequenceSha256": "1044b6f8d1a5cd75142132d27552210c92ea7ea27358af95f2de0471451b4be0",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_speaking_00",
+        "character_penguin_speaking_01",
+        "character_penguin_speaking_02",
+        "character_penguin_speaking_03",
+        "character_penguin_speaking_04",
+        "character_penguin_speaking_05",
+        "character_penguin_speaking_06",
+        "character_penguin_speaking_07"
+      ]
+    },
+    {
+      "id": "action_success",
+      "sourceKind": "productClip",
+      "playback": "oneShotHoldFinal",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 5,
+      "sequenceSha256": "e1c9fa7aaebc239dc595be95a9aef2aca41a593e08c0f4b765775e4cc5daeb15",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_action_success_00",
+        "character_penguin_action_success_01",
+        "character_penguin_action_success_02",
+        "character_penguin_action_success_03",
+        "character_penguin_action_success_04",
+        "character_penguin_action_success_05",
+        "character_penguin_action_success_06",
+        "character_penguin_action_success_07"
+      ]
+    },
+    {
+      "id": "story_reaction",
+      "sourceKind": "productClip",
+      "playback": "oneShot",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 4,
+      "sequenceSha256": "ae4d9d86143290764c8f09e0b39c37ab9b9f758e447f71976ba66e63b9173f64",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_story_reaction_00",
+        "character_penguin_story_reaction_01",
+        "character_penguin_story_reaction_02",
+        "character_penguin_story_reaction_03",
+        "character_penguin_story_reaction_04",
+        "character_penguin_story_reaction_05",
+        "character_penguin_story_reaction_06",
+        "character_penguin_story_reaction_07"
+      ]
+    },
+    {
+      "id": "daily_reflection",
+      "sourceKind": "productClip",
+      "playback": "oneShot",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 5,
+      "sequenceSha256": "e8e4577adf691448e78e2d4173c30b5188b4996b8dd2e957a5eb5c64e5a17c0f",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_daily_reflection_00",
+        "character_penguin_daily_reflection_01",
+        "character_penguin_daily_reflection_02",
+        "character_penguin_daily_reflection_03",
+        "character_penguin_daily_reflection_04",
+        "character_penguin_daily_reflection_05",
+        "character_penguin_daily_reflection_06",
+        "character_penguin_daily_reflection_07"
+      ]
+    },
+    {
+      "id": "bedtime",
+      "sourceKind": "productClip",
+      "playback": "loop",
+      "framesPerSecond": 10,
+      "reduceMotionFrame": 3,
+      "sequenceSha256": "a73f9540c2b014889577553bf1024dccaa922e7efd14f3c72ce79e3d6e79198b",
+      "frames": [
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/00.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/01.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/02.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/03.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/04.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/05.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/06.png",
+        "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/07.png"
+      ],
+      "assetNames": [
+        "character_penguin_bedtime_00",
+        "character_penguin_bedtime_01",
+        "character_penguin_bedtime_02",
+        "character_penguin_bedtime_03",
+        "character_penguin_bedtime_04",
+        "character_penguin_bedtime_05",
+        "character_penguin_bedtime_06",
+        "character_penguin_bedtime_07"
+      ]
+    }
+  ]
+}

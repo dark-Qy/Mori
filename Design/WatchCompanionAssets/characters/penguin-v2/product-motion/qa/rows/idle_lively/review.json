@@ -1,0 +1,207 @@
+{
+  "ok": true,
+  "motionID": "idle_lively",
+  "sequenceType": "loop",
+  "source": {
+    "path": "/Users/shubing/.codex/worktrees/3a31/watch-companion/Design/WatchCompanionAssets/characters/penguin-v2/product-motion/decoded/idle_lively.png",
+    "size": [
+      1774,
+      887
+    ],
+    "mode": "RGB",
+    "borderKeyEvidence": {
+      "dominantRGB": [
+        242,
+        5,
+        221
+      ],
+      "uniformRatio": 0.9599148189903545,
+      "requestedKeyCompatibleRatio": 1.0,
+      "dominantDistanceFromRequestedKey": 36.742346141747674
+    },
+    "poseSourceBBoxes": [
+      [
+        18,
+        270,
+        207,
+        632
+      ],
+      [
+        242,
+        271,
+        430,
+        632
+      ],
+      [
+        464,
+        276,
+        648,
+        629
+      ],
+      [
+        684,
+        273,
+        866,
+        631
+      ],
+      [
+        903,
+        272,
+        1087,
+        630
+      ],
+      [
+        1122,
+        272,
+        1307,
+        629
+      ],
+      [
+        1341,
+        272,
+        1524,
+        630
+      ],
+      [
+        1557,
+        272,
+        1740,
+        631
+      ]
+    ]
+  },
+  "errors": [],
+  "warnings": [
+    "source aspect ratio 2.000 differs from the preferred 2.5...3.2 range"
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        43,
+        5,
+        148,
+        203
+      ],
+      "nontransparentPixels": 15967,
+      "edgePixels": 0,
+      "sha256": "2331c19e2939331f6df4acd26bd2e48005d342361c40dfd740ab76c29e7ece5a"
+    },
+    {
+      "index": 1,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        43,
+        5,
+        148,
+        203
+      ],
+      "nontransparentPixels": 15839,
+      "edgePixels": 0,
+      "sha256": "864f3d51729540ac6e28afb2c477c7fa78e1b7feaf542f0526176ea655416c4e"
+    },
+    {
+      "index": 2,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        44,
+        8,
+        147,
+        202
+      ],
+      "nontransparentPixels": 15345,
+      "edgePixels": 0,
+      "sha256": "db6cd0d636b58a9f2b910ce2d728366acae23652802bea42c2cc5521653504e4"
+    },
+    {
+      "index": 3,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        44,
+        6,
+        146,
+        203
+      ],
+      "nontransparentPixels": 15374,
+      "edgePixels": 0,
+      "sha256": "7f8b0ee5ef2e110361aa3a7f31e98db909ed9d18cb20a4741480aa2b37dfc029"
+    },
+    {
+      "index": 4,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        44,
+        6,
+        147,
+        202
+      ],
+      "nontransparentPixels": 15497,
+      "edgePixels": 0,
+      "sha256": "c2c8196c0db5941ba251edd39f652af7a9dba2da6199defa6ee3f90ceacb8470"
+    },
+    {
+      "index": 5,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        44,
+        6,
+        147,
+        202
+      ],
+      "nontransparentPixels": 15475,
+      "edgePixels": 0,
+      "sha256": "b46ed17a9520e4e48492625c79af204296a1c63b290f4d39c31f1a6527353067"
+    },
+    {
+      "index": 6,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        44,
+        6,
+        147,
+        202
+      ],
+      "nontransparentPixels": 15481,
+      "edgePixels": 0,
+      "sha256": "178f2df55ca1aa573b8b0b5309c8da3c2e682f44470126d26c8b42ebc99ec948"
+    },
+    {
+      "index": 7,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        44,
+        6,
+        147,
+        203
+      ],
+      "nontransparentPixels": 15548,
+      "edgePixels": 0,
+      "sha256": "5df6972a32f6773b14106b2ecb52123c8a7280936795b8c4b24432d26361f338"
+    }
+  ]
+}

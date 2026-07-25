@@ -1,0 +1,208 @@
+{
+  "ok": true,
+  "motionID": "catch_breath",
+  "sequenceType": "oneShot",
+  "source": {
+    "path": "/Users/shubing/.codex/worktrees/3a31/watch-companion/Design/WatchCompanionAssets/characters/penguin-v2/product-motion/decoded/catch_breath.png",
+    "size": [
+      1774,
+      887
+    ],
+    "mode": "RGB",
+    "borderKeyEvidence": {
+      "dominantRGB": [
+        241,
+        3,
+        215
+      ],
+      "uniformRatio": 0.9192659401227609,
+      "requestedKeyCompatibleRatio": 1.0,
+      "dominantDistanceFromRequestedKey": 42.485291572496
+    },
+    "poseSourceBBoxes": [
+      [
+        12,
+        302,
+        224,
+        619
+      ],
+      [
+        241,
+        302,
+        442,
+        619
+      ],
+      [
+        475,
+        302,
+        662,
+        619
+      ],
+      [
+        697,
+        303,
+        876,
+        619
+      ],
+      [
+        916,
+        302,
+        1083,
+        619
+      ],
+      [
+        1122,
+        303,
+        1317,
+        619
+      ],
+      [
+        1339,
+        303,
+        1534,
+        619
+      ],
+      [
+        1550,
+        302,
+        1752,
+        619
+      ]
+    ]
+  },
+  "errors": [],
+  "warnings": [
+    "source aspect ratio 2.000 differs from the preferred 2.5...3.2 range",
+    "source border has minor color variation but remains within the selected chroma threshold (91.9% locally uniform)"
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        29,
+        5,
+        163,
+        203
+      ],
+      "nontransparentPixels": 16640,
+      "edgePixels": 0,
+      "sha256": "f018ad357265723a482868d422856f12b16b15189c9c4fc735313b92a0bbc425"
+    },
+    {
+      "index": 1,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        32,
+        5,
+        159,
+        203
+      ],
+      "nontransparentPixels": 16584,
+      "edgePixels": 0,
+      "sha256": "62d51b4290103c1c07c9256f3c904140b1938949724e0593d05e15cebd83372b"
+    },
+    {
+      "index": 2,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        36,
+        5,
+        155,
+        203
+      ],
+      "nontransparentPixels": 16190,
+      "edgePixels": 0,
+      "sha256": "969792b50ad1e2ade1e41db14411b0060e660bad2b39ba5bfb2569f45824b4b1"
+    },
+    {
+      "index": 3,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        39,
+        7,
+        153,
+        203
+      ],
+      "nontransparentPixels": 16049,
+      "edgePixels": 0,
+      "sha256": "0bc694da5584024c715b6719581ecb1bdb1938d6e8b8a886ec3a381c828113bf"
+    },
+    {
+      "index": 4,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        42,
+        5,
+        149,
+        203
+      ],
+      "nontransparentPixels": 15208,
+      "edgePixels": 0,
+      "sha256": "dcf0ab512ab7eb3152d30137174bbdcadeda0a8d3639cce6976cf687bd999684"
+    },
+    {
+      "index": 5,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        34,
+        6,
+        158,
+        203
+      ],
+      "nontransparentPixels": 16224,
+      "edgePixels": 0,
+      "sha256": "1e5b20b62efbe40833c2ce731acb6a5b6f2715a611225f608914d30bc4c3435f"
+    },
+    {
+      "index": 6,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        34,
+        6,
+        158,
+        203
+      ],
+      "nontransparentPixels": 16287,
+      "edgePixels": 0,
+      "sha256": "8daaea8f8cd31e12a45004ffe831e6b9f96a7080ab1bf1140c92f6f26724d4c3"
+    },
+    {
+      "index": 7,
+      "size": [
+        192,
+        208
+      ],
+      "bbox": [
+        32,
+        5,
+        160,
+        203
+      ],
+      "nontransparentPixels": 16462,
+      "edgePixels": 0,
+      "sha256": "e72110a9ff32713fd38b1adbe2edb600111b00aebdbdbcd9090de38543198341"
+    }
+  ]
+}

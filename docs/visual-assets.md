@@ -62,10 +62,16 @@ The Watch runtime exports the following common interaction interface:
 - `action_success`
 - `story_reaction`
 
-`Design/WatchCompanionAssets/characters/runtime-state-map.json` is the machine-readable mapping
-from those runtime states to the nine canonical source rows. Every runtime state exports exactly
-eight PNG frames at 10 fps; shorter authored rows are deterministically sampled across eight
-runtime slots rather than padded with unrelated artwork.
+`Design/WatchCompanionAssets/characters/motion-catalog.json` is the versioned product-motion
+contract. It distinguishes dedicated product clips, approved hatch-pet aliases, keyframe poses,
+and non-visual policies. The legacy
+`Design/WatchCompanionAssets/characters/runtime-state-map.json` remains an eight-state compatibility
+export until the app integrates the new catalog; it is not an acceptable source of product
+semantics when it maps a lively idle to waving, a body touch to failure, or a story reaction to
+review/processing.
+
+Every product clip exports exactly eight PNG frames. Shorter approved hatch-pet rows may be sampled
+across eight runtime slots only when the motion catalog explicitly names that foundation row.
 
 Video may be used as motion reference, but it is not a runtime format. Runtime clips are transparent
 PNG frames or atlas pages no larger than `1024x1024`. Every clip uses the same canvas, foot anchor,

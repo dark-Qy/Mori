@@ -1,0 +1,622 @@
+{
+  "schemaVersion": 2,
+  "status": "authoring",
+  "characterIDs": [
+    "penguin",
+    "polar_bear"
+  ],
+  "fallbackMotionID": "idle_neutral",
+  "assetKeyTemplate": "character_{character}_{motion}_{frame}",
+  "cell": {
+    "width": 192,
+    "height": 208
+  },
+  "layoutPresets": {
+    "standardGrounded": {
+      "anchor": {
+        "x": 0.5,
+        "footY": 0.94
+      },
+      "scale": 1
+    }
+  },
+  "defaults": {
+    "frameCount": 8,
+    "frameOrder": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07"
+    ],
+    "framesPerSecond": 10,
+    "layoutPreset": "standardGrounded",
+    "interruptPolicy": "higherPriorityOrReplacement",
+    "reduceMotionTransitionMilliseconds": 150,
+    "missingFramePolicy": "fallbackToNeutralIdle",
+    "backgroundPolicy": "clear"
+  },
+  "priorityClasses": [
+    {
+      "id": "idle",
+      "priority": 100
+    },
+    {
+      "id": "attention",
+      "priority": 200
+    },
+    {
+      "id": "companion",
+      "priority": 300
+    },
+    {
+      "id": "conversation",
+      "priority": 400
+    },
+    {
+      "id": "event",
+      "priority": 500
+    },
+    {
+      "id": "touch",
+      "priority": 600
+    }
+  ],
+  "motions": [
+    {
+      "id": "idle_neutral",
+      "productionForm": "unique",
+      "authoringStatus": "approvedFoundation",
+      "source": {
+        "kind": "hatchV2Row",
+        "id": "idle"
+      },
+      "playback": "loop",
+      "priorityClass": "idle",
+      "triggers": [
+        "mood.neutral"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori"
+      ],
+      "returnPolicy": "remain",
+      "cooldownMilliseconds": 0,
+      "replacementPolicy": "ignoreDuplicateIdentity",
+      "haptic": "none",
+      "hitTest": "character",
+      "reduceMotionFrame": 0,
+      "voiceOverKey": "motion.idle_neutral.voice_over",
+      "visibleAlternateKey": "motion.idle_neutral.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "idle_resting",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "idle_resting"
+      },
+      "playback": "loop",
+      "priorityClass": "idle",
+      "triggers": [
+        "mood.resting",
+        "state.seated"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori"
+      ],
+      "returnPolicy": "remain",
+      "cooldownMilliseconds": 0,
+      "replacementPolicy": "ignoreDuplicateIdentity",
+      "haptic": "none",
+      "hitTest": "character",
+      "reduceMotionFrame": 2,
+      "voiceOverKey": "motion.idle_resting.voice_over",
+      "visibleAlternateKey": "motion.idle_resting.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "idle_curious",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "idle_curious"
+      },
+      "playback": "loop",
+      "priorityClass": "attention",
+      "triggers": [
+        "mood.curious",
+        "attention.new_event"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 1500,
+      "replacementPolicy": "newestSameKind",
+      "haptic": "none",
+      "hitTest": "character",
+      "reduceMotionFrame": 2,
+      "voiceOverKey": "motion.idle_curious.voice_over",
+      "visibleAlternateKey": "motion.idle_curious.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "idle_lively",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "idle_lively"
+      },
+      "playback": "loop",
+      "priorityClass": "idle",
+      "triggers": [
+        "mood.lively"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori"
+      ],
+      "returnPolicy": "remain",
+      "cooldownMilliseconds": 0,
+      "replacementPolicy": "ignoreDuplicateIdentity",
+      "haptic": "none",
+      "hitTest": "character",
+      "reduceMotionFrame": 2,
+      "voiceOverKey": "motion.idle_lively.voice_over",
+      "visibleAlternateKey": "motion.idle_lively.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "touch_head",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "touch_head"
+      },
+      "playback": "oneShot",
+      "priorityClass": "touch",
+      "triggers": [
+        "tap.head"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 350,
+      "replacementPolicy": "restartNewest",
+      "haptic": "click",
+      "hitTest": "head",
+      "reduceMotionFrame": 3,
+      "voiceOverKey": "motion.touch_head.voice_over",
+      "visibleAlternateKey": "motion.touch_head.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "touch_body",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "touch_body"
+      },
+      "playback": "oneShot",
+      "priorityClass": "touch",
+      "triggers": [
+        "tap.body"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 350,
+      "replacementPolicy": "restartNewest",
+      "haptic": "directionUp",
+      "hitTest": "body",
+      "reduceMotionFrame": 3,
+      "voiceOverKey": "motion.touch_body.voice_over",
+      "visibleAlternateKey": "motion.touch_body.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "walk",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "walk"
+      },
+      "playback": "loop",
+      "priorityClass": "companion",
+      "triggers": [
+        "companion.walk"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 1500,
+      "replacementPolicy": "newestSameKind",
+      "haptic": "none",
+      "hitTest": "none",
+      "reduceMotionFrame": 1,
+      "voiceOverKey": "motion.walk.voice_over",
+      "visibleAlternateKey": "motion.walk.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "brisk_move",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "brisk_move"
+      },
+      "playback": "loop",
+      "priorityClass": "companion",
+      "triggers": [
+        "companion.brisk_move"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 3000,
+      "replacementPolicy": "newestSameKind",
+      "haptic": "none",
+      "hitTest": "none",
+      "reduceMotionFrame": 3,
+      "voiceOverKey": "motion.brisk_move.voice_over",
+      "visibleAlternateKey": "motion.brisk_move.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "sit_down",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "sit_down"
+      },
+      "playback": "oneShot",
+      "priorityClass": "companion",
+      "triggers": [
+        "companion.stopped"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori"
+      ],
+      "returnPolicy": "idleResting",
+      "cooldownMilliseconds": 3000,
+      "replacementPolicy": "newestSameKind",
+      "haptic": "none",
+      "hitTest": "none",
+      "reduceMotionFrame": 7,
+      "voiceOverKey": "motion.sit_down.voice_over",
+      "visibleAlternateKey": "motion.sit_down.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "catch_breath",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "catch_breath"
+      },
+      "playback": "oneShot",
+      "priorityClass": "companion",
+      "triggers": [
+        "companion.recovering"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 10000,
+      "replacementPolicy": "newestSameKind",
+      "haptic": "none",
+      "hitTest": "none",
+      "reduceMotionFrame": 4,
+      "voiceOverKey": "motion.catch_breath.voice_over",
+      "visibleAlternateKey": "motion.catch_breath.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "route_reflection",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "route_reflection"
+      },
+      "playback": "oneShot",
+      "priorityClass": "event",
+      "triggers": [
+        "event.route_reflection"
+      ],
+      "surfaces": [
+        "watch.home",
+        "watch.memory",
+        "phone.mori",
+        "phone.memory"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 60000,
+      "replacementPolicy": "newestSameKind",
+      "haptic": "none",
+      "hitTest": "none",
+      "reduceMotionFrame": 4,
+      "voiceOverKey": "motion.route_reflection.voice_over",
+      "visibleAlternateKey": "motion.route_reflection.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "speaking",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "speaking"
+      },
+      "playback": "loop",
+      "priorityClass": "conversation",
+      "triggers": [
+        "conversation.mori_speaking"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori",
+        "phone.chat"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 0,
+      "replacementPolicy": "replaceSameKind",
+      "haptic": "none",
+      "hitTest": "none",
+      "reduceMotionFrame": 2,
+      "voiceOverKey": "motion.speaking.voice_over",
+      "visibleAlternateKey": "motion.speaking.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "action_success",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "action_success"
+      },
+      "playback": "oneShotHoldFinal",
+      "priorityClass": "conversation",
+      "triggers": [
+        "event.action_success",
+        "task.completed",
+        "reward.found"
+      ],
+      "surfaces": [
+        "watch.home",
+        "phone.mori",
+        "phone.today"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 1500,
+      "replacementPolicy": "newestSameKind",
+      "haptic": "success",
+      "hitTest": "none",
+      "reduceMotionFrame": 5,
+      "voiceOverKey": "motion.action_success.voice_over",
+      "visibleAlternateKey": "motion.action_success.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "story_reaction",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "story_reaction"
+      },
+      "playback": "oneShot",
+      "priorityClass": "event",
+      "triggers": [
+        "event.story_reaction",
+        "memory.opened"
+      ],
+      "surfaces": [
+        "watch.memory",
+        "phone.memory"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 1500,
+      "replacementPolicy": "newestSameKind",
+      "haptic": "none",
+      "hitTest": "none",
+      "reduceMotionFrame": 4,
+      "voiceOverKey": "motion.story_reaction.voice_over",
+      "visibleAlternateKey": "motion.story_reaction.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "daily_reflection",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "daily_reflection"
+      },
+      "playback": "oneShot",
+      "priorityClass": "event",
+      "triggers": [
+        "event.daily_reflection"
+      ],
+      "surfaces": [
+        "watch.memory",
+        "phone.today",
+        "phone.memory"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 60000,
+      "replacementPolicy": "newestSameKind",
+      "haptic": "none",
+      "hitTest": "none",
+      "reduceMotionFrame": 5,
+      "voiceOverKey": "motion.daily_reflection.voice_over",
+      "visibleAlternateKey": "motion.daily_reflection.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    },
+    {
+      "id": "bedtime",
+      "productionForm": "unique",
+      "authoringStatus": "required",
+      "source": {
+        "kind": "productClip",
+        "id": "bedtime"
+      },
+      "playback": "loop",
+      "priorityClass": "companion",
+      "triggers": [
+        "companion.bedtime"
+      ],
+      "surfaces": [
+        "watch.home",
+        "watch.memory",
+        "phone.mori"
+      ],
+      "returnPolicy": "currentIdle",
+      "cooldownMilliseconds": 60000,
+      "replacementPolicy": "newestSameKind",
+      "haptic": "none",
+      "hitTest": "none",
+      "reduceMotionFrame": 3,
+      "voiceOverKey": "motion.bedtime.voice_over",
+      "visibleAlternateKey": "motion.bedtime.visible",
+      "watchAllowed": true,
+      "apparelOcclusion": "compatible"
+    }
+  ],
+  "aliases": [
+    {
+      "id": "greeting",
+      "target": {
+        "kind": "hatchV2Row",
+        "id": "waving"
+      }
+    },
+    {
+      "id": "task_completed",
+      "target": {
+        "kind": "motion",
+        "id": "action_success"
+      }
+    },
+    {
+      "id": "reward_found",
+      "target": {
+        "kind": "motion",
+        "id": "action_success"
+      }
+    },
+    {
+      "id": "memory_opened",
+      "target": {
+        "kind": "motion",
+        "id": "story_reaction"
+      }
+    },
+    {
+      "id": "seated",
+      "target": {
+        "kind": "motion",
+        "id": "idle_resting"
+      }
+    }
+  ],
+  "poses": [
+    {
+      "id": "menu_appearance",
+      "sourceMotionID": "idle_curious",
+      "frame": 2
+    },
+    {
+      "id": "metric_steps_attention",
+      "source": {
+        "kind": "hatchV2LookDirection",
+        "degrees": 135
+      }
+    },
+    {
+      "id": "metric_sleep_attention",
+      "source": {
+        "kind": "hatchV2LookDirection",
+        "degrees": 315
+      }
+    },
+    {
+      "id": "glance_event_attention",
+      "sourceMotionID": "idle_curious",
+      "frame": 4
+    }
+  ],
+  "policies": [
+    "reminderEligibility",
+    "eventReplacement",
+    "sameTypeCooldown",
+    "confidenceGate",
+    "rewardSettlement",
+    "returnToIdle"
+  ],
+  "forbiddenMappings": [
+    {
+      "motionID": "idle_lively",
+      "forbiddenSource": "waving"
+    },
+    {
+      "motionID": "touch_body",
+      "forbiddenSource": "failed"
+    },
+    {
+      "motionID": "story_reaction",
+      "forbiddenSource": "review"
+    },
+    {
+      "motionID": "missed_task",
+      "forbiddenSource": "failed"
+    },
+    {
+      "motionID": "health_state",
+      "forbiddenSource": "failed"
+    }
+  ]
+}
