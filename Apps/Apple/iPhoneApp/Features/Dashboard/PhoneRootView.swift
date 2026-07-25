@@ -78,6 +78,11 @@ struct PhoneRootView: View {
     }
     .tint(CompanionPalette.mint)
     .accessibilityIdentifier("phone.root")
+    .onChange(of: store.selectedTab) {
+      if store.selectedTab != .mori {
+        store.stopMoriSpeech()
+      }
+    }
     .sheet(
       isPresented: $store.isShowingSettings,
       onDismiss: store.dismissSettings

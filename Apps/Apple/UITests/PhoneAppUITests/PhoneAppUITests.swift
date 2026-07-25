@@ -99,6 +99,8 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue(composer.waitForExistence(timeout: 3))
     composer.tap()
     composer.typeText("今天有点累")
+    let softwareKeyboardWasVisible =
+      app.keyboards.firstMatch.waitForExistence(timeout: 1)
     app.buttons["phone.chat.send"].tap()
     XCTAssertTrue(app.alerts["发送给 AI 服务？"].waitForExistence(timeout: 2))
     app.alerts.buttons["同意并发送"].tap()
@@ -107,6 +109,12 @@ final class PhoneAppUITests: XCTestCase {
       app.staticTexts["Mori 说，我在。先不用把一切说清楚，慢慢来就好。"]
         .waitForExistence(timeout: 5)
     )
+    if softwareKeyboardWasVisible {
+      XCTAssertFalse(
+        app.keyboards.firstMatch.waitForExistence(timeout: 1),
+        "Sending a chat message should dismiss the software keyboard."
+      )
+    }
   }
 
   func testThirtyFiveDayScenarioRendersWeeklyTimeline() {

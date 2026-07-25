@@ -268,6 +268,12 @@ class ChatReplyRequest(StrictModel):
         return self
 
 
+class SpeechSynthesisRequest(StrictModel):
+    """One-time handle for copy already validated by the chat service."""
+
+    request_id: StrictIdentifier
+
+
 class WeeklyMemoryPolishRequest(StrictModel):
     """A typed weekly snapshot; no prompt or arbitrary free text is accepted."""
 
@@ -411,6 +417,7 @@ class ErrorDetail(StrictModel):
         "unauthorized",
         "rate_limited",
         "service_unavailable",
+        "speech_unavailable",
     ]
     message: Annotated[str, StringConstraints(min_length=1, max_length=120)]
 

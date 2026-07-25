@@ -7,6 +7,7 @@ import pytest
 
 from narration_gateway.transport import (
     HttpxChatCompletionTransport,
+    HttpxSpeechSynthesisTransport,
     UpstreamNetworkError,
     UpstreamResponseTooLarge,
     UpstreamTimeout,
@@ -40,6 +41,53 @@ async def test_http_transport_targets_chat_completions_and_sets_bearer_header() 
         "path": "/v1/chat/completions",
         "authorization": "Bearer private-token",
         "payload": {"model": "test", "messages": []},
+    }
+    await client.aclose()
+
+
+async def test_speech_transport_targets_audio_endpoint_and_returns_bounded_mp3() -> None:
+    observed = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        observed["path"] = request.url.path
+        observed["authorization"] = request.headers["authorization"]
+        observed["accept"] = request.headers["accept"]
+        observed["payload"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            headers={"content-type": "audio/mpeg"},
+            content=b"ID3-test-audio",
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    transport = HttpxSpeechSynthesisTransport(
+        "https://gateway.example/v1/audio/speech",
+        "private-token",
+        client=client,
+    )
+
+    response = await transport.synthesize(
+        {
+            "model": "stepaudio-2.5-tts",
+            "voice": "ruanmengnvsheng",
+            "input": "你好",
+        },
+        timeout_seconds=1.0,
+        max_response_bytes=1_024,
+    )
+
+    assert response.status_code == 200
+    assert response.content_type == "audio/mpeg"
+    assert response.body == b"ID3-test-audio"
+    assert observed == {
+        "path": "/v1/audio/speech",
+        "authorization": "Bearer private-token",
+        "accept": "audio/mpeg",
+        "payload": {
+            "model": "stepaudio-2.5-tts",
+            "voice": "ruanmengnvsheng",
+            "input": "你好",
+        },
     }
     await client.aclose()
 

@@ -31,6 +31,13 @@ struct MoriChatReply: Equatable {
 
   let text: String
   let source: Source
+  let speechRequestID: String?
+
+  init(text: String, source: Source, speechRequestID: String? = nil) {
+    self.text = text
+    self.source = source
+    self.speechRequestID = speechRequestID
+  }
 }
 
 protocol MoriChatReplying {
@@ -150,13 +157,7 @@ final class MoriChatAIClient: MoriChatReplying, @unchecked Sendable {
     sessionConfiguration.waitsForConnectivity = false
     return MoriChatAIClient(
       configuration: .live(),
-      credentialProvider: ChainedWeeklyMemoryAICredentialProvider(
-        providers: [
-          KeychainWeeklyMemoryAICredentialProvider(),
-          RuntimeWeeklyMemoryAICredentialProvider(),
-          BundledWeeklyMemoryAICredentialProvider(),
-        ]
-      ),
+      credentialProvider: LiveWeeklyMemoryAICredentialProvider.make(),
       session: URLSession(configuration: sessionConfiguration)
     )
   }
@@ -170,7 +171,11 @@ final class MoriChatAIClient: MoriChatReplying, @unchecked Sendable {
         to: messages,
         personality: personality
       )
-      return MoriChatReply(text: response.reply, source: .upstream)
+      return MoriChatReply(
+        text: response.reply,
+        source: .upstream,
+        speechRequestID: response.requestID
+      )
     } catch {
       return await localFallback.reply(to: messages, personality: personality)
     }

@@ -134,11 +134,65 @@ struct KeychainWeeklyMemoryAICredentialProvider: WeeklyMemoryAICredentialProvidi
   static let service = "org.watchcompanion.weekly-memory-ai"
   static let account = "gateway-bearer-token"
 
+  @discardableResult
+  static func store(
+    _ token: String,
+    service: String = "org.watchcompanion.weekly-memory-ai",
+    account: String = "gateway-bearer-token"
+  ) -> Bool {
+    let value = token.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard
+      (24...4_096).contains(value.count),
+      value.unicodeScalars.allSatisfy({ $0.value >= 33 && $0.value != 127 }),
+      let data = value.data(using: .utf8)
+    else { return false }
+
+    let key: [CFString: Any] = [
+      kSecClass: kSecClassGenericPassword,
+      kSecAttrService: service,
+      kSecAttrAccount: account,
+    ]
+    let updateStatus = SecItemUpdate(
+      key as CFDictionary,
+      [kSecValueData: data] as CFDictionary
+    )
+    if updateStatus == errSecSuccess {
+      return true
+    }
+    guard updateStatus == errSecItemNotFound else { return false }
+    var insertion = key
+    insertion[kSecValueData] = data
+    insertion[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    return SecItemAdd(insertion as CFDictionary, nil) == errSecSuccess
+  }
+
+  @discardableResult
+  static func remove(
+    service: String = "org.watchcompanion.weekly-memory-ai",
+    account: String = "gateway-bearer-token"
+  ) -> Bool {
+    let status = SecItemDelete(
+      [
+        kSecClass: kSecClassGenericPassword,
+        kSecAttrService: service,
+        kSecAttrAccount: account,
+      ] as CFDictionary
+    )
+    return status == errSecSuccess || status == errSecItemNotFound
+  }
+
   func bearerToken() -> String? {
+    Self.bearerToken(service: Self.service, account: Self.account)
+  }
+
+  fileprivate static func bearerToken(
+    service: String,
+    account: String
+  ) -> String? {
     let query: [CFString: Any] = [
       kSecClass: kSecClassGenericPassword,
-      kSecAttrService: Self.service,
-      kSecAttrAccount: Self.account,
+      kSecAttrService: service,
+      kSecAttrAccount: account,
       kSecReturnData: true,
       kSecMatchLimit: kSecMatchLimitOne,
     ]
@@ -151,6 +205,53 @@ struct KeychainWeeklyMemoryAICredentialProvider: WeeklyMemoryAICredentialProvidi
       !value.isEmpty
     else { return nil }
     return value
+  }
+}
+
+struct DebugKeychainWeeklyMemoryAICredentialProvider:
+  WeeklyMemoryAICredentialProviding
+{
+  static let service = "org.watchcompanion.weekly-memory-ai.debug-preview"
+  static let account = "gateway-bearer-token"
+  private static let runtimeImportLock = NSLock()
+  nonisolated(unsafe) private static var runtimeImportRevoked = false
+
+  @discardableResult
+  static func importRuntimeToken(_ token: String) -> Bool {
+    runtimeImportLock.withLock {
+      guard !runtimeImportRevoked else { return false }
+      return KeychainWeeklyMemoryAICredentialProvider.store(
+        token,
+        service: service,
+        account: account
+      )
+    }
+  }
+
+  @discardableResult
+  static func remove() -> Bool {
+    KeychainWeeklyMemoryAICredentialProvider.remove(
+      service: service,
+      account: account
+    )
+  }
+
+  @discardableResult
+  static func revokeForCurrentProcess() -> Bool {
+    runtimeImportLock.withLock {
+      runtimeImportRevoked = true
+    }
+    return remove()
+  }
+
+  func bearerToken() -> String? {
+    Self.runtimeImportLock.withLock {
+      guard !Self.runtimeImportRevoked else { return nil }
+      return KeychainWeeklyMemoryAICredentialProvider.bearerToken(
+        service: Self.service,
+        account: Self.account
+      )
+    }
   }
 }
 
@@ -205,6 +306,26 @@ struct ChainedWeeklyMemoryAICredentialProvider: WeeklyMemoryAICredentialProvidin
 
   func bearerToken() -> String? {
     providers.lazy.compactMap { $0.bearerToken() }.first
+  }
+}
+
+enum LiveWeeklyMemoryAICredentialProvider {
+  static func make(
+    processInfo: ProcessInfo = .processInfo
+  ) -> ChainedWeeklyMemoryAICredentialProvider {
+    let runtime = RuntimeWeeklyMemoryAICredentialProvider(processInfo: processInfo)
+    #if DEBUG
+      if let token = runtime.bearerToken() {
+        DebugKeychainWeeklyMemoryAICredentialProvider.importRuntimeToken(token)
+      }
+      return ChainedWeeklyMemoryAICredentialProvider(
+        providers: [
+          DebugKeychainWeeklyMemoryAICredentialProvider()
+        ]
+      )
+    #else
+      return ChainedWeeklyMemoryAICredentialProvider(providers: [])
+    #endif
   }
 }
 
@@ -417,13 +538,7 @@ final class WeeklyMemoryAIClient: WeeklyMemoryPolishing {
     sessionConfiguration.waitsForConnectivity = false
     return WeeklyMemoryAIClient(
       configuration: .live(),
-      credentialProvider: ChainedWeeklyMemoryAICredentialProvider(
-        providers: [
-          KeychainWeeklyMemoryAICredentialProvider(),
-          RuntimeWeeklyMemoryAICredentialProvider(),
-          BundledWeeklyMemoryAICredentialProvider(),
-        ]
-      ),
+      credentialProvider: LiveWeeklyMemoryAICredentialProvider.make(),
       session: URLSession(configuration: sessionConfiguration),
       cache: WeeklyMemoryAICache(storageDirectory: storageDirectory)
     )

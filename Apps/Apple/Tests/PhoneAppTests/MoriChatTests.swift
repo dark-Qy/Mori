@@ -1,4 +1,5 @@
 import Domain
+import Foundation
 import MoriDomain
 import MoriRuntime
 import Persistence
@@ -72,7 +73,8 @@ final class MoriChatTests: XCTestCase {
 
     let reply = await client.reply(to: messages, personality: .moriCore)
 
-    XCTAssertEqual(reply, MoriChatReply(text: "我在这里，慢慢听你说。", source: .upstream))
+    XCTAssertEqual(reply.text, "我在这里，慢慢听你说。")
+    XCTAssertEqual(reply.source, .upstream)
     let request = try XCTUnwrap(MoriChatURLProtocolStub.recordedRequest())
     XCTAssertEqual(request.url?.path, "/ai/v1/chat/reply")
     XCTAssertEqual(
@@ -84,6 +86,7 @@ final class MoriChatTests: XCTestCase {
         as? [String: Any]
     )
     XCTAssertEqual(Set(body.keys), ["request_id", "locale", "messages", "personality"])
+    XCTAssertEqual(reply.speechRequestID, body["request_id"] as? String)
     XCTAssertEqual((body["messages"] as? [[String: Any]])?.count, 11)
     XCTAssertEqual(
       (body["messages"] as? [[String: Any]])?.first?["role"] as? String,
@@ -251,6 +254,110 @@ final class MoriChatTests: XCTestCase {
     XCTAssertEqual(provider.bearerToken(), "bundled-token")
   }
 
+  @MainActor
+  func testSpeechClientUsesGatewayContractAndAcceptsMP3() async throws {
+    MoriSpeechURLProtocolStub.reset()
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [MoriSpeechURLProtocolStub.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let client = MoriSpeechAIClient(
+      configuration: WeeklyMemoryAIRuntimeConfiguration(
+        baseURL: try XCTUnwrap(URL(string: "https://social.example"))
+      ),
+      credentialProvider: StaticChatCredentialProvider(token: "runtime-token"),
+      session: session
+    )
+
+    let audio = try await client.synthesize(requestID: "speech-request-001")
+
+    XCTAssertEqual(audio, Data("ID3-test-audio".utf8))
+    let request = try XCTUnwrap(MoriSpeechURLProtocolStub.recordedRequest())
+    XCTAssertEqual(request.url?.path, "/ai/v1/audio/speech")
+    XCTAssertEqual(
+      request.value(forHTTPHeaderField: "Authorization"),
+      "Bearer runtime-token"
+    )
+    XCTAssertEqual(
+      request.value(forHTTPHeaderField: "Accept"),
+      "audio/mpeg"
+    )
+    let body = try XCTUnwrap(
+      try JSONSerialization.jsonObject(with: request.httpBody ?? Data())
+        as? [String: Any]
+    )
+    XCTAssertEqual(Set(body.keys), ["request_id"])
+    XCTAssertEqual(body["request_id"] as? String, "speech-request-001")
+  }
+
+  @MainActor
+  func testSpeechClientFailsClosedWithoutGatewayCredential() async throws {
+    MoriSpeechURLProtocolStub.reset()
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [MoriSpeechURLProtocolStub.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let client = MoriSpeechAIClient(
+      configuration: WeeklyMemoryAIRuntimeConfiguration(
+        baseURL: try XCTUnwrap(URL(string: "https://social.example"))
+      ),
+      credentialProvider: StaticChatCredentialProvider(token: nil),
+      session: session
+    )
+
+    do {
+      _ = try await client.synthesize(requestID: "speech-request-unauthorized")
+      XCTFail("Expected missing gateway credentials to fail closed")
+    } catch {
+      XCTAssertEqual(error as? MoriSpeechFailure, .unauthorized)
+    }
+    XCTAssertNil(MoriSpeechURLProtocolStub.recordedRequest())
+  }
+
+  @MainActor
+  func testCommittedConversationReplyTriggersSpeechOnce() async {
+    let speech = RecordingMoriSpeechPlaybackCoordinator()
+    let store = PhoneAppStore(
+      arguments: [
+        "WatchCompanion",
+        "-UITesting",
+        "--mock-scenario=health_normal",
+      ],
+      chatSpeechCoordinator: speech
+    )
+    await store.start()
+
+    await store.sendConversationMessage(
+      "今天想聊聊天",
+      requestID: "chat-speech-request-001"
+    )
+
+    XCTAssertEqual(speech.spoken.count, 1)
+    XCTAssertEqual(speech.spoken.first?.speechRequestID, "chat-speech-request-001")
+  }
+
+  @MainActor
+  func testConversationReplyDoesNotSpeakAfterLeavingMoriTab() async {
+    let speech = RecordingMoriSpeechPlaybackCoordinator()
+    let store = PhoneAppStore(
+      arguments: [
+        "WatchCompanion",
+        "-UITesting",
+        "--mock-scenario=health_normal",
+      ],
+      chatSpeechCoordinator: speech
+    )
+    await store.start()
+    store.selectedTab = .today
+
+    await store.sendConversationMessage(
+      "今天想聊聊天",
+      requestID: "chat-hidden-speech-request-001"
+    )
+
+    XCTAssertTrue(speech.spoken.isEmpty)
+  }
+
   func testChatHabitExtractorKeepsOnlyTypedStablePreferences() {
     let message = MoriChatMessage(
       id: UUID(uuidString: "D21997C4-0A58-4E4B-AF7A-57D22F7A7060")!,
@@ -345,6 +452,29 @@ private struct StaticChatCredentialProvider: WeeklyMemoryAICredentialProviding {
   }
 }
 
+@MainActor
+private final class RecordingMoriSpeechPlaybackCoordinator:
+  MoriSpeechPlaybackCoordinating
+{
+  struct SpokenValue: Equatable {
+    let messageID: String
+    let speechRequestID: String
+  }
+
+  private(set) var spoken: [SpokenValue] = []
+
+  func speak(messageID: String, speechRequestID: String) {
+    spoken.append(
+      SpokenValue(
+        messageID: messageID,
+        speechRequestID: speechRequestID
+      )
+    )
+  }
+
+  func stop() {}
+}
+
 private final class MoriChatURLProtocolStub: URLProtocol, @unchecked Sendable {
   nonisolated(unsafe) private static var capturedRequest: URLRequest?
   private static let lock = NSLock()
@@ -393,6 +523,73 @@ private final class MoriChatURLProtocolStub: URLProtocol, @unchecked Sendable {
       )!
       client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
       client?.urlProtocol(self, didLoad: data)
+      client?.urlProtocolDidFinishLoading(self)
+    } catch {
+      client?.urlProtocol(self, didFailWithError: error)
+    }
+  }
+
+  override func stopLoading() {}
+
+  private static func capture(_ request: URLRequest) throws -> URLRequest {
+    guard request.httpBody == nil, let stream = request.httpBodyStream else {
+      return request
+    }
+    stream.open()
+    defer { stream.close() }
+    var data = Data()
+    var buffer = [UInt8](repeating: 0, count: 1_024)
+    while true {
+      let count = stream.read(&buffer, maxLength: buffer.count)
+      if count < 0 {
+        throw stream.streamError ?? URLError(.cannotDecodeContentData)
+      }
+      if count == 0 { break }
+      data.append(buffer, count: count)
+    }
+    var captured = request
+    captured.httpBodyStream = nil
+    captured.httpBody = data
+    return captured
+  }
+}
+
+private final class MoriSpeechURLProtocolStub: URLProtocol, @unchecked Sendable {
+  nonisolated(unsafe) private static var capturedRequest: URLRequest?
+  private static let lock = NSLock()
+
+  static func reset() {
+    lock.withLock {
+      capturedRequest = nil
+    }
+  }
+
+  static func recordedRequest() -> URLRequest? {
+    lock.withLock { capturedRequest }
+  }
+
+  override class func canInit(with request: URLRequest) -> Bool {
+    true
+  }
+
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+    request
+  }
+
+  override func startLoading() {
+    do {
+      let captured = try Self.capture(request)
+      Self.lock.withLock {
+        Self.capturedRequest = captured
+      }
+      let response = HTTPURLResponse(
+        url: try XCTUnwrap(captured.url),
+        statusCode: 200,
+        httpVersion: "HTTP/1.1",
+        headerFields: ["Content-Type": "audio/mpeg"]
+      )!
+      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      client?.urlProtocol(self, didLoad: Data("ID3-test-audio".utf8))
       client?.urlProtocolDidFinishLoading(self)
     } catch {
       client?.urlProtocol(self, didFailWithError: error)

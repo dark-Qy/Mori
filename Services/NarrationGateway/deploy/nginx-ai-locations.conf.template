@@ -42,6 +42,21 @@ location = /ai/v1/chat/reply {
     add_header Cache-Control "no-store" always;
 }
 
+location = /ai/v1/audio/speech {
+    client_max_body_size 32k;
+    limit_req zone=narration_gateway_speech burst=4 nodelay;
+    proxy_pass http://127.0.0.1:8790/v1/audio/speech;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Authorization $http_authorization;
+    proxy_connect_timeout 2s;
+    proxy_send_timeout 5s;
+    proxy_read_timeout 12s;
+    proxy_hide_header Cache-Control;
+    add_header Cache-Control "no-store" always;
+}
+
 location ^~ /ai/ {
     return 404;
 }

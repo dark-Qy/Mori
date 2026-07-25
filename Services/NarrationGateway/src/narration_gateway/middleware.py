@@ -25,12 +25,17 @@ class RequestBoundaryMiddleware:
         access_token: Optional[str],
         rate_limit_requests: int,
         rate_limit_window_seconds: int,
+        speech_rate_limit_requests: int,
     ) -> None:
         self._app = app
         self._max_request_bytes = max_request_bytes
         self._access_token = access_token
         self._limiter = InMemoryRateLimiter(
             limit=rate_limit_requests,
+            window_seconds=rate_limit_window_seconds,
+        )
+        self._speech_limiter = InMemoryRateLimiter(
+            limit=speech_rate_limit_requests,
             window_seconds=rate_limit_window_seconds,
         )
 
@@ -41,6 +46,7 @@ class RequestBoundaryMiddleware:
             "/v1/narrations",
             "/v1/weekly-memories/polish",
             "/v1/chat/reply",
+            "/v1/audio/speech",
         }
         if scope.get("type") != "http" or scope.get("path") not in protected_paths:
             await self._app(scope, receive, send)
@@ -87,7 +93,8 @@ class RequestBoundaryMiddleware:
             )
             return
 
-        allowed, retry_after = self._limiter.allow()
+        limiter = self._speech_limiter if scope.get("path") == "/v1/audio/speech" else self._limiter
+        allowed, retry_after = limiter.allow()
         if not allowed:
             await self._send_error(
                 scope,

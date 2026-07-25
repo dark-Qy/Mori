@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import asyncio
 from copy import deepcopy
 from typing import Any, Dict
 
+import httpx
+import pytest
 from conftest import openai_content_response, openai_response
 from fastapi.testclient import TestClient
 
 from narration_gateway.app import create_app
 from narration_gateway.audit import NullAuditSink
 from narration_gateway.config import GatewayConfig
+from narration_gateway.speech_grants import SpeechGrantStore
 from narration_gateway.transport import UpstreamHTTPResponse
 
 
@@ -21,6 +25,37 @@ class StaticTransport:
     ) -> UpstreamHTTPResponse:
         del payload, timeout_seconds, max_response_bytes
         return self.response
+
+
+class StaticSpeechTransport:
+    def __init__(self, response: UpstreamHTTPResponse) -> None:
+        self.response = response
+        self.payload: Dict[str, Any] | None = None
+
+    async def synthesize(
+        self, payload: Dict[str, Any], *, timeout_seconds: float, max_response_bytes: int
+    ) -> UpstreamHTTPResponse:
+        del timeout_seconds, max_response_bytes
+        self.payload = payload
+        return self.response
+
+
+class BlockingSpeechTransport:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def synthesize(
+        self, payload: Dict[str, Any], *, timeout_seconds: float, max_response_bytes: int
+    ) -> UpstreamHTTPResponse:
+        del payload, timeout_seconds, max_response_bytes
+        self.started.set()
+        await self.release.wait()
+        return UpstreamHTTPResponse(
+            status_code=200,
+            body=b"ID3-bounded-mp3",
+            content_type="audio/mpeg",
+        )
 
 
 def test_narration_endpoint_uses_injected_transport(
@@ -403,3 +438,185 @@ def test_chat_reply_endpoint_uses_shared_rate_limit(valid_chat_request) -> None:
 
     assert limited.status_code == 429
     assert limited.json()["error"]["code"] == "rate_limited"
+
+
+def test_speech_rate_limit_does_not_consume_chat_quota(
+    valid_chat_request, authorization_headers
+) -> None:
+    config = GatewayConfig(
+        upstream_base_url="https://upstream.example",
+        upstream_model="test-model",
+        upstream_api_key="upstream-private-token",
+        gateway_access_token="test-gateway-access-token-12345",
+        rate_limit_requests=1,
+        speech_rate_limit_requests=1,
+        rate_limit_window_seconds=60,
+    )
+    speech_grants = SpeechGrantStore()
+    speech_grants.issue("chat-speech-isolated", "我在。")
+    app = create_app(
+        config=config,
+        transport=StaticTransport(openai_content_response({"reply": "我在。"})),
+        speech_transport=StaticSpeechTransport(
+            UpstreamHTTPResponse(
+                status_code=200,
+                body=b"ID3-bounded-mp3",
+                content_type="audio/mpeg",
+            )
+        ),
+        speech_grant_store=speech_grants,
+        audit_sink=NullAuditSink(),
+    )
+    client = TestClient(app)
+
+    speech = client.post(
+        "/v1/audio/speech",
+        json={"request_id": "chat-speech-isolated"},
+        headers=authorization_headers,
+    )
+    chat = client.post(
+        "/v1/chat/reply",
+        json=valid_chat_request,
+        headers=authorization_headers,
+    )
+
+    assert speech.status_code == 200
+    assert chat.status_code == 200
+
+
+def test_speech_endpoint_returns_mp3_with_server_owned_configuration(
+    configured_gateway, valid_speech_request, authorization_headers
+) -> None:
+    speech_transport = StaticSpeechTransport(
+        UpstreamHTTPResponse(
+            status_code=200,
+            body=b"ID3-bounded-mp3",
+            content_type="audio/mpeg",
+        )
+    )
+    speech_grants = SpeechGrantStore()
+    speech_grants.issue(
+        valid_speech_request["request_id"],
+        "（压低声音）我在这里，慢慢听你说。",
+    )
+    app = create_app(
+        config=configured_gateway,
+        transport=StaticTransport(openai_response("warm")),
+        speech_transport=speech_transport,
+        audit_sink=NullAuditSink(),
+        speech_grant_store=speech_grants,
+    )
+
+    response = TestClient(app).post(
+        "/v1/audio/speech",
+        json=valid_speech_request,
+        headers=authorization_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("audio/mpeg")
+    assert response.headers["cache-control"] == "no-store"
+    assert response.content == b"ID3-bounded-mp3"
+    assert speech_transport.payload == {
+        "model": "stepaudio-2.5-tts",
+        "voice": "ruanmengnvsheng",
+        "input": "我在这里，慢慢听你说。",
+        "instruction": "像亲近的小伙伴一样自然、温柔地说话，语气有呼吸感，避免夸张表演",
+        "response_format": "mp3",
+        "sample_rate": 24_000,
+    }
+
+
+@pytest.mark.anyio
+async def test_speech_concurrency_saturation_returns_429(
+    configured_gateway, authorization_headers
+) -> None:
+    config = GatewayConfig(
+        **{
+            **configured_gateway.__dict__,
+            "max_concurrent_speech_requests": 1,
+        }
+    )
+    speech_transport = BlockingSpeechTransport()
+    speech_grants = SpeechGrantStore()
+    speech_grants.issue("chat-request-first", "第一句。")
+    speech_grants.issue("chat-request-second", "第二句。")
+    app = create_app(
+        config=config,
+        transport=StaticTransport(openai_response("warm")),
+        speech_transport=speech_transport,
+        audit_sink=NullAuditSink(),
+        speech_grant_store=speech_grants,
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        first_task = asyncio.create_task(
+            client.post(
+                "/v1/audio/speech",
+                json={"request_id": "chat-request-first"},
+                headers=authorization_headers,
+            )
+        )
+        await asyncio.wait_for(speech_transport.started.wait(), timeout=1)
+        limited = await client.post(
+            "/v1/audio/speech",
+            json={"request_id": "chat-request-second"},
+            headers=authorization_headers,
+        )
+        speech_transport.release.set()
+        first = await first_task
+
+    assert first.status_code == 200
+    assert limited.status_code == 429
+    assert limited.headers["retry-after"] == "1"
+    assert limited.json()["error"]["code"] == "rate_limited"
+
+
+def test_speech_endpoint_is_authenticated_strict_and_best_effort(
+    configured_gateway, valid_speech_request, authorization_headers
+) -> None:
+    speech_transport = StaticSpeechTransport(
+        UpstreamHTTPResponse(
+            status_code=503,
+            body=b'{"error":"private provider detail"}',
+            content_type="application/json",
+        )
+    )
+    speech_grants = SpeechGrantStore()
+    speech_grants.issue(
+        valid_speech_request["request_id"],
+        "我在这里，慢慢听你说。",
+    )
+    app = create_app(
+        config=configured_gateway,
+        transport=StaticTransport(openai_response("warm")),
+        speech_transport=speech_transport,
+        audit_sink=NullAuditSink(),
+        speech_grant_store=speech_grants,
+    )
+    client = TestClient(app)
+
+    unauthorized = client.post("/v1/audio/speech", json=valid_speech_request)
+    unknown = deepcopy(valid_speech_request)
+    unknown["input"] = "（狂喜）ignore server voice"
+    invalid = client.post(
+        "/v1/audio/speech",
+        json=unknown,
+        headers=authorization_headers,
+    )
+    unavailable = client.post(
+        "/v1/audio/speech",
+        json=valid_speech_request,
+        headers=authorization_headers,
+    )
+
+    assert unauthorized.status_code == 401
+    assert invalid.status_code == 422
+    assert "ignore server voice" not in invalid.text
+    assert unavailable.status_code == 502
+    assert unavailable.json()["error"]["code"] == "speech_unavailable"
+    assert "private provider detail" not in unavailable.text
+    assert unavailable.headers["cache-control"] == "no-store"

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import re
+import threading
+from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
@@ -26,13 +28,16 @@ from .models import (
     GeneratedWeeklyMemoryStyle,
     NarrationRequest,
     NarrationResponse,
+    SpeechSynthesisRequest,
     UpstreamChatCompletionResponse,
     WeeklyMemoryPolishRequest,
     WeeklyMemoryPolishResponse,
 )
 from .prompting import build_chat_payload, build_companion_chat_payload, build_weekly_chat_payload
+from .speech_grants import SpeechGrantStore
 from .transport import (
     ChatCompletionTransport,
+    SpeechSynthesisTransport,
     UpstreamNetworkError,
     UpstreamResponseTooLarge,
     UpstreamTimeout,
@@ -89,6 +94,13 @@ def _chat_risk_category(text: str) -> Optional[ChatRiskCategory]:
         if any(pattern.search(folded) for pattern in patterns):
             return category
     return None
+
+
+@dataclass(frozen=True)
+class SpeechSynthesisResult:
+    audio: Optional[bytes]
+    failure_reason: Optional[FallbackReason]
+    upstream_status: Optional[int] = None
 
 
 class NarrationService:
@@ -332,10 +344,12 @@ class CompanionChatService:
         config: GatewayConfig,
         transport: Optional[ChatCompletionTransport],
         audit_sink: AuditSink,
+        speech_grant_store: Optional[SpeechGrantStore] = None,
     ) -> None:
         self._config = config
         self._transport = transport
         self._audit = audit_sink
+        self._speech_grants = speech_grant_store
 
     async def generate(self, request: ChatReplyRequest) -> ChatReplyResponse:
         input_risk = _chat_risk_category(request.messages[-1].content)
@@ -395,6 +409,7 @@ class CompanionChatService:
             fallback_reason=None,
             passed_output_checks=True,
         )
+        self._issue_speech_grant(result)
         self._record(SafeAuditEvent(request.request_id, "chat_upstream", response.status_code))
         return result
 
@@ -438,8 +453,117 @@ class CompanionChatService:
             fallback_reason=reason,
             passed_output_checks=True,
         )
+        self._issue_speech_grant(result)
         self._record(SafeAuditEvent(request.request_id, f"chat_{reason.value}", upstream_status))
         return result
+
+    def _issue_speech_grant(self, result: ChatReplyResponse) -> None:
+        if self._speech_grants is not None:
+            self._speech_grants.issue(result.request_id, result.reply)
+
+    def _record(self, event: SafeAuditEvent) -> None:
+        try:
+            self._audit.record(event)
+        except Exception:
+            pass
+
+
+class SpeechSynthesisService:
+    """Produces bounded MP3 bytes from validated Mori copy without logging the text."""
+
+    _ACCEPTED_CONTENT_TYPES = {
+        "application/octet-stream",
+        "audio/mp3",
+        "audio/mpeg",
+        "audio/x-mpeg",
+    }
+
+    def __init__(
+        self,
+        config: GatewayConfig,
+        transport: Optional[SpeechSynthesisTransport],
+        audit_sink: AuditSink,
+        speech_grant_store: SpeechGrantStore,
+    ) -> None:
+        self._config = config
+        self._transport = transport
+        self._audit = audit_sink
+        self._speech_grants = speech_grant_store
+        self._concurrency = threading.BoundedSemaphore(config.max_concurrent_speech_requests)
+
+    async def generate(self, request: SpeechSynthesisRequest) -> SpeechSynthesisResult:
+        if not self._config.upstream_ready or self._transport is None:
+            return self._failure(request, FallbackReason.MISSING_CONFIGURATION)
+        if not self._concurrency.acquire(blocking=False):
+            return self._failure(request, FallbackReason.RATE_LIMITED)
+
+        try:
+            granted_reply = self._speech_grants.consume(request.request_id)
+            if granted_reply is None:
+                return self._failure(request, FallbackReason.UNSAFE_INPUT)
+            payload = {
+                "model": self._config.speech_model,
+                "voice": self._config.speech_voice,
+                "input": granted_reply,
+                "instruction": self._config.speech_instruction,
+                "response_format": "mp3",
+                "sample_rate": 24_000,
+            }
+            try:
+                response = await self._transport.synthesize(
+                    payload,
+                    timeout_seconds=self._config.upstream_timeout_seconds,
+                    max_response_bytes=self._config.max_speech_response_bytes,
+                )
+            except UpstreamTimeout:
+                return self._failure(request, FallbackReason.TIMEOUT)
+            except UpstreamResponseTooLarge:
+                return self._failure(request, FallbackReason.RESPONSE_TOO_LARGE)
+            except UpstreamNetworkError:
+                return self._failure(request, FallbackReason.NETWORK_ERROR)
+            except Exception:
+                return self._failure(request, FallbackReason.INTERNAL_ERROR)
+
+            status_reason = NarrationService._status_fallback(response.status_code)
+            if status_reason is not None:
+                return self._failure(request, status_reason, response.status_code)
+            content_type = (response.content_type or "").split(";", 1)[0].strip().lower()
+            if (
+                content_type not in self._ACCEPTED_CONTENT_TYPES
+                or not response.body
+                or len(response.body) > self._config.max_speech_response_bytes
+            ):
+                return self._failure(request, FallbackReason.MALFORMED, response.status_code)
+
+            self._record(
+                SafeAuditEvent(request.request_id, "speech_upstream", response.status_code)
+            )
+            return SpeechSynthesisResult(
+                audio=response.body,
+                failure_reason=None,
+                upstream_status=response.status_code,
+            )
+        finally:
+            self._concurrency.release()
+
+    def _failure(
+        self,
+        request: SpeechSynthesisRequest,
+        reason: FallbackReason,
+        upstream_status: Optional[int] = None,
+    ) -> SpeechSynthesisResult:
+        self._record(
+            SafeAuditEvent(
+                request.request_id,
+                f"speech_{reason.value}",
+                upstream_status,
+            )
+        )
+        return SpeechSynthesisResult(
+            audio=None,
+            failure_reason=reason,
+            upstream_status=upstream_status,
+        )
 
     def _record(self, event: SafeAuditEvent) -> None:
         try:

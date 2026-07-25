@@ -93,6 +93,7 @@ final class PhoneAppStore: ObservableObject {
   private let weeklyMemoryArchive: WeeklyMemoryArchiveStore
   private let weeklyMemoryPolisher: WeeklyMemoryPolishing
   private let chatReplying: any MoriChatReplying
+  private let chatSpeechCoordinator: any MoriSpeechPlaybackCoordinating
   private let conversationUsesRemoteAI: Bool
   private let chatNudgePolicy: MoriChatNudgePolicy
   private let personalizationRepository: any PersonalizationRepositoryProtocol
@@ -150,6 +151,7 @@ final class PhoneAppStore: ObservableObject {
     arguments: [String] = ProcessInfo.processInfo.arguments,
     weeklyMemoryPolisher: WeeklyMemoryPolishing? = nil,
     chatReplying: (any MoriChatReplying)? = nil,
+    chatSpeechCoordinator: (any MoriSpeechPlaybackCoordinating)? = nil,
     chatNudgePolicy: MoriChatNudgePolicy? = nil,
     personalizationRepository: (any PersonalizationRepositoryProtocol)? = nil
   ) {
@@ -244,6 +246,21 @@ final class PhoneAppStore: ObservableObject {
       self.chatReplying = chatReplying ?? LocalMoriChatClient()
     } else {
       self.chatReplying = chatReplying ?? MoriChatAIClient.live()
+    }
+    if let chatSpeechCoordinator {
+      self.chatSpeechCoordinator = chatSpeechCoordinator
+    } else {
+      #if DEBUG
+        if arguments.contains("-UITesting")
+          && !arguments.contains("--enable-chat-tts")
+        {
+          self.chatSpeechCoordinator = DisabledMoriSpeechPlaybackCoordinator()
+        } else {
+          self.chatSpeechCoordinator = MoriSpeechPlaybackCoordinator.live()
+        }
+      #else
+        self.chatSpeechCoordinator = DisabledMoriSpeechPlaybackCoordinator()
+      #endif
     }
     self.chatNudgePolicy =
       chatNudgePolicy
@@ -364,6 +381,21 @@ final class PhoneAppStore: ObservableObject {
     }
     let personality = isPersonalizationEnabled ? personalityProjection : .moriCore
     return await chatReplying.reply(to: messages, personality: personality)
+  }
+
+  func speakMoriChatReply(_ reply: MoriChatReply) {
+    guard
+      selectedTab == .mori,
+      let speechRequestID = reply.speechRequestID
+    else { return }
+    chatSpeechCoordinator.speak(
+      messageID: "legacy-\(UUID().uuidString.lowercased())",
+      speechRequestID: speechRequestID
+    )
+  }
+
+  func stopMoriSpeech() {
+    chatSpeechCoordinator.stop()
   }
 
   private func rememberChatHabits(
@@ -813,6 +845,8 @@ final class PhoneAppStore: ObservableObject {
   ) async {
     let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
     guard text.isEmpty == false else { return }
+    let existingMessageIDs = Set(conversation.messages.map(\.id))
+    chatSpeechCoordinator.stop()
     guard let processor = conversationProcessor else {
       statusMessage =
         model.isLive
@@ -866,6 +900,11 @@ final class PhoneAppStore: ObservableObject {
       )
     }
     applyConversation(result)
+    speakNewMoriReply(
+      in: result,
+      excluding: existingMessageIDs,
+      speechRequestID: actualRequestID
+    )
     conversationSendTask = nil
     activeConversationRequestID = nil
     if result.phase == .warningConfirmationRequired {
@@ -904,6 +943,7 @@ final class PhoneAppStore: ObservableObject {
     else {
       return
     }
+    chatSpeechCoordinator.stop()
     Task {
       await processor.cancel(requestID: requestID)
     }
@@ -920,6 +960,8 @@ final class PhoneAppStore: ObservableObject {
     else {
       return
     }
+    let existingMessageIDs = Set(conversation.messages.map(\.id))
+    chatSpeechCoordinator.stop()
     let capturedProfile = conversationProfileScope
     activeConversationRequestID = requestID
     let task = Task {
@@ -944,6 +986,11 @@ final class PhoneAppStore: ObservableObject {
       return
     }
     applyConversation(result)
+    speakNewMoriReply(
+      in: result,
+      excluding: existingMessageIDs,
+      speechRequestID: requestID
+    )
     conversationSendTask = nil
     activeConversationRequestID = nil
   }
@@ -962,6 +1009,7 @@ final class PhoneAppStore: ObservableObject {
       statusMessage = "对话记录暂时无法清除"
       return
     }
+    chatSpeechCoordinator.stop()
     isShowingClearConversationConfirmation = false
     let capturedProfile = conversationProfileScope
     if let requestID = activeConversationRequestID {
@@ -1216,6 +1264,13 @@ final class PhoneAppStore: ObservableObject {
     await stopConversationRuntime(clearPresentation: false)
 
     var localDeletionFailed = false
+    let removedLegacyAICredential =
+      KeychainWeeklyMemoryAICredentialProvider.remove()
+    let removedDebugAICredential =
+      DebugKeychainWeeklyMemoryAICredentialProvider.revokeForCurrentProcess()
+    if !removedLegacyAICredential || !removedDebugAICredential {
+      localDeletionFailed = true
+    }
     do {
       try await runtime?.deleteAllLocalData()
     } catch {
@@ -1473,6 +1528,7 @@ final class PhoneAppStore: ObservableObject {
   }
 
   func showSettings() {
+    chatSpeechCoordinator.stop()
     isShowingSettings = true
   }
 
@@ -1846,6 +1902,7 @@ final class PhoneAppStore: ObservableObject {
   private func stopConversationRuntime(
     clearPresentation: Bool
   ) async {
+    chatSpeechCoordinator.stop()
     memoryContextWriteRevision &+= 1
     let memoryTask = memoryContextWriteTask
     memoryContextWriteTask?.cancel()
@@ -2054,6 +2111,24 @@ final class PhoneAppStore: ObservableObject {
       return
     }
     applyConversation(state)
+  }
+
+  private func speakNewMoriReply(
+    in state: ConversationPresentationState,
+    excluding existingMessageIDs: Set<String>,
+    speechRequestID: String
+  ) {
+    guard selectedTab == .mori, case .idle = state.phase else { return }
+    guard
+      let reply = state.messages.last(where: {
+        $0.role == .mori
+          && !existingMessageIDs.contains($0.header.recordID.rawValue)
+      })
+    else { return }
+    chatSpeechCoordinator.speak(
+      messageID: reply.header.recordID.rawValue,
+      speechRequestID: speechRequestID
+    )
   }
 
   private func loadGlobalPreferences() async {

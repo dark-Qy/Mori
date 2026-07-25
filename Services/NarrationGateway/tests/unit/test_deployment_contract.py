@@ -54,10 +54,12 @@ def test_systemd_contract_is_local_hardened_and_separate_from_social_gateway() -
 
 def test_nginx_contract_adds_only_ai_namespace_on_port_8790() -> None:
     locations = (DEPLOY / "nginx-ai-locations.conf.template").read_text()
+    rate_limits = (DEPLOY / "nginx-ai-rate-limit.conf.template").read_text()
 
     assert "location = /ai/healthz" in locations
     assert "location = /ai/v1/weekly-memories/polish" in locations
     assert "location = /ai/v1/chat/reply" in locations
+    assert "location = /ai/v1/audio/speech" in locations
     assert "location ^~ /ai/" in locations
     assert "127.0.0.1:8790" in locations
     assert "127.0.0.1:8788" not in locations
@@ -67,13 +69,20 @@ def test_nginx_contract_adds_only_ai_namespace_on_port_8790() -> None:
     assert "proxy_read_timeout 12s;" in locations
     assert 'add_header Cache-Control "no-store" always;' in locations
     assert "/ai/v1/narrations" not in locations
+    assert "zone=narration_gateway_speech" in rate_limits
+    speech_location = locations.split("location = /ai/v1/audio/speech", 1)[1]
+    assert "limit_req zone=narration_gateway_speech" in speech_location
 
 
 def test_smoke_test_requires_a_real_upstream_result() -> None:
     smoke = (DEPLOY / "smoke-test-upstream.sh").read_text()
 
     assert 'response.get("source") != "upstream"' in smoke
+    assert 'chat.get("source") != "upstream"' in smoke
     assert '"source_hash"' in smoke
+    assert "/ai/v1/chat/reply" in smoke
+    assert "/ai/v1/audio/speech" in smoke
+    assert "content-type: audio/mpeg" in smoke
     assert "NARRATION_SMOKE_TOKEN" in smoke
     assert os.access(DEPLOY / "smoke-test-upstream.sh", os.X_OK)
     assert os.access(DEPLOY / "install-local-service.sh", os.X_OK)

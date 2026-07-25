@@ -142,6 +142,7 @@ struct MoriChatView: View {
   @State private var pendingConsentText: String?
   @State private var hasConsentedThisSession = false
   @State private var showsExternalAIConsent = false
+  @State private var replyTask: Task<Void, Never>?
   @FocusState private var isComposerFocused: Bool
 
   init(
@@ -204,7 +205,12 @@ struct MoriChatView: View {
         pendingConsentText = nil
       }
     } message: {
-      Text("最近几句对话和粗粒度性格提示会发送给 AI 服务生成回复；不会发送原始健康数据。")
+      Text("最近几句对话和粗粒度性格提示会发送给 AI 服务生成回复；回复会用于生成并自动播放语音。不会发送原始健康数据。")
+    }
+    .onDisappear {
+      replyTask?.cancel()
+      replyTask = nil
+      store.stopMoriSpeech()
     }
   }
 
@@ -313,6 +319,7 @@ struct MoriChatView: View {
   private func send() {
     let text = trimmedDraft
     guard !text.isEmpty, !isSending else { return }
+    isComposerFocused = false
     if store.chatRequiresExternalAIConsent, !hasConsentedThisSession {
       pendingConsentText = text
       showsExternalAIConsent = true
@@ -322,19 +329,21 @@ struct MoriChatView: View {
   }
 
   private func sendMessage(_ text: String) {
+    store.stopMoriSpeech()
     draft = ""
     let ownerMessage = MoriChatMessage(author: .owner, text: text)
     messages.append(ownerMessage)
     messages = Array(messages.suffix(12))
     isSending = true
 
-    Task {
+    replyTask = Task {
       let reply = await store.replyToMoriChat(messages: messages)
       guard !Task.isCancelled else { return }
       messages.append(MoriChatMessage(author: .mori, text: reply.text))
       messages = Array(messages.suffix(12))
       isSending = false
-      isComposerFocused = true
+      store.speakMoriChatReply(reply)
+      replyTask = nil
     }
   }
 }

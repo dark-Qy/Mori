@@ -119,6 +119,13 @@ def valid_chat_request() -> Dict[str, Any]:
 
 
 @pytest.fixture
+def valid_speech_request() -> Dict[str, Any]:
+    return {
+        "request_id": "chat-request-001",
+    }
+
+
+@pytest.fixture
 def configured_gateway() -> GatewayConfig:
     return GatewayConfig(
         upstream_base_url="https://upstream.example",

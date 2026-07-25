@@ -68,6 +68,34 @@ Pass exactly one Debug launch argument:
 
 Release boundary checks reject this selector.
 
+## Internal Physical-Device AI And Speech Preview
+
+The real provider key never belongs in the app. For an internal Debug build,
+configure a separate client-to-gateway token:
+
+1. Set the server's `NARRATION_GATEWAY_ACCESS_TOKEN` to a distinct random value.
+2. In the Xcode `WatchCompanion` Run scheme, add the same value under the
+   `MORI_WEEKLY_AI_GATEWAY_TOKEN` environment variable.
+3. Run the Debug app on the iPhone once from Xcode. The app stores that gateway
+   token in a Debug-only, this-device-only Keychain service so later Debug
+   launches from the Home Screen do not depend on Xcode's process environment.
+4. Enable the remote Chat preview and send a synthetic message. A committed
+   Mori reply gives the client a one-time request ID for one best-effort call
+   to `/ai/v1/audio/speech`; reply text is not resubmitted by the app. The MP3
+   plays only while the iPhone app is active and the Mori tab is visible, and
+   respects Silent Mode.
+
+The token in steps 1–3 is not `NARRATION_UPSTREAM_API_KEY`. A provider key that
+has appeared in chat, logs, or screenshots must be revoked and replaced before
+server testing. UI-test runs keep speech disabled unless
+`--enable-chat-tts` is supplied.
+
+Archive/TestFlight/Release remains outside this Debug preview: the remote
+conversation transport, stored Debug credential, and TTS transport are
+intentionally fenced off.
+Production requires per-user or per-device short-lived credentials rather than
+shipping the shared development gateway token in the app bundle.
+
 ## Required Before A Real Provider
 
 The following are intentionally not claimed by G7:

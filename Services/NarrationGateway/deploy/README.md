@@ -58,13 +58,15 @@ gateway bearer token:
 NARRATION_UPSTREAM_BASE_URL=https://provider.example
 NARRATION_UPSTREAM_MODEL=provider-model
 NARRATION_UPSTREAM_API_KEY=server-only-provider-secret
+NARRATION_SPEECH_MODEL=stepaudio-2.5-tts
+NARRATION_SPEECH_VOICE=ruanmengnvsheng
 NARRATION_GATEWAY_ACCESS_TOKEN=distinct-random-gateway-token
 ```
 
-Never reuse the StepFun image key that appeared in chat. It must be treated as
-exposed and rotated; it is also the wrong capability for this text endpoint.
-Provider keys stay only in the root-owned server environment and are never
-placed in the Apple bundle, repository, command line, or smoke-test output.
+Never reuse a StepFun provider key that appeared in chat. It must be treated as
+exposed and rotated. Provider keys stay only in the root-owned server
+environment and are never placed in the Apple bundle, repository, command line,
+or smoke-test output.
 
 After editing:
 
@@ -105,12 +107,13 @@ curl --fail https://social.bsti.online/ai/healthz
 ```
 
 The existing `/healthz` and `/v1/` routes still point to SocialGateway. Only
-`/ai/healthz`, `/ai/v1/weekly-memories/polish`, and `/ai/v1/chat/reply` are
-public. The generic narration endpoint, `/ai/openapi.json`, and all other
-`/ai/` paths return 404. Both product routes explicitly forward Authorization,
-use bounded proxy timeouts, and force `Cache-Control: no-store`. Chat request
-and response text stays out of application audit logs, but is necessarily sent
-to the configured provider to produce a reply.
+`/ai/healthz`, `/ai/v1/weekly-memories/polish`, `/ai/v1/chat/reply`, and
+`/ai/v1/audio/speech` are public. The generic narration endpoint,
+`/ai/openapi.json`, and all other `/ai/` paths return 404. Product routes
+explicitly forward Authorization, use bounded proxy timeouts, and force
+`Cache-Control: no-store`. Speech uses a separate Nginx rate-limit zone. Chat
+and speech text stays out of application audit logs, but is necessarily sent
+to the configured provider to produce a reply or audio.
 
 ## 4. Prove a real upstream response
 
@@ -126,9 +129,10 @@ deploy/smoke-test-upstream.sh
 unset NARRATION_SMOKE_TOKEN
 ```
 
-The script fails unless health says the provider is configured and the weekly
-response has `source: "upstream"`, `safe: true`, and the original
-`source_hash`. It does not print the token or generated health copy.
+The script fails unless health says the provider is configured, weekly and chat
+both return real upstream results, and the one-time speech handle produces a
+non-empty, bounded `audio/mpeg` response. It prints only validation metadata
+and the audio byte count—not the token, generated copy, or audio.
 
 ## Boundary
 

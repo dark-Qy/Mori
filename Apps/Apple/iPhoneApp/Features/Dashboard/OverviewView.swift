@@ -265,6 +265,7 @@ struct MoriHomeView: View {
     else {
       return
     }
+    isComposerFocused = false
     Task {
       await store.sendConversationMessage(value)
     }

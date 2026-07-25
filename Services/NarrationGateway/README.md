@@ -4,7 +4,8 @@ This service turns bounded health, pet, rule, and story context into one short
 virtual-pet narration. It also turns a typed weekly snapshot into a short
 server-rendered title and body, with the model limited to presentation choices.
 The companion chat endpoint accepts a small conversation window and returns one
-short, validated Mori reply.
+short, validated Mori reply. Its speech endpoint turns that already validated
+reply into bounded MP3 audio for foreground playback on iPhone.
 It is a server-side boundary: Apple clients must never receive the upstream API
 key or call the model provider directly.
 
@@ -39,6 +40,11 @@ POST /v1/chat/reply
   -> StepFun-compatible JSON chat completion
   -> strict visible-copy length, control-character, refusal, and schema checks
   -> validated short reply OR safe local Mori fallback
+
+POST /v1/audio/speech
+  -> separate authentication, size, speech-rate, concurrency, and timeout boundaries
+  -> one-time chat request ID only; text, model, voice, and instruction are server-owned
+  -> bounded non-streaming StepAudio MP3 response
 ```
 
 The transport is injected into `NarrationService`, so tests and the free
@@ -85,6 +91,13 @@ Personal Team experience need no network or APNs. Production uses
   that these declared bounded checks passed; it is not a universal safety
   certification. Conversation and reply text are never recorded by the
   metadata-only audit sink.
+- Speech accepts only a short-lived, one-time request ID issued by the same
+  process after Chat validates a reply. Clients cannot submit speech text or
+  select a model, voice, acting instruction, output format, or sampling rate.
+  Parenthetical inline acting directions are removed before the grant is
+  stored. The gateway buffers at most the configured byte budget, returns
+  `audio/mpeg`, and never logs or persists the text or audio beyond the
+  in-memory grant lifetime.
 - Audit events contain only request ID, outcome code, and upstream status. They
   cannot accept health text, prompts, narration, headers, credentials, or raw
   exceptions. Uvicorn access logging is disabled by the local entrypoint.
@@ -250,6 +263,23 @@ not raw memory records or health measurements. The iPhone client asks for
 session consent before the first external AI send and does not write chat text
 or model replies into long-term memory.
 
+`POST /v1/audio/speech` consumes the Chat request ID once after Chat completes:
+
+```json
+{
+  "request_id": "chat-request-001"
+}
+```
+
+On success it returns `audio/mpeg`. Speech is best-effort: the iPhone keeps the
+text reply when synthesis or playback fails. A grant expires after 60 seconds,
+cannot be replayed, and is local to one gateway process. Speech has a separate
+rate limit and a bounded per-process concurrency limit so it cannot consume the
+core Chat quota. The provider key remains only in the gateway environment. The
+default server-owned voice is `ruanmengnvsheng` with `stepaudio-2.5-tts`;
+deployments may change those non-secret expression settings without shipping a
+new app.
+
 ## Tests
 
 ```bash
@@ -274,16 +304,22 @@ stream that attempts to exceed the wall-clock deadline.
 | `NARRATION_UPSTREAM_BASE_URL` | `https://api.stepfun.com` | HTTPS origin, no embedded credentials |
 | `NARRATION_UPSTREAM_MODEL` | `step-3.7-flash` | 1–128 characters |
 | `NARRATION_UPSTREAM_API_KEY` | unset | Read only from process environment |
+| `NARRATION_SPEECH_MODEL` | `stepaudio-2.5-tts` | 1–128 allowlisted identifier characters |
+| `NARRATION_SPEECH_VOICE` | `ruanmengnvsheng` | 1–128 allowlisted identifier characters |
+| `NARRATION_SPEECH_INSTRUCTION` | gentle Mori expression | 1–200 visible characters |
 | `NARRATION_GATEWAY_ACCESS_TOKEN` | unset | Required for narration requests; 24–4096 visible characters |
 | `NARRATION_UPSTREAM_TIMEOUT_SECONDS` | `8.0` | 0.25–8.0 seconds |
 | `NARRATION_MAX_REQUEST_BYTES` | `32768` | 4096–65536 bytes |
 | `NARRATION_MAX_UPSTREAM_RESPONSE_BYTES` | `16384` | 1024–65536 bytes |
+| `NARRATION_MAX_SPEECH_RESPONSE_BYTES` | `2097152` | 65536–10485760 bytes |
 | `NARRATION_MAX_CHARACTERS` | `180` | 40–300 characters |
 | `NARRATION_MAX_CHAT_REPLY_CHARACTERS` | `120` | 40–240 characters |
 | `NARRATION_MAX_WEEKLY_TITLE_CHARACTERS` | `24` | 8–32 characters |
 | `NARRATION_MAX_WEEKLY_BODY_CHARACTERS` | `160` | 60–180 characters |
 | `NARRATION_RATE_LIMIT_REQUESTS` | `30` | 1–600 requests per process/window |
 | `NARRATION_RATE_LIMIT_WINDOW_SECONDS` | `60` | 1–3600 seconds |
+| `NARRATION_SPEECH_RATE_LIMIT_REQUESTS` | `12` | 1–120 speech requests per process/window |
+| `NARRATION_MAX_CONCURRENT_SPEECH_REQUESTS` | `2` | 1–8 in-flight speech requests per process |
 
 ## Known integration risks
 
