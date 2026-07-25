@@ -220,6 +220,35 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertTrue((scene.value as? String)?.contains("33 娘") == true)
   }
 
+  func testCharacterGeneratorDemoReturnsBlackPenguin() {
+    let app = launchApp(scenario: "health_normal")
+
+    app.tabBars.buttons["场景"].tap()
+    XCTAssertTrue(element("phone.scenes", in: app).waitForExistence(timeout: 5))
+
+    let generator = app.buttons["phone.character.generate"]
+    scrollToElement(generator, in: app)
+    generator.tap()
+
+    XCTAssertTrue(
+      element("phone.character-generator", in: app).waitForExistence(timeout: 5)
+    )
+    let input = element("phone.character-generator.input", in: app)
+    XCTAssertTrue(input.waitForExistence(timeout: 3))
+    input.tap()
+    input.typeText("咕咕嘎嘎")
+
+    let generate = app.buttons["phone.character-generator.generate"]
+    XCTAssertTrue(generate.isEnabled)
+    generate.tap()
+
+    let resultImage = element("phone.character-generator.result-image", in: app)
+    XCTAssertTrue(resultImage.waitForExistence(timeout: 5))
+    XCTAssertEqual(resultImage.label, "生成的黑企鹅像素伙伴")
+    XCTAssertTrue(app.staticTexts["黑企鹅伙伴"].exists)
+    XCTAssertTrue(app.buttons["phone.character-generator.reset"].exists)
+  }
+
   func testLocalConversationPersistsWithoutMutatingToday() {
     let storageID = "phone-conversation"
     let app = launchMock(storageID: storageID, reset: true)
@@ -456,12 +485,14 @@ final class PhoneAppUITests: XCTestCase {
       evaluatedWith: app.buttons["phone.scene.lantern_festival_square"]
     )
     waitForExpectations(timeout: 5)
-    XCTAssertFalse(app.buttons.matching(
-      NSPredicate(format: "identifier BEGINSWITH %@", "phone.collection.buy.")
-    ).firstMatch.exists)
-    XCTAssertFalse(app.buttons.matching(
-      NSPredicate(format: "identifier BEGINSWITH %@", "phone.collection.use.")
-    ).firstMatch.exists)
+    XCTAssertFalse(
+      app.buttons.matching(
+        NSPredicate(format: "identifier BEGINSWITH %@", "phone.collection.buy.")
+      ).firstMatch.exists)
+    XCTAssertFalse(
+      app.buttons.matching(
+        NSPredicate(format: "identifier BEGINSWITH %@", "phone.collection.use.")
+      ).firstMatch.exists)
   }
 
   func testSettingsOwnsCompanionDataAndHonestSyncStatus() {

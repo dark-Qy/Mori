@@ -134,6 +134,34 @@ struct PhoneScenesView: View {
           )
           .accessibilityIdentifier("phone.character.\(character.id)")
         }
+
+        NavigationLink {
+          PhoneCharacterGeneratorView()
+        } label: {
+          VStack(spacing: 6) {
+            Image(systemName: "plus")
+              .font(.system(size: 28, weight: .semibold))
+              .frame(width: 68, height: 72)
+
+            Text("生成角色")
+              .font(.caption.bold())
+          }
+          .foregroundStyle(CompanionPalette.blue)
+          .padding(8)
+          .frame(maxWidth: .infinity)
+          .background(
+            CompanionPalette.surface,
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+          )
+          .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+              .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+          }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("生成自己的角色")
+        .accessibilityHint("输入 B 站链接或文字描述")
+        .accessibilityIdentifier("phone.character.generate")
       }
     }
   }
