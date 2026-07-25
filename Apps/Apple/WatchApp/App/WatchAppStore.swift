@@ -104,13 +104,35 @@ final class WatchAppStore: ObservableObject {
 
   var scenePresentation: WatchScenePresentation {
     guard let movementScene else { return model.scene }
-    return WatchScenePresentation.make(
+    let presentation = WatchScenePresentation.make(
       peerValues: [
         "background": movementScene.backgroundID,
         "characters": model.scene.slots.map(\.characterID).joined(separator: ","),
       ],
       mood: movementScene.petMood
     )
+    guard
+      movementScene.petMotion.loopsWhileStateIsActive,
+      let movementSceneAnimation
+    else {
+      return presentation
+    }
+    return presentation.applying(
+      idleAnimation: movementSceneAnimation,
+      toCharacterID: CompanionVisualCatalog.defaultCharacterID
+    )
+  }
+
+  var movementSceneAnimation: WatchCharacterAnimation? {
+    guard
+      let movementScene,
+      model.scene.slots.contains(where: {
+        $0.characterID == CompanionVisualCatalog.defaultCharacterID
+      })
+    else {
+      return nil
+    }
+    return WatchCharacterAnimation(rawValue: movementScene.petMotion.rawValue)
   }
 
   /// Starting an encounter is explicit, per-session consent on Watch. A synchronized iPhone

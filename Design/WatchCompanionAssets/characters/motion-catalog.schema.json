@@ -1,0 +1,534 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mori.local/schemas/motion-catalog.schema.json",
+  "title": "Mori Motion Catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "characterIDs",
+    "fallbackMotionID",
+    "assetKeyTemplate",
+    "cell",
+    "layoutPresets",
+    "defaults",
+    "priorityClasses",
+    "motions",
+    "aliases",
+    "poses",
+    "policies",
+    "forbiddenMappings"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "status": {
+      "enum": [
+        "authoring",
+        "ready"
+      ]
+    },
+    "characterIDs": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "penguin"
+        },
+        {
+          "const": "polar_bear"
+        }
+      ],
+      "items": false
+    },
+    "fallbackMotionID": {
+      "const": "idle_neutral"
+    },
+    "assetKeyTemplate": {
+      "const": "character_{character}_{motion}_{frame}"
+    },
+    "cell": {
+      "$ref": "#/$defs/cell"
+    },
+    "layoutPresets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "standardGrounded"
+      ],
+      "properties": {
+        "standardGrounded": {
+          "$ref": "#/$defs/layout"
+        }
+      }
+    },
+    "defaults": {
+      "$ref": "#/$defs/defaults"
+    },
+    "priorityClasses": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/priorityClass"
+      }
+    },
+    "motions": {
+      "type": "array",
+      "minItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/motion"
+      }
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/alias"
+      }
+    },
+    "poses": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pose"
+      }
+    },
+    "policies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "forbiddenMappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "motionID",
+          "forbiddenSource"
+        ],
+        "properties": {
+          "motionID": {
+            "$ref": "#/$defs/id"
+          },
+          "forbiddenSource": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "height"
+      ],
+      "properties": {
+        "width": {
+          "const": 192
+        },
+        "height": {
+          "const": 208
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frameCount",
+        "frameOrder",
+        "framesPerSecond",
+        "layoutPreset",
+        "interruptPolicy",
+        "reduceMotionTransitionMilliseconds",
+        "missingFramePolicy",
+        "backgroundPolicy"
+      ],
+      "properties": {
+        "frameCount": {
+          "const": 8
+        },
+        "frameOrder": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "const": "00"
+            },
+            {
+              "const": "01"
+            },
+            {
+              "const": "02"
+            },
+            {
+              "const": "03"
+            },
+            {
+              "const": "04"
+            },
+            {
+              "const": "05"
+            },
+            {
+              "const": "06"
+            },
+            {
+              "const": "07"
+            }
+          ],
+          "items": false
+        },
+        "framesPerSecond": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        },
+        "layoutPreset": {
+          "const": "standardGrounded"
+        },
+        "interruptPolicy": {
+          "const": "higherPriorityOrReplacement"
+        },
+        "reduceMotionTransitionMilliseconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "missingFramePolicy": {
+          "const": "fallbackToNeutralIdle"
+        },
+        "backgroundPolicy": {
+          "const": "clear"
+        }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor",
+        "scale"
+      ],
+      "properties": {
+        "anchor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "footY"
+          ],
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "footY": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "priorityClass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "priority"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "idle",
+            "attention",
+            "companion",
+            "conversation",
+            "event",
+            "touch"
+          ]
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "productClip",
+            "hatchV2Row"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "motion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "productionForm",
+        "authoringStatus",
+        "source",
+        "playback",
+        "priorityClass",
+        "triggers",
+        "surfaces",
+        "returnPolicy",
+        "cooldownMilliseconds",
+        "replacementPolicy",
+        "haptic",
+        "hitTest",
+        "reduceMotionFrame",
+        "voiceOverKey",
+        "visibleAlternateKey",
+        "watchAllowed",
+        "apparelOcclusion"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "productionForm": {
+          "const": "unique"
+        },
+        "authoringStatus": {
+          "enum": [
+            "approvedFoundation",
+            "required",
+            "ready"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "playback": {
+          "enum": [
+            "loop",
+            "oneShot",
+            "oneShotHoldFinal"
+          ]
+        },
+        "priorityClass": {
+          "enum": [
+            "idle",
+            "attention",
+            "companion",
+            "conversation",
+            "event",
+            "touch"
+          ]
+        },
+        "triggers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "watch.home",
+              "watch.memory",
+              "phone.mori",
+              "phone.today",
+              "phone.memory",
+              "phone.chat"
+            ]
+          }
+        },
+        "returnPolicy": {
+          "enum": [
+            "remain",
+            "currentIdle",
+            "idleResting"
+          ]
+        },
+        "cooldownMilliseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "replacementPolicy": {
+          "enum": [
+            "ignoreDuplicateIdentity",
+            "newestSameKind",
+            "replaceSameKind",
+            "restartNewest"
+          ]
+        },
+        "haptic": {
+          "enum": [
+            "none",
+            "click",
+            "directionUp",
+            "success"
+          ]
+        },
+        "hitTest": {
+          "enum": [
+            "none",
+            "character",
+            "head",
+            "body"
+          ]
+        },
+        "reduceMotionFrame": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "voiceOverKey": {
+          "type": "string",
+          "pattern": "^motion\\.[a-z0-9_]+\\.voice_over$"
+        },
+        "visibleAlternateKey": {
+          "type": "string",
+          "pattern": "^motion\\.[a-z0-9_]+\\.visible$"
+        },
+        "watchAllowed": {
+          "type": "boolean"
+        },
+        "apparelOcclusion": {
+          "enum": [
+            "compatible",
+            "requiresMask",
+            "notApplicable"
+          ]
+        }
+      }
+    },
+    "alias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "target"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "motion",
+                "hatchV2Row"
+              ]
+            },
+            "id": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    "pose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "sourceMotionID": {
+          "$ref": "#/$defs/id"
+        },
+        "frame": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "degrees"
+          ],
+          "properties": {
+            "kind": {
+              "const": "hatchV2LookDirection"
+            },
+            "degrees": {
+              "enum": [
+                0,
+                22.5,
+                45,
+                67.5,
+                90,
+                112.5,
+                135,
+                157.5,
+                180,
+                202.5,
+                225,
+                247.5,
+                270,
+                292.5,
+                315,
+                337.5
+              ]
+            }
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "sourceMotionID",
+            "frame"
+          ]
+        },
+        {
+          "required": [
+            "source"
+          ]
+        }
+      ]
+    }
+  }
+}

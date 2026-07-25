@@ -1,0 +1,1545 @@
+{
+  "schemaVersion": 1,
+  "characterID": "penguin",
+  "catalogCount": 2,
+  "motionCount": 16,
+  "frameCount": 256,
+  "installed": [
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/00.png",
+      "sha256": "5ec10996050764210c2a27256a8869ebdd64f78fc6b5bdabe595663ce4687c23"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/01.png",
+      "sha256": "3d2f6cd595ddc7464fa789a7074bc77c16a384709f5458fbe0ab0f43419dbecc"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/02.png",
+      "sha256": "b27b4ab71a59588e572ea1b8904af21f3716dc0eb819a0edf66fe647a23b2d9b"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/03.png",
+      "sha256": "09f284ea1c4b2f34be2e3ccbbe980975f866ab9da932c671268d332edf2376c6"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/04.png",
+      "sha256": "a954f5b5b226af9c6e68eed448507feeda6287769b080373c38e76ac793c87f1"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/05.png",
+      "sha256": "8721abf0a6172f0f1b6acd2c011203b7d0a6f4f1f76d86188122da5d9fde6e46"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/00.png",
+      "sha256": "5ec10996050764210c2a27256a8869ebdd64f78fc6b5bdabe595663ce4687c23"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/01.png",
+      "sha256": "3d2f6cd595ddc7464fa789a7074bc77c16a384709f5458fbe0ab0f43419dbecc"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/00.png",
+      "sha256": "8d929f987ab76d943ce18a49659d7fe4ad5114219ad04dcfb616cd25e57809fd"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/01.png",
+      "sha256": "30aa287e3f5a3776121fb393d78b125d4e74b6e1c801b70785edd531f9d94fd4"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/02.png",
+      "sha256": "24bbc7e7e762c86c9391d6849078740010d9f52c8c0b064e8984de398a6e931d"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/03.png",
+      "sha256": "08fd39583fb29cbdf049ea04fdddcbf840a78764a16fe05a4f7583f4491b5f90"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/04.png",
+      "sha256": "a17323756a6087d1c9bd5061f20cbb68a122302547382ac4e204ae9d1fd5f002"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/05.png",
+      "sha256": "1208f2eab86f7fd8bf34236c11a045193e695f3d1082970b68c45baecc64519d"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/06.png",
+      "sha256": "3de01344788a0309099f5e3e68d5afb2ce3b61dd8406cc4de397a1f16b5abdd8"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/07.png",
+      "sha256": "485296e655dba6d867d190c392f1fe248fd3018e29d0141f0838c8d46a697eef"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/00.png",
+      "sha256": "a4c0828fe3dc59e904f4e9ebc670c2fdf2ee0ddc5cba39ad08e9708fe472c871"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/01.png",
+      "sha256": "1ee4bf157a4b344e46d8a03363b2c0810b61a3bec3fb5942e0db311784120151"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/02.png",
+      "sha256": "2c42507c7bebe178a4eebcc5e88dd24333f844fb87aa16c6a8999b8a12c4bef2"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/03.png",
+      "sha256": "11795ef734598f0a53bc52ffc10ef1a150098f88db33ea3b4cf18f4839ed8c9d"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/04.png",
+      "sha256": "0df788e2340dec2d040bb9612fe28402dd804fcd09e8191a92ddef672941b33d"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/05.png",
+      "sha256": "12bdee09133f8922a9bedc078d774f2f4e42e4222583ed7993e53b386009ccb8"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/06.png",
+      "sha256": "c3d83e7aaf2f501351b7ecb21b908234d6d36b2c683d5a56ba9e236628919e55"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/07.png",
+      "sha256": "07abe45fd9914649c6f797491c262f136b60796d6013ce9259f019d0b4c09f7d"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/00.png",
+      "sha256": "def597760b413e5820184ab8adf3d5ee6fdc93b8642c93c2977223b8b0cb882a"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/01.png",
+      "sha256": "f301d384456365f6b079fd2e7eaa4c1a06767f4c0850f13a5e6f3e3a518219d1"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/02.png",
+      "sha256": "88bfc18aa18b5ebba582a8e1cef4c0d9f5c4312f6ee0c5014e3454a9869ace39"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/03.png",
+      "sha256": "1ec1c391f59fc047a6038915a7bcf8cc019a946fbadc59bd96b3098cac627af6"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/04.png",
+      "sha256": "e140eb2db585efff8b581d41b0772d5b1f451871d62ed87327aac5fbfa25bb68"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/05.png",
+      "sha256": "32bdbef0833fdea6cc2ba50666641dc093fe04132ac1059d124162fbfaa4d9f3"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/06.png",
+      "sha256": "7124cb7715cf7889b8fabc1b738b68948a730e4489cb6b025b4822af09e451ac"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/07.png",
+      "sha256": "b36fe065b7d45d18238915f542b0d45d403254b6ada9d0435f71534d004d6b9b"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/00.png",
+      "sha256": "3728336b97d45c7d2e01a9978f53b9b739e9e67e721f55303503f575af3230c0"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/01.png",
+      "sha256": "db8cd6ccba6b3e91aeb04fee51deaf29da0d90bec61252dbd3150c2f611c995b"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/02.png",
+      "sha256": "23a04818cf587fcb70731a37d3d75e569ec1f116e0bfef707c8091ae40e7e597"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/03.png",
+      "sha256": "a35e33e3e6dc1c1de7f7e690943954e6ebc0849b4a9fc065f24955f6b1c75dd3"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/04.png",
+      "sha256": "434a24dbe883c76c48216f60e21847b832b5fdbd3c359a1b7c502e47f36269e3"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/05.png",
+      "sha256": "ac21cbc8e6d6fa9909cbce9cbbf888317ebe34a4de7a0605ef4ffac11e7bd150"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/06.png",
+      "sha256": "b61093ddd88fd4be6c06f670d164c7c4d1540d25a3d4429c2a0aa7c9e5a64846"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/07.png",
+      "sha256": "b8933c367dc2f4dd2934ffc619c8fe2c076776c22be95da30b38f3db0804880e"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/00.png",
+      "sha256": "75b64ed946882753076ed11d09e21e18f1913089d8570fef935dfaf06b83a97d"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/01.png",
+      "sha256": "0db55dc633babd48a32e7e729af92d8938c0648695d817cb32f50ba1228885fd"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/02.png",
+      "sha256": "5a9623bae38daf40dca9eb20bc18ba7a9be7dfb7c275332d6c9989345ae9ed48"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/03.png",
+      "sha256": "363909fd1b3ee3b2d82f27f05ce04b9a107108dd1f7efdbdc1be86aeaa800907"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/04.png",
+      "sha256": "c060ad310d0fd2bdf65e6004db7d8bf4140dd261e1500124bde776f059efb87f"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/05.png",
+      "sha256": "f0afb33d0b944e1cfa1bc0f5d5fc826ca1f1c4bc3c29aaf9b26ff521ed5a5fc7"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/06.png",
+      "sha256": "324735b3098a34b298ccfad7e45e11460d0d271d4f15aa0f45334e514170f2c2"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/07.png",
+      "sha256": "5cd604300f5d971f65c78d6d1ab71da36fc02422a166135a05c03442c0256089"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/00.png",
+      "sha256": "6457e4a4cee3e6205021d5647e2a44415c4473181e8b625a2eb39d6fde7ff745"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/01.png",
+      "sha256": "9ef52acc2000e952ba2dba55042d14ef3f029404c29b287db411cdd38ddbb087"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/02.png",
+      "sha256": "847fdb59b4115c168e641285d9d51e6e007212dfb6cc3a804511f16e31aea59b"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/03.png",
+      "sha256": "576cbbffb51a9c17a94e085ec6c26b83081f0024dd93415c969cf4dc30db48f4"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/04.png",
+      "sha256": "67f959dd1160cca136122b7387af7616e7b7177cdae85dc99981d405127388dc"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/05.png",
+      "sha256": "2c8883b90e2d23e9cfa68b84c26748c2244f753aa99f4ca839c84358e3059ee2"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/06.png",
+      "sha256": "2593d61b1be7120acf86a98c4af6117dde5430f8183b03303127e4306b90e5ec"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/07.png",
+      "sha256": "19382e86d1ace745b21239d00b5053a50610efb3e4458d7e526edbe9a96884e0"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/00.png",
+      "sha256": "ec5449db0ea19242176644a65a8456bb1a00ad5f014372968f4649be8c446923"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/01.png",
+      "sha256": "677ee3eee4d297b1b7e5eba52b746be971830497641bd29db14d54bbc044d097"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/02.png",
+      "sha256": "1b29b488f8b975d01e0df126b42a4c7de0c9a0a05eda10d96b350e8204f8c47c"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/03.png",
+      "sha256": "1c299ce4f13667ebd6c718908edf9309f9f7caf8aaf5ccc9fa735dad62e21a84"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/04.png",
+      "sha256": "a8eae5b6e4b355c092f9ba2b4b8a0bd09bf42e4bd26f42f0e653a335dc4b1d62"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/05.png",
+      "sha256": "b9f2f3cc3fc8703529de6a5d1c10e4d2c37e4ea3c2d7784104a13d14cd8d5e8d"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/06.png",
+      "sha256": "b26f461968a6bb92069a2e9552ab5d6391bb4bad67555d2d2cc7d536d7fa0767"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/07.png",
+      "sha256": "cf18b2416d7aad07cdc3f647384503215023998eae3a7b15e7f5416b4ca02bd0"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/00.png",
+      "sha256": "849857c634118ef983870fc703ab0b12fb0fe2a70754f40cc3448bb365750e91"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/01.png",
+      "sha256": "17b67665d7d967ab91d9676c6b8f9ffe368a614c52239a34ecdffdac66e7c3d1"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/02.png",
+      "sha256": "bce779f1f86ae805fb23417427045241ed8155c9a3fef69da21c9cfea7c65820"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/03.png",
+      "sha256": "8bf33e5a53e32223a77fbffb3560914baf48416e22ba4976eadf2c620d1583b7"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/04.png",
+      "sha256": "ef0de33f28f343fa80c2c5bfa65cb9aee677b2302debba4e80e2fcd2a1d1acce"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/05.png",
+      "sha256": "e5d81400f646893eb75138e040539bf58a311d64aafd7f505936231b1c9d5c5e"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/06.png",
+      "sha256": "67f78986f40366fe16ba96ef697e43584a854ca836b7aae622be2f95e5229d11"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/07.png",
+      "sha256": "6b58c95b3a1e09e2dcf07da2a92d5c5be7d8a83ad4c9b179d023edbb73e3d838"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/00.png",
+      "sha256": "f84f036e7d629bc8434a7dcf13a607ed8ad4c2cb478a432890e6c92faa316013"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/01.png",
+      "sha256": "ae6d364cf5aa16894f03fc49e730a409b39ffd7740e98231673adb1e4581e77d"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/02.png",
+      "sha256": "0015d4fddeb174deae39836c78c536acb1b6ef994433ec1b9cbe5c92b1952a05"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/03.png",
+      "sha256": "e1c98e5639590e763624d25827773ce8f97610112db6f3246a3351f93efda4bd"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/04.png",
+      "sha256": "37d7ddbc149f10765fc58468c9165d367b08ddbad37821ca4ea769d1cff3b2d2"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/05.png",
+      "sha256": "edd01f9a7694b8c49b7bb170c4b62bf331ffdad6b6e3f6ba623238e192fa3048"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/06.png",
+      "sha256": "1f8b761dea1ee3271e2ee6ba5ab1cc4f3bdf0f11538ad0f43fb115d3e4e9efde"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/07.png",
+      "sha256": "31b7f8f2cd1199d71859620357980355e97dca438de56bc94421d7790cf21242"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/00.png",
+      "sha256": "02b2b235efe3b026787c1b58f5a34bfb23eb97fb23a36c23fecadeb5be9148d3"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/01.png",
+      "sha256": "468f9b71af80069bdbead1340b799b6f5b0f1a1f02734de7f80f9075d0e2b05f"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/02.png",
+      "sha256": "f9cc6531d56ba21ddc032dc63e387053ff4ca6fe2aa1f8023c25023ec3f98ed5"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/03.png",
+      "sha256": "73a5dc1fa7f272ebe175e298c60e8dc2e106d3a68a3b22bd6423d347a51ed0b5"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/04.png",
+      "sha256": "6e0335826c41f33b66d1ae1cf5bc0b17c17c90cdef19659964b6949959c8555c"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/05.png",
+      "sha256": "a9fb5aa954c388c2d1fe3b38abc16adac7660321fa637fe350ddad03da34a773"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/06.png",
+      "sha256": "7ae697e940cfc0da2ec382f6a310025f07746ff00fed5533a2f982dec2813025"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/07.png",
+      "sha256": "d36af7cdf7bb36e169fe3835da064bca3d7d9a87faab80499ea22610a871025f"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/00.png",
+      "sha256": "0c1542c93f5401c049eb90115c0d94762c21ef9c3f9245872a56ead456eadb87"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/01.png",
+      "sha256": "a5a3e5475d494683c22eb82b0224b0225f4963f0e8e8b2ab10e5166426639ba4"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/02.png",
+      "sha256": "eb5d16cf4f89a6b567e216ecc2953d512e17276103954c8c17fab6562a5fdbe4"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/03.png",
+      "sha256": "e55666e47254d1ea8addc66a09198c6fa46a8f5128fd432784efbe74cc8bbcdd"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/04.png",
+      "sha256": "25ed2272f409a3da4c5edb0cb7ccff6e298ebd2b05ba93f2d7324bddec845d59"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/05.png",
+      "sha256": "73aef752a0138f31b631025c94b8ef6ada6d72e1446088d8b10dd8ad61c3e269"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/06.png",
+      "sha256": "533e5995fbfbafbf1cb95c1ac430851da9e17a37b4b43d155f206d132093f0a4"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/07.png",
+      "sha256": "409d2483744afaaa63e8c3dcb34154c51249727af81146be1b987045c6dce46b"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/00.png",
+      "sha256": "1772170298b6447a379c10503a3b21f9116d00ac54aa2113e7bef6ab96f44c09"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/01.png",
+      "sha256": "69bb82a9fef402f5ecaabac358df179270e67da7dd813a128f505aa29b654f17"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/02.png",
+      "sha256": "018b0714bf337d621190789ff886872eb0972170c7aab2e5f578afa95d021255"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/03.png",
+      "sha256": "5efaa5aff2b8d5b0906801abb61d3ea1e49ff6a650ee473e5cf4fbb15949a046"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/04.png",
+      "sha256": "e412fff27b4235b1bf15be2e25d24eeee8dd96dbaa72f8cb903629ed5adbc754"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/05.png",
+      "sha256": "b9ab069ae8abd778a907e8e9ae72f3cb5ea19c923c3d0567c6eb47b65414016e"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/06.png",
+      "sha256": "2d2d39dd6d2a9890200be77077daf11de802b6f642559283eda31b2d69770a73"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/07.png",
+      "sha256": "87606e1b844d4f9470efe71f0ac67592f3e0a62b11df131d053dff17a42d4197"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/00.png",
+      "sha256": "1786c643e78ae7984ef1be2ff0ef67216f5bc28f8572aa1d5b6a711992d99664"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/01.png",
+      "sha256": "024e15b76ecd4fea549fe7bfa20315a74a8e35e560f0af324aeedf58b987729e"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/02.png",
+      "sha256": "0645afc2b37c8ad9da5c333b99ba29371ad718328e837ec0b2859909f7cfb4cb"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/03.png",
+      "sha256": "cb903e3e5dd308d191b6b13ccb685abcbdc36859930ac6377548e2985475ee8e"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/04.png",
+      "sha256": "ff095737925821f0de44509cc7b87affc8e273770affa48087d6b9ee1461ff6b"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/05.png",
+      "sha256": "c568e5a6cce63a4ebf85972b1a7368ea596a0a06959136d14a9c8caf45af7b8c"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/06.png",
+      "sha256": "7c3572b45329e732880c7db393f4955b00c59fa67db60d9ec83d8db698c13ac0"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/07.png",
+      "sha256": "2db4772931ab32876044c9fa8bc9bed2954639603cc0d321d77101e5667fae09"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/00.png",
+      "sha256": "b1d25cb5496a0bdd2567758703936e4f2308e4e51192b77aa51cdee3fd77e3b0"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/01.png",
+      "sha256": "d0298e875ba1f99e8ea66350864e9b190e87fb282f25a2ba342c6b952d442d13"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/02.png",
+      "sha256": "fc1f6bc8197550edc022deda5e1e8a37f4e4cc773a4961c6e305bfb86c7754d2"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/03.png",
+      "sha256": "7451edc5b5b5e55e4c023a5415cd5386963fa5a6832b474bb31d2bfde081fb50"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/04.png",
+      "sha256": "167627d08aa9b721ee04398824510c684cbd3fb292e2327cac1ab66ffb11b732"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/05.png",
+      "sha256": "74f5d1321280d105fdc59339e91655c3855ac96f056104b61049658feca2a5e1"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/06.png",
+      "sha256": "c97efa31f759970004943f8e243a55b354b4c9ed76259f406aa68e9154826f7d"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/07.png",
+      "sha256": "2b84a5b91962a767106a7c093c72f0748952eb41aed5ad3e1f271e7716197cd4"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/00.png",
+      "sha256": "ecbbecf6c9d8f7953fc18a0eef800b45844a93cd61e370c475407cb577b29463"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/01.png",
+      "sha256": "98922148027673db143534f6f9b6f6bb28fff2467b7d511b0c9777835faf7832"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/02.png",
+      "sha256": "40988a8fbd60586969a7fe63ddc4030287987cc653d1a6e21c8538fef9ebb8dd"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/03.png",
+      "sha256": "eacbe5ddbb46de84febd3d97afa58d376a228086a18e87da3fb65068ab728e4d"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/04.png",
+      "sha256": "484049315e723953a5d86ba4ce6913ae9f57b28bfb04a113d85da5e2cff8f5ba"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/05.png",
+      "sha256": "6e807937691dcf31295fdbe792fe957f299d57bd6ba8ea974800235522462d87"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/06.png",
+      "sha256": "d9ac99418a7ed6d421d31f41a9e892a48b6cc9409e28f057b4bf2ddfa7bd8432"
+    },
+    {
+      "catalog": "Apps/Apple/WatchApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/07.png",
+      "sha256": "9a5dc5ff2b427e23c561c009c8add7b2ffa9195ffe863d8e5ead1cd997cb1c8b"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/00.png",
+      "sha256": "5ec10996050764210c2a27256a8869ebdd64f78fc6b5bdabe595663ce4687c23"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/01.png",
+      "sha256": "3d2f6cd595ddc7464fa789a7074bc77c16a384709f5458fbe0ab0f43419dbecc"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/02.png",
+      "sha256": "b27b4ab71a59588e572ea1b8904af21f3716dc0eb819a0edf66fe647a23b2d9b"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/03.png",
+      "sha256": "09f284ea1c4b2f34be2e3ccbbe980975f866ab9da932c671268d332edf2376c6"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/04.png",
+      "sha256": "a954f5b5b226af9c6e68eed448507feeda6287769b080373c38e76ac793c87f1"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/05.png",
+      "sha256": "8721abf0a6172f0f1b6acd2c011203b7d0a6f4f1f76d86188122da5d9fde6e46"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/00.png",
+      "sha256": "5ec10996050764210c2a27256a8869ebdd64f78fc6b5bdabe595663ce4687c23"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_neutral_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/qa/rows/idle/frames/idle/01.png",
+      "sha256": "3d2f6cd595ddc7464fa789a7074bc77c16a384709f5458fbe0ab0f43419dbecc"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/00.png",
+      "sha256": "8d929f987ab76d943ce18a49659d7fe4ad5114219ad04dcfb616cd25e57809fd"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/01.png",
+      "sha256": "30aa287e3f5a3776121fb393d78b125d4e74b6e1c801b70785edd531f9d94fd4"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/02.png",
+      "sha256": "24bbc7e7e762c86c9391d6849078740010d9f52c8c0b064e8984de398a6e931d"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/03.png",
+      "sha256": "08fd39583fb29cbdf049ea04fdddcbf840a78764a16fe05a4f7583f4491b5f90"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/04.png",
+      "sha256": "a17323756a6087d1c9bd5061f20cbb68a122302547382ac4e204ae9d1fd5f002"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/05.png",
+      "sha256": "1208f2eab86f7fd8bf34236c11a045193e695f3d1082970b68c45baecc64519d"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/06.png",
+      "sha256": "3de01344788a0309099f5e3e68d5afb2ce3b61dd8406cc4de397a1f16b5abdd8"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_resting_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_resting/07.png",
+      "sha256": "485296e655dba6d867d190c392f1fe248fd3018e29d0141f0838c8d46a697eef"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/00.png",
+      "sha256": "a4c0828fe3dc59e904f4e9ebc670c2fdf2ee0ddc5cba39ad08e9708fe472c871"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/01.png",
+      "sha256": "1ee4bf157a4b344e46d8a03363b2c0810b61a3bec3fb5942e0db311784120151"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/02.png",
+      "sha256": "2c42507c7bebe178a4eebcc5e88dd24333f844fb87aa16c6a8999b8a12c4bef2"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/03.png",
+      "sha256": "11795ef734598f0a53bc52ffc10ef1a150098f88db33ea3b4cf18f4839ed8c9d"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/04.png",
+      "sha256": "0df788e2340dec2d040bb9612fe28402dd804fcd09e8191a92ddef672941b33d"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/05.png",
+      "sha256": "12bdee09133f8922a9bedc078d774f2f4e42e4222583ed7993e53b386009ccb8"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/06.png",
+      "sha256": "c3d83e7aaf2f501351b7ecb21b908234d6d36b2c683d5a56ba9e236628919e55"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_curious_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_curious/07.png",
+      "sha256": "07abe45fd9914649c6f797491c262f136b60796d6013ce9259f019d0b4c09f7d"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/00.png",
+      "sha256": "def597760b413e5820184ab8adf3d5ee6fdc93b8642c93c2977223b8b0cb882a"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/01.png",
+      "sha256": "f301d384456365f6b079fd2e7eaa4c1a06767f4c0850f13a5e6f3e3a518219d1"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/02.png",
+      "sha256": "88bfc18aa18b5ebba582a8e1cef4c0d9f5c4312f6ee0c5014e3454a9869ace39"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/03.png",
+      "sha256": "1ec1c391f59fc047a6038915a7bcf8cc019a946fbadc59bd96b3098cac627af6"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/04.png",
+      "sha256": "e140eb2db585efff8b581d41b0772d5b1f451871d62ed87327aac5fbfa25bb68"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/05.png",
+      "sha256": "32bdbef0833fdea6cc2ba50666641dc093fe04132ac1059d124162fbfaa4d9f3"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/06.png",
+      "sha256": "7124cb7715cf7889b8fabc1b738b68948a730e4489cb6b025b4822af09e451ac"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_idle_lively_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/idle_lively/07.png",
+      "sha256": "b36fe065b7d45d18238915f542b0d45d403254b6ada9d0435f71534d004d6b9b"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/00.png",
+      "sha256": "3728336b97d45c7d2e01a9978f53b9b739e9e67e721f55303503f575af3230c0"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/01.png",
+      "sha256": "db8cd6ccba6b3e91aeb04fee51deaf29da0d90bec61252dbd3150c2f611c995b"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/02.png",
+      "sha256": "23a04818cf587fcb70731a37d3d75e569ec1f116e0bfef707c8091ae40e7e597"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/03.png",
+      "sha256": "a35e33e3e6dc1c1de7f7e690943954e6ebc0849b4a9fc065f24955f6b1c75dd3"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/04.png",
+      "sha256": "434a24dbe883c76c48216f60e21847b832b5fdbd3c359a1b7c502e47f36269e3"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/05.png",
+      "sha256": "ac21cbc8e6d6fa9909cbce9cbbf888317ebe34a4de7a0605ef4ffac11e7bd150"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/06.png",
+      "sha256": "b61093ddd88fd4be6c06f670d164c7c4d1540d25a3d4429c2a0aa7c9e5a64846"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_head_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_head/07.png",
+      "sha256": "b8933c367dc2f4dd2934ffc619c8fe2c076776c22be95da30b38f3db0804880e"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/00.png",
+      "sha256": "75b64ed946882753076ed11d09e21e18f1913089d8570fef935dfaf06b83a97d"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/01.png",
+      "sha256": "0db55dc633babd48a32e7e729af92d8938c0648695d817cb32f50ba1228885fd"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/02.png",
+      "sha256": "5a9623bae38daf40dca9eb20bc18ba7a9be7dfb7c275332d6c9989345ae9ed48"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/03.png",
+      "sha256": "363909fd1b3ee3b2d82f27f05ce04b9a107108dd1f7efdbdc1be86aeaa800907"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/04.png",
+      "sha256": "c060ad310d0fd2bdf65e6004db7d8bf4140dd261e1500124bde776f059efb87f"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/05.png",
+      "sha256": "f0afb33d0b944e1cfa1bc0f5d5fc826ca1f1c4bc3c29aaf9b26ff521ed5a5fc7"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/06.png",
+      "sha256": "324735b3098a34b298ccfad7e45e11460d0d271d4f15aa0f45334e514170f2c2"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_touch_body_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/touch_body/07.png",
+      "sha256": "5cd604300f5d971f65c78d6d1ab71da36fc02422a166135a05c03442c0256089"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/00.png",
+      "sha256": "6457e4a4cee3e6205021d5647e2a44415c4473181e8b625a2eb39d6fde7ff745"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/01.png",
+      "sha256": "9ef52acc2000e952ba2dba55042d14ef3f029404c29b287db411cdd38ddbb087"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/02.png",
+      "sha256": "847fdb59b4115c168e641285d9d51e6e007212dfb6cc3a804511f16e31aea59b"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/03.png",
+      "sha256": "576cbbffb51a9c17a94e085ec6c26b83081f0024dd93415c969cf4dc30db48f4"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/04.png",
+      "sha256": "67f959dd1160cca136122b7387af7616e7b7177cdae85dc99981d405127388dc"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/05.png",
+      "sha256": "2c8883b90e2d23e9cfa68b84c26748c2244f753aa99f4ca839c84358e3059ee2"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/06.png",
+      "sha256": "2593d61b1be7120acf86a98c4af6117dde5430f8183b03303127e4306b90e5ec"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_walk_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/walk/07.png",
+      "sha256": "19382e86d1ace745b21239d00b5053a50610efb3e4458d7e526edbe9a96884e0"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/00.png",
+      "sha256": "ec5449db0ea19242176644a65a8456bb1a00ad5f014372968f4649be8c446923"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/01.png",
+      "sha256": "677ee3eee4d297b1b7e5eba52b746be971830497641bd29db14d54bbc044d097"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/02.png",
+      "sha256": "1b29b488f8b975d01e0df126b42a4c7de0c9a0a05eda10d96b350e8204f8c47c"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/03.png",
+      "sha256": "1c299ce4f13667ebd6c718908edf9309f9f7caf8aaf5ccc9fa735dad62e21a84"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/04.png",
+      "sha256": "a8eae5b6e4b355c092f9ba2b4b8a0bd09bf42e4bd26f42f0e653a335dc4b1d62"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/05.png",
+      "sha256": "b9f2f3cc3fc8703529de6a5d1c10e4d2c37e4ea3c2d7784104a13d14cd8d5e8d"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/06.png",
+      "sha256": "b26f461968a6bb92069a2e9552ab5d6391bb4bad67555d2d2cc7d536d7fa0767"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_brisk_move_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/brisk_move/07.png",
+      "sha256": "cf18b2416d7aad07cdc3f647384503215023998eae3a7b15e7f5416b4ca02bd0"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/00.png",
+      "sha256": "849857c634118ef983870fc703ab0b12fb0fe2a70754f40cc3448bb365750e91"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/01.png",
+      "sha256": "17b67665d7d967ab91d9676c6b8f9ffe368a614c52239a34ecdffdac66e7c3d1"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/02.png",
+      "sha256": "bce779f1f86ae805fb23417427045241ed8155c9a3fef69da21c9cfea7c65820"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/03.png",
+      "sha256": "8bf33e5a53e32223a77fbffb3560914baf48416e22ba4976eadf2c620d1583b7"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/04.png",
+      "sha256": "ef0de33f28f343fa80c2c5bfa65cb9aee677b2302debba4e80e2fcd2a1d1acce"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/05.png",
+      "sha256": "e5d81400f646893eb75138e040539bf58a311d64aafd7f505936231b1c9d5c5e"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/06.png",
+      "sha256": "67f78986f40366fe16ba96ef697e43584a854ca836b7aae622be2f95e5229d11"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_sit_down_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/sit_down/07.png",
+      "sha256": "6b58c95b3a1e09e2dcf07da2a92d5c5be7d8a83ad4c9b179d023edbb73e3d838"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/00.png",
+      "sha256": "f84f036e7d629bc8434a7dcf13a607ed8ad4c2cb478a432890e6c92faa316013"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/01.png",
+      "sha256": "ae6d364cf5aa16894f03fc49e730a409b39ffd7740e98231673adb1e4581e77d"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/02.png",
+      "sha256": "0015d4fddeb174deae39836c78c536acb1b6ef994433ec1b9cbe5c92b1952a05"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/03.png",
+      "sha256": "e1c98e5639590e763624d25827773ce8f97610112db6f3246a3351f93efda4bd"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/04.png",
+      "sha256": "37d7ddbc149f10765fc58468c9165d367b08ddbad37821ca4ea769d1cff3b2d2"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/05.png",
+      "sha256": "edd01f9a7694b8c49b7bb170c4b62bf331ffdad6b6e3f6ba623238e192fa3048"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/06.png",
+      "sha256": "1f8b761dea1ee3271e2ee6ba5ab1cc4f3bdf0f11538ad0f43fb115d3e4e9efde"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_catch_breath_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/catch_breath/07.png",
+      "sha256": "31b7f8f2cd1199d71859620357980355e97dca438de56bc94421d7790cf21242"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/00.png",
+      "sha256": "02b2b235efe3b026787c1b58f5a34bfb23eb97fb23a36c23fecadeb5be9148d3"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/01.png",
+      "sha256": "468f9b71af80069bdbead1340b799b6f5b0f1a1f02734de7f80f9075d0e2b05f"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/02.png",
+      "sha256": "f9cc6531d56ba21ddc032dc63e387053ff4ca6fe2aa1f8023c25023ec3f98ed5"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/03.png",
+      "sha256": "73a5dc1fa7f272ebe175e298c60e8dc2e106d3a68a3b22bd6423d347a51ed0b5"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/04.png",
+      "sha256": "6e0335826c41f33b66d1ae1cf5bc0b17c17c90cdef19659964b6949959c8555c"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/05.png",
+      "sha256": "a9fb5aa954c388c2d1fe3b38abc16adac7660321fa637fe350ddad03da34a773"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/06.png",
+      "sha256": "7ae697e940cfc0da2ec382f6a310025f07746ff00fed5533a2f982dec2813025"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_route_reflection_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/route_reflection/07.png",
+      "sha256": "d36af7cdf7bb36e169fe3835da064bca3d7d9a87faab80499ea22610a871025f"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/00.png",
+      "sha256": "0c1542c93f5401c049eb90115c0d94762c21ef9c3f9245872a56ead456eadb87"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/01.png",
+      "sha256": "a5a3e5475d494683c22eb82b0224b0225f4963f0e8e8b2ab10e5166426639ba4"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/02.png",
+      "sha256": "eb5d16cf4f89a6b567e216ecc2953d512e17276103954c8c17fab6562a5fdbe4"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/03.png",
+      "sha256": "e55666e47254d1ea8addc66a09198c6fa46a8f5128fd432784efbe74cc8bbcdd"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/04.png",
+      "sha256": "25ed2272f409a3da4c5edb0cb7ccff6e298ebd2b05ba93f2d7324bddec845d59"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/05.png",
+      "sha256": "73aef752a0138f31b631025c94b8ef6ada6d72e1446088d8b10dd8ad61c3e269"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/06.png",
+      "sha256": "533e5995fbfbafbf1cb95c1ac430851da9e17a37b4b43d155f206d132093f0a4"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_speaking_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/speaking/07.png",
+      "sha256": "409d2483744afaaa63e8c3dcb34154c51249727af81146be1b987045c6dce46b"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/00.png",
+      "sha256": "1772170298b6447a379c10503a3b21f9116d00ac54aa2113e7bef6ab96f44c09"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/01.png",
+      "sha256": "69bb82a9fef402f5ecaabac358df179270e67da7dd813a128f505aa29b654f17"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/02.png",
+      "sha256": "018b0714bf337d621190789ff886872eb0972170c7aab2e5f578afa95d021255"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/03.png",
+      "sha256": "5efaa5aff2b8d5b0906801abb61d3ea1e49ff6a650ee473e5cf4fbb15949a046"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/04.png",
+      "sha256": "e412fff27b4235b1bf15be2e25d24eeee8dd96dbaa72f8cb903629ed5adbc754"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/05.png",
+      "sha256": "b9ab069ae8abd778a907e8e9ae72f3cb5ea19c923c3d0567c6eb47b65414016e"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/06.png",
+      "sha256": "2d2d39dd6d2a9890200be77077daf11de802b6f642559283eda31b2d69770a73"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_action_success_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/action_success/07.png",
+      "sha256": "87606e1b844d4f9470efe71f0ac67592f3e0a62b11df131d053dff17a42d4197"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/00.png",
+      "sha256": "1786c643e78ae7984ef1be2ff0ef67216f5bc28f8572aa1d5b6a711992d99664"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/01.png",
+      "sha256": "024e15b76ecd4fea549fe7bfa20315a74a8e35e560f0af324aeedf58b987729e"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/02.png",
+      "sha256": "0645afc2b37c8ad9da5c333b99ba29371ad718328e837ec0b2859909f7cfb4cb"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/03.png",
+      "sha256": "cb903e3e5dd308d191b6b13ccb685abcbdc36859930ac6377548e2985475ee8e"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/04.png",
+      "sha256": "ff095737925821f0de44509cc7b87affc8e273770affa48087d6b9ee1461ff6b"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/05.png",
+      "sha256": "c568e5a6cce63a4ebf85972b1a7368ea596a0a06959136d14a9c8caf45af7b8c"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/06.png",
+      "sha256": "7c3572b45329e732880c7db393f4955b00c59fa67db60d9ec83d8db698c13ac0"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_story_reaction_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/story_reaction/07.png",
+      "sha256": "2db4772931ab32876044c9fa8bc9bed2954639603cc0d321d77101e5667fae09"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/00.png",
+      "sha256": "b1d25cb5496a0bdd2567758703936e4f2308e4e51192b77aa51cdee3fd77e3b0"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/01.png",
+      "sha256": "d0298e875ba1f99e8ea66350864e9b190e87fb282f25a2ba342c6b952d442d13"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/02.png",
+      "sha256": "fc1f6bc8197550edc022deda5e1e8a37f4e4cc773a4961c6e305bfb86c7754d2"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/03.png",
+      "sha256": "7451edc5b5b5e55e4c023a5415cd5386963fa5a6832b474bb31d2bfde081fb50"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/04.png",
+      "sha256": "167627d08aa9b721ee04398824510c684cbd3fb292e2327cac1ab66ffb11b732"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/05.png",
+      "sha256": "74f5d1321280d105fdc59339e91655c3855ac96f056104b61049658feca2a5e1"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/06.png",
+      "sha256": "c97efa31f759970004943f8e243a55b354b4c9ed76259f406aa68e9154826f7d"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_daily_reflection_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/daily_reflection/07.png",
+      "sha256": "2b84a5b91962a767106a7c093c72f0748952eb41aed5ad3e1f271e7716197cd4"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_00",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/00.png",
+      "sha256": "ecbbecf6c9d8f7953fc18a0eef800b45844a93cd61e370c475407cb577b29463"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_01",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/01.png",
+      "sha256": "98922148027673db143534f6f9b6f6bb28fff2467b7d511b0c9777835faf7832"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_02",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/02.png",
+      "sha256": "40988a8fbd60586969a7fe63ddc4030287987cc653d1a6e21c8538fef9ebb8dd"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_03",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/03.png",
+      "sha256": "eacbe5ddbb46de84febd3d97afa58d376a228086a18e87da3fb65068ab728e4d"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_04",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/04.png",
+      "sha256": "484049315e723953a5d86ba4ce6913ae9f57b28bfb04a113d85da5e2cff8f5ba"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_05",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/05.png",
+      "sha256": "6e807937691dcf31295fdbe792fe957f299d57bd6ba8ea974800235522462d87"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_06",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/06.png",
+      "sha256": "d9ac99418a7ed6d421d31f41a9e892a48b6cc9409e28f057b4bf2ddfa7bd8432"
+    },
+    {
+      "catalog": "Apps/Apple/iPhoneApp/Assets.xcassets/Characters",
+      "assetName": "character_penguin_bedtime_07",
+      "source": "Design/WatchCompanionAssets/characters/penguin-v2/product-motion/frames/bedtime/07.png",
+      "sha256": "9a5dc5ff2b427e23c561c009c8add7b2ffa9195ffe863d8e5ead1cd997cb1c8b"
+    }
+  ]
+}

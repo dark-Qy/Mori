@@ -97,6 +97,20 @@ final class WatchAppUITests: XCTestCase {
     XCTAssertNotNil(changed)
     XCTAssertTrue(changed?.badgeLabel.contains("模拟 GPS") == true)
     XCTAssertTrue(changed?.badgeLabel.contains("心率") == true)
+    let expectedMotionLabel = [
+      "原地休息": "坐下休息",
+      "正在散步": "散步",
+      "快速移动": "快速移动",
+      "停下恢复": "调整呼吸",
+    ]
+    .first(where: { changed?.badgeLabel.contains($0.key) == true })?
+    .value
+    XCTAssertNotNil(expectedMotionLabel)
+    XCTAssertTrue(
+      expectedMotionLabel.map {
+        changed?.sceneValue?.contains($0) == true
+      } ?? false
+    )
   }
 
   func testMockGlanceIsPresentedAtMostOnceAcrossRelaunch() {

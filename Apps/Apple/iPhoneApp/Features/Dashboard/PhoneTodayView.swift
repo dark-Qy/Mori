@@ -47,9 +47,9 @@ struct PhoneTodayView: View {
             ? "今天还没有完成"
             : "今天已完成 \(store.mockExperience.completedTaskIDs.count) 件"
         )
-          .font(.subheadline)
-          .foregroundStyle(CompanionPalette.secondaryText)
-          .accessibilityIdentifier("phone.today.completed-count")
+        .font(.subheadline)
+        .foregroundStyle(CompanionPalette.secondaryText)
+        .accessibilityIdentifier("phone.today.completed-count")
       }
       Spacer()
       if store.companionExperienceAvailable {

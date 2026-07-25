@@ -9,6 +9,10 @@ enum WatchCharacterAnimation: String, CaseIterable {
   case idleLively = "idle_lively"
   case touchHead = "touch_head"
   case touchBody = "touch_body"
+  case walk
+  case briskMove = "brisk_move"
+  case sitDown = "sit_down"
+  case catchBreath = "catch_breath"
   case actionSuccess = "action_success"
   case storyReaction = "story_reaction"
   case socialLeap = "social_leap"
@@ -16,6 +20,10 @@ enum WatchCharacterAnimation: String, CaseIterable {
   var reduceMotionFrameIndex: Int {
     switch self {
     case .touchHead, .touchBody: 1
+    case .walk: 1
+    case .briskMove: 3
+    case .sitDown: 7
+    case .catchBreath: 4
     case .actionSuccess, .storyReaction: 2
     case .socialLeap: 7
     case .idleNeutral, .idleResting, .idleCurious, .idleLively: 0
@@ -23,7 +31,35 @@ enum WatchCharacterAnimation: String, CaseIterable {
   }
 
   var isOneShot: Bool {
-    self == .actionSuccess || self == .storyReaction || self == .socialLeap
+    switch self {
+    case .sitDown, .catchBreath, .actionSuccess, .storyReaction, .socialLeap:
+      true
+    case .idleNeutral, .idleResting, .idleCurious, .idleLively, .touchHead, .touchBody,
+      .walk, .briskMove:
+      false
+    }
+  }
+
+  var framesPerSecond: Double {
+    switch self {
+    case .walk, .briskMove, .sitDown, .catchBreath:
+      10
+    case .idleNeutral, .idleResting, .idleCurious, .idleLively, .touchHead, .touchBody,
+      .actionSuccess, .storyReaction, .socialLeap:
+      WatchScenePresentation.framesPerSecond
+    }
+  }
+
+  var movementAccessibilityLabel: String? {
+    switch self {
+    case .sitDown: "坐下休息"
+    case .walk: "散步"
+    case .briskMove: "快速移动"
+    case .catchBreath: "调整呼吸"
+    case .idleNeutral, .idleResting, .idleCurious, .idleLively, .touchHead, .touchBody,
+      .actionSuccess, .storyReaction, .socialLeap:
+      nil
+    }
   }
 }
 
@@ -179,6 +215,28 @@ struct WatchScenePresentation {
           placement: slot.placement,
           layout: slot.layout,
           idleAnimation: Self.idleAnimation(for: mood)
+        )
+      }
+    )
+  }
+
+  func applying(
+    idleAnimation: WatchCharacterAnimation,
+    toCharacterID requestedCharacterID: String
+  ) -> Self {
+    WatchScenePresentation(
+      backgroundID: backgroundID,
+      backgroundDisplayName: backgroundDisplayName,
+      accessibilityDescription: accessibilityDescription,
+      foregroundAssetName: foregroundAssetName,
+      slots: slots.map { slot in
+        guard slot.characterID == requestedCharacterID else { return slot }
+        return WatchCharacterSlotPresentation(
+          id: slot.id,
+          characterID: slot.characterID,
+          placement: slot.placement,
+          layout: slot.layout,
+          idleAnimation: idleAnimation
         )
       }
     )

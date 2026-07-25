@@ -5,6 +5,7 @@ import WatchKit
 struct CompanionSceneView: View {
   let scene: WatchScenePresentation
   var reaction: WatchSceneReaction?
+  var movementMotion: WatchCharacterAnimation?
   var usesStaticArtwork = false
   var cornerRadius: CGFloat = 22
   var showsTouchHint = true
@@ -16,6 +17,8 @@ struct CompanionSceneView: View {
   @State private var transientAnimation: WatchCharacterAnimation?
   @State private var transientStartedAt: Date?
   @State private var transientToken = 0
+  @State private var sceneOneShotAnimation: WatchCharacterAnimation?
+  @State private var sceneOneShotStartedAt: Date?
   @State private var lastInteractionAt = Date.distantPast
 
   var body: some View {
@@ -81,7 +84,13 @@ struct CompanionSceneView: View {
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("互动伙伴场景，\(scene.accessibilityDescription)")
     .accessibilityValue(
-      "\(scene.slots.map(characterDisplayName).joined(separator: "、"))，\(scene.backgroundDisplayName)"
+      [
+        scene.slots.map(characterDisplayName).joined(separator: "、"),
+        scene.backgroundDisplayName,
+        movementAccessibilityLabel,
+      ]
+      .compactMap(\.self)
+      .joined(separator: "，")
     )
     .accessibilityHint("轻点 Mori 会得到回应；长按打开功能菜单")
     .accessibilityAddTraits(.isButton)
@@ -96,6 +105,19 @@ struct CompanionSceneView: View {
       guard let value else { return }
       play(value.animation, recordsInteraction: false)
     }
+    .task(id: movementMotion) {
+      sceneOneShotAnimation = nil
+      sceneOneShotStartedAt = nil
+      guard let movementMotion, movementMotion.isOneShot else { return }
+      sceneOneShotAnimation = movementMotion
+      sceneOneShotStartedAt = Date()
+      try? await Task.sleep(
+        for: .seconds(Double(WatchScenePresentation.frameCount) / movementMotion.framesPerSecond)
+      )
+      guard !Task.isCancelled, sceneOneShotAnimation == movementMotion else { return }
+      sceneOneShotAnimation = nil
+      sceneOneShotStartedAt = nil
+    }
   }
 
   @ViewBuilder
@@ -103,7 +125,7 @@ struct CompanionSceneView: View {
     slot: WatchCharacterSlotPresentation,
     size: CGSize
   ) -> some View {
-    let animation = transientAnimation ?? slot.idleAnimation
+    let animation = activeAnimation(for: slot)
     let characterSize = characterSize(for: slot, in: size)
     if usesStaticArtwork || reduceMotion {
       characterFrame(
@@ -114,12 +136,16 @@ struct CompanionSceneView: View {
         sceneSize: size
       )
     } else {
-      TimelineView(.animation(minimumInterval: 1 / WatchScenePresentation.framesPerSecond)) {
+      TimelineView(.animation(minimumInterval: 1 / animation.framesPerSecond)) {
         context in
         characterFrame(
           slot: slot,
           animation: animation,
-          frameIndex: frameIndex(for: animation, at: context.date),
+          frameIndex: frameIndex(
+            for: animation,
+            startedAt: activeAnimationStartedAt(for: slot),
+            at: context.date
+          ),
           characterSize: characterSize,
           sceneSize: size
         )
@@ -208,7 +234,8 @@ struct CompanionSceneView: View {
       WKInterfaceDevice.current().play(.success)
     case .storyReaction:
       WKInterfaceDevice.current().play(.notification)
-    case .idleNeutral, .idleResting, .idleCurious, .idleLively:
+    case .idleNeutral, .idleResting, .idleCurious, .idleLively, .walk, .briskMove,
+      .sitDown, .catchBreath:
       break
     }
     if recordsInteraction {
@@ -224,19 +251,61 @@ struct CompanionSceneView: View {
 
   private func frameIndex(
     for animation: WatchCharacterAnimation,
+    startedAt: Date?,
     at date: Date
   ) -> Int {
-    guard let transientStartedAt, transientAnimation != nil else {
+    guard let startedAt else {
       let tick = Int64(
-        date.timeIntervalSinceReferenceDate * WatchScenePresentation.framesPerSecond
+        date.timeIntervalSinceReferenceDate * animation.framesPerSecond
       )
       return Int(tick % Int64(WatchScenePresentation.frameCount))
     }
-    let elapsed = max(0, date.timeIntervalSince(transientStartedAt))
-    let index = Int(elapsed * WatchScenePresentation.framesPerSecond)
+    let elapsed = max(0, date.timeIntervalSince(startedAt))
+    let index = Int(elapsed * animation.framesPerSecond)
     return animation.isOneShot
       ? min(index, WatchScenePresentation.frameCount - 1)
       : index % WatchScenePresentation.frameCount
+  }
+
+  private func activeAnimation(
+    for slot: WatchCharacterSlotPresentation
+  ) -> WatchCharacterAnimation {
+    if let transientAnimation {
+      return transientAnimation
+    }
+    guard slot.characterID == CompanionVisualCatalog.defaultCharacterID else {
+      return slot.idleAnimation
+    }
+    if let sceneOneShotAnimation {
+      return sceneOneShotAnimation
+    }
+    if let movementMotion, !movementMotion.isOneShot {
+      return movementMotion
+    }
+    return slot.idleAnimation
+  }
+
+  private func activeAnimationStartedAt(
+    for slot: WatchCharacterSlotPresentation
+  ) -> Date? {
+    if transientAnimation != nil {
+      return transientStartedAt
+    }
+    guard slot.characterID == CompanionVisualCatalog.defaultCharacterID else {
+      return nil
+    }
+    return sceneOneShotAnimation == nil ? nil : sceneOneShotStartedAt
+  }
+
+  private var movementAccessibilityLabel: String? {
+    guard
+      scene.slots.contains(where: {
+        $0.characterID == CompanionVisualCatalog.defaultCharacterID
+      })
+    else {
+      return nil
+    }
+    return movementMotion?.movementAccessibilityLabel
   }
 
   private func characterDisplayName(_ slot: WatchCharacterSlotPresentation) -> String {

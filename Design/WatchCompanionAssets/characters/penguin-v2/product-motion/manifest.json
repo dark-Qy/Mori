@@ -1,0 +1,433 @@
+{
+  "schemaVersion": 1,
+  "characterID": "penguin",
+  "chromaKey": "#FF00FF",
+  "frameCount": 8,
+  "status": "ready",
+  "jobs": [
+    {
+      "id": "idle_resting",
+      "status": "complete",
+      "sequenceType": "loop",
+      "promptFile": "prompts/idle_resting.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/idle_resting.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f9334-8ed7-7d33-a6b7-a401f3baac60/exec-c1dab509-5953-4a9a-95a1-12575a9e416b.png",
+      "completedAt": "2026-07-24T09:12:59Z",
+      "sourceSha256": "ab8ed0f717a1c6fd55f558428ee7054977e3bc82ececa3a466a427cff6a15271"
+    },
+    {
+      "id": "idle_curious",
+      "status": "complete",
+      "sequenceType": "loop",
+      "promptFile": "prompts/idle_curious.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/idle_curious.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f9334-c689-78f3-bafa-e6673d027f83/exec-22088a63-f45d-4eb3-a931-5f25dec45282.png",
+      "completedAt": "2026-07-24T08:25:12Z",
+      "sourceSha256": "8ff9890d85d80c215ee74f6f132d8a4c748fd88d6761a1c82d1f7f831484972d"
+    },
+    {
+      "id": "idle_lively",
+      "status": "complete",
+      "sequenceType": "loop",
+      "promptFile": "prompts/idle_lively.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/idle_lively.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f930f-d8f8-71f1-af3a-a6721cafe40c/call_3OFJEMQ3VRVgi85RDlLvKqDU.png",
+      "completedAt": "2026-07-24T09:26:52Z",
+      "sourceSha256": "5b3e2830eff6cd9a988da0410f2fd443c5c926b627b7f52afb273a4bee830995"
+    },
+    {
+      "id": "touch_head",
+      "status": "complete",
+      "sequenceType": "oneShot",
+      "promptFile": "prompts/touch_head.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/touch_head.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f9382-4861-7d23-9b32-a0063ba427b0/exec-eb923493-490e-419a-97c2-19800a3d4331.png",
+      "completedAt": "2026-07-24T10:17:32Z",
+      "sourceSha256": "5eec1ff937e503d5fb5f79ce1a3a28af4e74d159a3e59b4fff3c643c151b88a8"
+    },
+    {
+      "id": "touch_body",
+      "status": "complete",
+      "sequenceType": "oneShot",
+      "promptFile": "prompts/touch_body.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/touch_body.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f93e3-ee47-7bd1-993e-8d57a1ca7ea0/exec-5c3cfc49-972c-4331-8ef9-7e00a0eafc66.png",
+      "completedAt": "2026-07-24T11:56:59Z",
+      "sourceSha256": "129a4988b06f9244d767ae01bae2b2983ae076c3f25337297adaaec6c236d0b2",
+      "repairAttempt": 1
+    },
+    {
+      "id": "walk",
+      "status": "complete",
+      "sequenceType": "loop",
+      "promptFile": "prompts/walk.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/walk.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f9385-3717-7cd1-8d1f-75626f26adcc/exec-76440c9d-b64c-4c31-a9b8-1fa692d067bf.png",
+      "completedAt": "2026-07-24T10:37:45Z",
+      "sourceSha256": "0a9f27552f96303c52ced63fffacbb1ed64380971eb79f9e156e1975a5762612"
+    },
+    {
+      "id": "brisk_move",
+      "status": "complete",
+      "sequenceType": "loop",
+      "promptFile": "prompts/brisk_move.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/brisk_move.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f9390-ce94-7021-929a-d091e523aadd/exec-5a5ebcdb-a7be-4285-8d4c-437a2c121624.png",
+      "completedAt": "2026-07-24T10:47:24Z",
+      "sourceSha256": "80cd871123bd8b18cb25b358131fab0de436d86bb84cb3a82d3f33bb883e313a"
+    },
+    {
+      "id": "sit_down",
+      "status": "complete",
+      "sequenceType": "oneShot",
+      "promptFile": "prompts/sit_down.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/sit_down.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f9396-4f39-7070-b1b2-5286359aa0f8/exec-6fdbe64d-fa54-4530-8a79-3f79a4a424c8.png",
+      "completedAt": "2026-07-24T10:47:25Z",
+      "sourceSha256": "4c69cdcb605515f75a1f2c32169acc1e1ff5e893ae865e39ab871af1faab1e74"
+    },
+    {
+      "id": "catch_breath",
+      "status": "complete",
+      "sequenceType": "oneShot",
+      "promptFile": "prompts/catch_breath.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/catch_breath.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f939b-053c-7033-97c0-6fa4fe5e7b0b/exec-18737f1f-14d5-494c-a404-bc404365b7e1.png",
+      "completedAt": "2026-07-24T10:47:27Z",
+      "sourceSha256": "7de287ded7003dff25e7df66764de89cac5b06955fea2ba2be766d4fa60c6143"
+    },
+    {
+      "id": "route_reflection",
+      "status": "complete",
+      "sequenceType": "oneShot",
+      "promptFile": "prompts/route_reflection.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/route_reflection.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f93b9-ceb5-7000-8b49-c06bd9a8949d/exec-46837bdd-f75b-421c-a8c1-e640c3a8296f.png",
+      "completedAt": "2026-07-24T11:03:27Z",
+      "sourceSha256": "431bacfe92f14e255b64fbd54760cf7f43a640527e2dd7b36dd48f9d8d1687ad"
+    },
+    {
+      "id": "speaking",
+      "status": "complete",
+      "sequenceType": "loop",
+      "promptFile": "prompts/speaking.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/speaking.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f93ba-bc7e-7550-ac6b-078ac5d71dd0/exec-2704aadd-ffc1-44bb-83d2-f0146b06b7f6.png",
+      "completedAt": "2026-07-24T11:03:29Z",
+      "sourceSha256": "cd180238351a405ee7d953b211506b9726194448405a6d13368e3543e1be6f39"
+    },
+    {
+      "id": "action_success",
+      "status": "complete",
+      "sequenceType": "oneShotHoldFinal",
+      "promptFile": "prompts/action_success.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/action_success.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f93bb-aa12-7613-9256-2777b9ba7d19/exec-606c9b46-7a53-4606-b87a-ec4b8001d1ac.png",
+      "completedAt": "2026-07-24T11:13:26Z",
+      "sourceSha256": "7d376b57a3e0cddf9ed8a7a3577fc5ccf07c485fd974ee03843c1fbeb7be9ecf"
+    },
+    {
+      "id": "story_reaction",
+      "status": "complete",
+      "sequenceType": "oneShot",
+      "promptFile": "prompts/story_reaction.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/story_reaction.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f93c3-3bc1-7f82-9dec-5576f9a2997a/exec-30222e43-5f01-4008-a2fb-7449653eafce.png",
+      "completedAt": "2026-07-24T11:19:48Z",
+      "sourceSha256": "db3f2a78428b5c49ec60ae1ca756c909afd60cea3b76689e88558976d6039c66"
+    },
+    {
+      "id": "daily_reflection",
+      "status": "complete",
+      "sequenceType": "oneShot",
+      "promptFile": "prompts/daily_reflection.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/daily_reflection.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f93c5-70ec-7733-b657-201c65403d80/exec-5cc40802-f5d1-4037-b834-51491b9451b3.png",
+      "completedAt": "2026-07-24T11:19:49Z",
+      "sourceSha256": "8293509c011ba1a92459535dfacdd66d897eb2ee2ccca93c2490d7e3810a8003"
+    },
+    {
+      "id": "bedtime",
+      "status": "complete",
+      "sequenceType": "loop",
+      "promptFile": "prompts/bedtime.md",
+      "inputImages": [
+        {
+          "path": "../references/reference-01.png",
+          "role": "original character identity reference"
+        },
+        {
+          "path": "../references/canonical-base.png",
+          "role": "canonical identity reference"
+        },
+        {
+          "path": "../qa/contact-sheet-extended.png",
+          "role": "approved v2 identity and scale reference"
+        },
+        {
+          "path": "../references/layout-guides/running-right.png",
+          "role": "eight-slot layout guide only; do not copy guide pixels"
+        }
+      ],
+      "outputPath": "decoded/bedtime.png",
+      "sourcePath": "/Users/shubing/.codex/generated_images/019f93c9-7306-71c3-b7f8-3d7a93391d38/exec-97ab7706-ac58-4185-aa00-5d9033196d70.png",
+      "completedAt": "2026-07-24T11:19:50Z",
+      "sourceSha256": "9349511ac9f0efaaddc3b673b9fe72de43dab6fbbb9017124cf5a9ef70d276c2"
+    }
+  ],
+  "generationTool": "built-in image_gen (Image2)",
+  "foundationAtlas": "../final/spritesheet-extended.png",
+  "foundationAtlasSha256": "56f7faa9ad13b1b808c3369467db4e9adb92d571a23645bcb6aebd1e44b5897b"
+}

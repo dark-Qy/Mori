@@ -84,8 +84,7 @@ public actor ProductLoopAppRuntime {
   private let settlementRuntime: TaskSettlementRuntime<SyncRuntime>
   private let collectionRuntime: CollectionMutationRuntime<SyncRuntime>
   private let glanceClock: DeterministicMockExperienceClock
-  private let glanceRuntime:
-    PendingGlanceRuntime<DeterministicMockExperienceClock>
+  private let glanceRuntime: PendingGlanceRuntime<DeterministicMockExperienceClock>
   #if DEBUG
     private let mockBootstrap: MockProductLoopBootstrap?
   #endif
