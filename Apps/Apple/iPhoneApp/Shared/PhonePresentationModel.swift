@@ -22,6 +22,7 @@ struct PhonePresentationModel {
   let wardrobe: PhoneWardrobePresentation
   let metrics: [PhoneMetric]
   let sealedMemories: [PhoneMemoryPresentation]
+  let dailyMomentCollection: PhoneDailyMomentCollection?
 
   var mockScenario: PhoneMockScenario? {
     guard case .mock(let scenario) = dataMode else { return nil }
@@ -44,14 +45,15 @@ struct PhonePresentationModel {
   }
 
   static func initial(
-    arguments: [String] = ProcessInfo.processInfo.arguments
+    arguments: [String] = ProcessInfo.processInfo.arguments,
+    now: Date = Date()
   ) -> Self {
     #if DEBUG
       switch debugScenarioSelection(arguments: arguments) {
       case .none:
         return liveNoData()
       case .scenario(let seed):
-        return mock(seed: seed)
+        return mock(seed: seed, now: now)
       case .invalid(let requestedID):
         return invalidMock(requestedID)
       }
@@ -77,7 +79,8 @@ struct PhonePresentationModel {
         PhoneMetric(id: "sleep", numericValue: health?.sleepMinutes),
         PhoneMetric(id: "steps", numericValue: health?.steps),
       ],
-      sealedMemories: []
+      sealedMemories: [],
+      dailyMomentCollection: nil
     )
   }
 
@@ -86,14 +89,17 @@ struct PhonePresentationModel {
   }
 
   #if DEBUG
-    static func demo(_ source: CompanionDataSource) -> Self {
+    static func demo(
+      _ source: CompanionDataSource,
+      now: Date = Date()
+    ) -> Self {
       guard let fixtureID = source.fixtureID else { return liveNoData() }
       switch debugScenarioSelection(
         arguments: ["--mock-scenario=\(fixtureID)"],
         enabled: true
       ) {
       case .scenario(let seed):
-        return mock(seed: seed)
+        return mock(seed: seed, now: now)
       case .none, .invalid:
         return invalidMock(fixtureID)
       }
@@ -107,7 +113,8 @@ struct PhonePresentationModel {
       initialScreen: .mori,
       wardrobe: .unavailable,
       metrics: base.metrics,
-      sealedMemories: []
+      sealedMemories: [],
+      dailyMomentCollection: nil
     )
   }
 
@@ -133,7 +140,10 @@ struct PhonePresentationModel {
       }
     }
 
-    private static func mock(seed: DebugScenarioSeed) -> Self {
+    private static func mock(
+      seed: DebugScenarioSeed,
+      now: Date
+    ) -> Self {
       let initialScreen: PhoneInitialScreen =
         switch seed.primaryState {
         case .onboarding:
@@ -150,6 +160,7 @@ struct PhonePresentationModel {
             displayName: seed.displayName,
             evaluatedAt: seed.now,
             timeZoneIdentifier: seed.timeZoneIdentifier,
+            characterID: seed.characterID,
             healthSnapshots: seed.healthSnapshots,
             reactiveSceneTimeline: seed.reactiveSceneTimeline
           )
@@ -173,10 +184,63 @@ struct PhonePresentationModel {
             numericValue: seed.healthSnapshot.steps
           ),
         ],
-        sealedMemories: []
+        sealedMemories: [],
+        dailyMomentCollection: seed.dailyMomentCollection.map {
+          PhoneDailyMomentCollection(
+            dayID: localDayID(
+              for: now,
+              timeZoneIdentifier: seed.timeZoneIdentifier
+            ),
+            characterID: seed.characterID,
+            isSealed: false,
+            moments: $0.moments.map {
+              PhoneDailyMomentPresentation(
+                id: $0.id,
+                timeLabel: $0.timeLabel,
+                title: $0.title,
+                body: $0.body,
+                sceneID: $0.sceneID,
+                animationID: $0.animationID
+              )
+            }
+          )
+        }
+      )
+    }
+
+    private static func localDayID(
+      for date: Date,
+      timeZoneIdentifier: String
+    ) -> String {
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone =
+        TimeZone(identifier: timeZoneIdentifier) ?? .current
+      let components = calendar.dateComponents(
+        [.year, .month, .day],
+        from: date
+      )
+      return String(
+        format: "%04d-%02d-%02d",
+        components.year ?? 0,
+        components.month ?? 0,
+        components.day ?? 0
       )
     }
   #endif
+
+  func replacingSealedMemories(
+    _ memories: [PhoneMemoryPresentation],
+    dailyMomentCollection replacement: PhoneDailyMomentCollection? = nil
+  ) -> Self {
+    PhonePresentationModel(
+      dataMode: dataMode,
+      initialScreen: initialScreen,
+      wardrobe: wardrobe,
+      metrics: metrics,
+      sealedMemories: memories,
+      dailyMomentCollection: replacement ?? dailyMomentCollection
+    )
+  }
 }
 
 struct PhoneMockScenario: Equatable {
@@ -184,12 +248,30 @@ struct PhoneMockScenario: Equatable {
   let displayName: String
   let evaluatedAt: Date
   let timeZoneIdentifier: String
+  let characterID: String
   let healthSnapshots: [HealthSnapshot]
 
   var now: Date { evaluatedAt }
   #if DEBUG
     let reactiveSceneTimeline: DebugReactiveSceneTimeline?
   #endif
+}
+
+struct PhoneDailyMomentCollection: Equatable, Identifiable {
+  var id: String { dayID }
+  let dayID: String
+  let characterID: String
+  let isSealed: Bool
+  let moments: [PhoneDailyMomentPresentation]
+}
+
+struct PhoneDailyMomentPresentation: Equatable, Identifiable {
+  let id: String
+  let timeLabel: String
+  let title: String
+  let body: String
+  let sceneID: String
+  let animationID: String
 }
 
 enum PhoneInitialScreen: Equatable {

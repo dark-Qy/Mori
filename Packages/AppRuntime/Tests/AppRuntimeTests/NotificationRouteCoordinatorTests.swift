@@ -19,6 +19,11 @@ struct NotificationRouteCoordinatorTests {
       coordinator.destination(for: RuntimeNotificationRoute(route: "pet/care"))
         == .careMessage
     )
+    #expect(
+      coordinator.destination(
+        for: RuntimeNotificationRoute(route: "memory/daily")
+      ) == .dailyMemory
+    )
   }
 
   @Test("Unknown routes are ignored and repeated opens are idempotent")

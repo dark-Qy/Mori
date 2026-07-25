@@ -41,6 +41,34 @@
     }
   }
 
+  public struct DebugDailyMoment: Equatable, Sendable {
+    public let id: String
+    public let timeLabel: String
+    public let title: String
+    public let body: String
+    public let sceneID: String
+    public let animationID: String
+
+    fileprivate init(_ moment: MockDailyMoment) {
+      id = moment.id
+      timeLabel = moment.timeLabel
+      title = moment.title
+      body = moment.body
+      sceneID = moment.sceneID
+      animationID = moment.animationID
+    }
+  }
+
+  public struct DebugDailyMomentCollection: Equatable, Sendable {
+    public let dayID: String
+    public let moments: [DebugDailyMoment]
+
+    fileprivate init(_ collection: MockDailyMomentCollection) {
+      dayID = collection.dayID
+      moments = collection.moments.map(DebugDailyMoment.init)
+    }
+  }
+
   /// A presentation-safe projection of an executable repository fixture.
   ///
   /// JSON and MockKit implementation details stop at this boundary. Both Apple clients receive the
@@ -58,6 +86,8 @@
     public let healthSnapshots: [HealthSnapshot]
     public let personalHealthTrend: PersonalHealthTrend?
     public let reactiveSceneTimeline: DebugReactiveSceneTimeline?
+    public let characterID: String
+    public let dailyMomentCollection: DebugDailyMomentCollection?
     public let petLevel: Int
     public let selectedOutfitID: String?
     public let unlockedOutfitIDs: Set<String>
@@ -78,6 +108,10 @@
       healthSnapshots = runtime.healthSnapshots
       personalHealthTrend = runtime.personalHealthTrend
       reactiveSceneTimeline = runtime.reactiveSceneTimeline.map(DebugReactiveSceneTimeline.init)
+      characterID = runtime.characterID
+      dailyMomentCollection = runtime.dailyMomentCollection.map(
+        DebugDailyMomentCollection.init
+      )
       petLevel = runtime.petLevel
       selectedOutfitID = runtime.wardrobe.selectedOutfitID
       unlockedOutfitIDs = runtime.wardrobe.unlockedOutfitIDs
@@ -111,6 +145,7 @@
       "mock2",
       "mock3",
       "mock4",
+      "mock5",
       "mock7_active",
       "mock7_recovery",
       "mock7_rhythm",

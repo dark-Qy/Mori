@@ -75,7 +75,9 @@ final class PhoneAppStore: ObservableObject {
     preferences.selectedBackgroundID
   }
   var selectedCharacterID: String {
-    preferences.selectedCharacterIDs.first ?? CompanionVisualCatalog.defaultCharacterID
+    model.mockScenario?.characterID
+      ?? preferences.selectedCharacterIDs.first
+      ?? CompanionVisualCatalog.defaultCharacterID
   }
 
   private let runtime: AppleCompanionRuntime?
@@ -504,6 +506,7 @@ final class PhoneAppStore: ObservableObject {
     guard !hasLaunchScenarioOverride else {
       #if DEBUG
         startMovementSceneIfNeeded()
+        await scheduleMockDailyMomentsNotificationIfNeeded()
       #endif
       return
     }
@@ -593,6 +596,7 @@ final class PhoneAppStore: ObservableObject {
     mockCareTask?.cancel()
     companionInteractionRevision &+= 1
     await runtime?.cancelMockCareNotification()
+    await runtime?.cancelMockDailyMomentsNotification()
     retireProductLoop()
     await stopConversationRuntime(clearPresentation: true)
     do {
@@ -1464,6 +1468,25 @@ final class PhoneAppStore: ObservableObject {
     notificationDestination = nil
   }
 
+  func handleForegroundActivation(now: Date = Date()) async {
+    #if DEBUG
+      guard selectedDataSource.simulatesDailyMoments else { return }
+      let refreshed = PhonePresentationModel.demo(
+        selectedDataSource,
+        now: now
+      )
+      guard
+        refreshed.dailyMomentCollection?.dayID
+          != model.dailyMomentCollection?.dayID
+          || model.dailyMomentCollection?.isSealed == false
+      else {
+        return
+      }
+      model = refreshed
+      await loadMockExperience(now: now)
+    #endif
+  }
+
   private func applySelectedDataSource(
     requestAccessIfNeeded: Bool
   ) async {
@@ -1472,11 +1495,15 @@ final class PhoneAppStore: ObservableObject {
     movementScene = nil
     if selectedDataSource.isMock {
       #if DEBUG
-        model = PhonePresentationModel.demo(selectedDataSource)
+        model = PhonePresentationModel.demo(
+          selectedDataSource,
+          now: Date()
+        )
         await loadMockExperience()
         phase = .ready
         statusMessage = "\(selectedDataSource.displayName) 已载入"
         startMovementSceneIfNeeded()
+        await scheduleMockDailyMomentsNotificationIfNeeded()
       #else
         selectedDataSource = .healthKit
         await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
@@ -1493,6 +1520,33 @@ final class PhoneAppStore: ObservableObject {
       model = .liveNoData()
     }
     await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
+  }
+
+  private func scheduleMockDailyMomentsNotificationIfNeeded() async {
+    guard
+      selectedDataSource.simulatesDailyMoments,
+      model.dailyMomentCollection?.isSealed == true,
+      mockSystemNotificationsEnabled,
+      let runtime
+    else { return }
+    let status = await runtime.scheduleMockDailyMomentsNotification()
+    guard selectedDataSource.simulatesDailyMoments else {
+      await runtime.cancelMockDailyMomentsNotification()
+      return
+    }
+    switch status {
+    case .scheduled:
+      notificationStatus = "已安排 · 约 20 秒后"
+    case .alreadyScheduled:
+      notificationStatus = "本次每日时刻通知已安排"
+    case .denied:
+      notificationStatus = "已在系统中关闭"
+      statusMessage = "Mock 5 已载入；请在系统设置中开启通知"
+    case .unavailable:
+      notificationStatus = "此设备不可用"
+    case .failed:
+      statusMessage = "Mock 5 已载入；每日时刻通知暂时未能安排"
+    }
   }
 
   #if DEBUG
@@ -1524,7 +1578,7 @@ final class PhoneAppStore: ObservableObject {
     }
   #endif
 
-  private func loadMockExperience() async {
+  private func loadMockExperience(now: Date = Date()) async {
     #if DEBUG
       retireProductLoop()
       guard selectedDataSource.isMock, model.allowsInteraction else {
@@ -1577,6 +1631,33 @@ final class PhoneAppStore: ObservableObject {
           Self.sensingPreference(from: sensing),
           effectiveAt: Date()
         )
+        if selectedDataSource.simulatesDailyMoments,
+          let scenario = model.mockScenario,
+          let collection = model.dailyMomentCollection,
+          let timeZone = TimeZone(
+            identifier: scenario.timeZoneIdentifier
+          ),
+          let evaluationDate = Self.dailyMomentEvaluationDate(
+            scenario: scenario,
+            timeZone: timeZone,
+            now: now
+          )
+        {
+          _ = try await productRuntime.composePhoneDailyMemory(
+            at: evaluationDate,
+            timeZone: timeZone,
+            moments: collection.moments.map {
+              SealedMemoryMoment(
+                id: $0.id,
+                timeLabel: $0.timeLabel,
+                title: $0.title,
+                body: $0.body,
+                sceneID: $0.sceneID,
+                moriActionID: $0.animationID
+              )
+            }
+          )
+        }
         try await refreshProductLoopSnapshot(
           productRuntime,
           profile: profile,
@@ -2000,6 +2081,110 @@ final class PhoneAppStore: ObservableObject {
         snapshot: snapshot,
         sensingEnabled: authoritativeSensingScope?.enabled == true
       )
+      model = model.replacingSealedMemories(
+        Self.phoneMemories(
+          from: snapshot.localState,
+          steps: model.stepCount,
+          sleepMinutes: model.sleepMinutes
+        ),
+        dailyMomentCollection: model.dailyMomentCollection.map {
+          Self.sealedDailyMomentCollection(
+            from: snapshot.localState,
+            fallback: $0
+          )
+        }
+      )
+    }
+
+    private static func sealedDailyMomentCollection(
+      from state: ProfileState,
+      fallback: PhoneDailyMomentCollection
+    ) -> PhoneDailyMomentCollection {
+      guard
+        let content = state.memories.compactMap({
+          memory
+            -> SealedMemoryContent? in
+          guard
+            memory.localDay.rawValue == fallback.dayID,
+            case .sealed(let content) = memory.lifecycle,
+            content.moments.isEmpty == false
+          else {
+            return nil
+          }
+          return content
+        }).first
+      else {
+        return PhoneDailyMomentCollection(
+          dayID: fallback.dayID,
+          characterID: fallback.characterID,
+          isSealed: false,
+          moments: fallback.moments
+        )
+      }
+      return PhoneDailyMomentCollection(
+        dayID: fallback.dayID,
+        characterID: fallback.characterID,
+        isSealed: true,
+        moments: content.moments.map {
+          PhoneDailyMomentPresentation(
+            id: $0.id,
+            timeLabel: $0.timeLabel,
+            title: $0.title,
+            body: $0.body,
+            sceneID: $0.sceneID,
+            animationID: $0.moriActionID
+          )
+        }
+      )
+    }
+
+    private static func dailyMomentEvaluationDate(
+      scenario: PhoneMockScenario,
+      timeZone: TimeZone,
+      now: Date
+    ) -> Date? {
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone = timeZone
+      let day = calendar.dateComponents(
+        [.year, .month, .day],
+        from: now
+      )
+      let clock = calendar.dateComponents(
+        [.hour, .minute, .second],
+        from: scenario.evaluatedAt
+      )
+      return calendar.date(
+        from: DateComponents(
+          timeZone: timeZone,
+          year: day.year,
+          month: day.month,
+          day: day.day,
+          hour: clock.hour,
+          minute: clock.minute,
+          second: clock.second
+        )
+      )
+    }
+
+    private static func phoneMemories(
+      from state: ProfileState,
+      steps: Int?,
+      sleepMinutes: Int?
+    ) -> [PhoneMemoryPresentation] {
+      state.memories.compactMap { memory in
+        guard case .sealed(let content) = memory.lifecycle else {
+          return nil
+        }
+        return PhoneMemoryPresentation(
+          id: memory.header.recordID.rawValue,
+          dayLabel: memory.localDay.rawValue,
+          sceneID: content.sceneID,
+          narrative: content.narrative,
+          steps: steps,
+          sleepMinutes: sleepMinutes
+        )
+      }
+      .sorted { $0.dayLabel > $1.dayLabel }
     }
 
     private func applyMockProfileSettings(
@@ -2090,9 +2275,17 @@ final class PhoneAppStore: ObservableObject {
     else {
       return
     }
-    selectedTab = destination == .activityMessage ? .today : .mori
+    selectedTab =
+      switch destination {
+      case .activityMessage: .today
+      case .dailyMemory: .memories
+      case .recoveryMessage, .careMessage: .mori
+      }
     notificationDestination = destination
-    statusMessage = "已处理旧版入口；没有合成内容或改变账本"
+    statusMessage =
+      destination == .dailyMemory
+      ? "已打开今天的多个时刻；通知没有改变任务或金币"
+      : "已处理旧版入口；没有合成内容或改变账本"
   }
 
   private func retryPeerSyncInBackground(runtime: AppleCompanionRuntime) {
@@ -2318,6 +2511,9 @@ final class PhoneAppStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "\(dataSourceKey).selection-token")
         UserDefaults.standard.removeObject(
           forKey: "\(dataSourceKey).mock-care-notification-token"
+        )
+        UserDefaults.standard.removeObject(
+          forKey: "\(dataSourceKey).mock-daily-moments-notification-token"
         )
       }
       if let seededSource = e2eDataSource(arguments: arguments) {

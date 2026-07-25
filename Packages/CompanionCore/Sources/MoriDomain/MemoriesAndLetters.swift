@@ -78,25 +78,81 @@ public struct MemoryFactReference: Hashable, Codable, Sendable {
   }
 }
 
+public struct SealedMemoryMoment: Hashable, Codable, Sendable {
+  public let id: String
+  public let timeLabel: String
+  public let title: String
+  public let body: String
+  public let sceneID: String
+  public let moriActionID: String
+
+  public init(
+    id: String,
+    timeLabel: String,
+    title: String,
+    body: String,
+    sceneID: String,
+    moriActionID: String
+  ) {
+    self.id = id
+    self.timeLabel = timeLabel
+    self.title = title
+    self.body = body
+    self.sceneID = sceneID
+    self.moriActionID = moriActionID
+  }
+
+  public var isValid: Bool {
+    let timeParts = timeLabel.split(
+      separator: ":",
+      omittingEmptySubsequences: false
+    )
+    guard
+      id.isEmpty == false,
+      id.utf8.count <= 100,
+      timeParts.count == 2,
+      timeParts[0].count == 2,
+      timeParts[1].count == 2,
+      let hour = Int(timeParts[0]),
+      let minute = Int(timeParts[1]),
+      (0..<24).contains(hour),
+      (0..<60).contains(minute)
+    else {
+      return false
+    }
+    return title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+      && title.unicodeScalars.count <= 120
+      && body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+      && body.unicodeScalars.count <= 500
+      && sceneID.isEmpty == false
+      && sceneID.utf8.count <= 100
+      && moriActionID.isEmpty == false
+      && moriActionID.utf8.count <= 100
+  }
+}
+
 public struct SealedMemoryContent: Hashable, Codable, Sendable {
   public let facts: [MemoryFactReference]
   public let narrative: String
   public let sceneID: String
   public let moriActionID: String
   public let sealedAt: Date
+  public let moments: [SealedMemoryMoment]
 
   public init(
     facts: [MemoryFactReference],
     narrative: String,
     sceneID: String,
     moriActionID: String,
-    sealedAt: Date
+    sealedAt: Date,
+    moments: [SealedMemoryMoment] = []
   ) {
     self.facts = facts
     self.narrative = narrative
     self.sceneID = sceneID
     self.moriActionID = moriActionID
     self.sealedAt = sealedAt
+    self.moments = moments
   }
 
   public var isValid: Bool {
@@ -105,6 +161,44 @@ public struct SealedMemoryContent: Hashable, Codable, Sendable {
       && narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
       && sceneID.isEmpty == false
       && moriActionID.isEmpty == false
+      && moments.count <= 8
+      && Set(moments.map(\.id)).count == moments.count
+      && moments.allSatisfy(\.isValid)
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case facts
+    case narrative
+    case sceneID
+    case moriActionID
+    case sealedAt
+    case moments
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    facts = try container.decode([MemoryFactReference].self, forKey: .facts)
+    narrative = try container.decode(String.self, forKey: .narrative)
+    sceneID = try container.decode(String.self, forKey: .sceneID)
+    moriActionID = try container.decode(String.self, forKey: .moriActionID)
+    sealedAt = try container.decode(Date.self, forKey: .sealedAt)
+    moments =
+      try container.decodeIfPresent(
+        [SealedMemoryMoment].self,
+        forKey: .moments
+      ) ?? []
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(facts, forKey: .facts)
+    try container.encode(narrative, forKey: .narrative)
+    try container.encode(sceneID, forKey: .sceneID)
+    try container.encode(moriActionID, forKey: .moriActionID)
+    try container.encode(sealedAt, forKey: .sealedAt)
+    if moments.isEmpty == false {
+      try container.encode(moments, forKey: .moments)
+    }
   }
 }
 

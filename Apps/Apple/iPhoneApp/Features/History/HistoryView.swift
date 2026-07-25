@@ -18,19 +18,31 @@ struct PhoneMemoriesView: View {
 
         memoryIntro
 
-        if !model.sharedMemories.isEmpty {
+        if let dailyMoments = model.dailyMomentCollection {
+          DailyMomentsSection(collection: dailyMoments)
+        } else if !model.sharedMemories.isEmpty {
           VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
             ForEach(model.sharedMemories) { memory in
               MemoryTimelineEntry(memory: memory)
             }
           }
-        } else if store.visibleWeeklyMemories.isEmpty {
+        }
+
+        if !store.visibleWeeklyMemories.isEmpty {
+          weeklySection
+        } else if model.dailyMomentCollection != nil {
+          Label(
+            "本周时刻还在收集中",
+            systemImage: "calendar.badge.clock"
+          )
+          .font(.subheadline)
+          .foregroundStyle(CompanionPalette.secondaryText)
+          .accessibilityIdentifier("phone.weekly-memory.collecting")
+        } else if model.sharedMemories.isEmpty {
           WeeklyMemoryEmptyState(
             isLoading: store.isPreparingWeeklyMemory,
             onRetry: { Task { await store.prepareWeeklyMemory(force: true) } }
           )
-        } else {
-          memoryTimeline
         }
 
         if let status = store.weeklyMemoryStatus {
@@ -74,9 +86,13 @@ struct PhoneMemoriesView: View {
 
   private var memoryIntro: some View {
     VStack(alignment: .leading, spacing: 6) {
-      Text("和 Mori 走过的五周")
-        .font(.title2.weight(.bold))
-      Text("每一周，只留下一个最值得记住的画面。")
+      Text(
+        model.dailyMomentCollection == nil
+          ? "和 Mori 走过的五周"
+          : "今天，白熊记住了这些时刻"
+      )
+      .font(.title2.weight(.bold))
+      Text("一天可以留下多个画面；每日时刻会换新，每周时刻继续沉淀。")
         .font(.subheadline)
         .foregroundStyle(CompanionPalette.secondaryText)
     }
@@ -108,6 +124,127 @@ struct PhoneMemoriesView: View {
       }
     }
     .accessibilityIdentifier("phone.weekly-memory.timeline")
+  }
+
+  private var weeklySection: some View {
+    VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
+      Text("每周时刻")
+        .font(.headline)
+      memoryTimeline
+    }
+  }
+}
+
+private struct DailyMomentsSection: View {
+  let collection: PhoneDailyMomentCollection
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
+      HStack {
+        VStack(alignment: .leading, spacing: 2) {
+          Text("每日时刻")
+            .font(.headline)
+          Text(collection.dayID)
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(CompanionPalette.secondaryText)
+        }
+        Spacer()
+        Label(
+          collection.isSealed ? "已沉淀" : "整理中",
+          systemImage:
+            collection.isSealed ? "checkmark.circle.fill" : "clock"
+        )
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(
+          collection.isSealed
+            ? CompanionPalette.mint : CompanionPalette.secondaryText
+        )
+        .accessibilityIdentifier("phone.daily-moments.seal-status")
+      }
+
+      ScrollView(.horizontal) {
+        LazyHStack(spacing: CompanionSpacing.medium) {
+          ForEach(Array(collection.moments.enumerated()), id: \.element.id) {
+            index,
+            moment in
+            DailyMomentCard(
+              moment: moment,
+              characterID: collection.characterID,
+              index: index,
+              count: collection.moments.count
+            )
+          }
+        }
+        .scrollTargetLayout()
+      }
+      .scrollIndicators(.hidden)
+      .scrollTargetBehavior(.viewAligned)
+      .accessibilityIdentifier("phone.daily-moments.gallery")
+
+      Text("每日时刻按本地日期刷新；昨天的内容不会冒充今天。")
+        .font(.caption)
+        .foregroundStyle(CompanionPalette.secondaryText)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+  }
+}
+
+private struct DailyMomentCard: View {
+  let moment: PhoneDailyMomentPresentation
+  let characterID: String
+  let index: Int
+  let count: Int
+
+  var body: some View {
+    ZStack(alignment: .bottomLeading) {
+      Image("scene_\(moment.sceneID)_large")
+        .resizable()
+        .interpolation(.none)
+        .scaledToFill()
+        .frame(width: 270, height: 340)
+        .clipped()
+
+      LinearGradient(
+        colors: [.clear, .black.opacity(0.16), .black.opacity(0.82)],
+        startPoint: .top,
+        endPoint: .bottom
+      )
+
+      Image("character_\(characterID)_\(moment.animationID)_00")
+        .resizable()
+        .interpolation(.none)
+        .scaledToFit()
+        .frame(width: 154, height: 168)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.trailing, 8)
+        .padding(.bottom, 86)
+        .accessibilityHidden(true)
+
+      VStack(alignment: .leading, spacing: 6) {
+        HStack {
+          Text(moment.timeLabel)
+            .font(.caption.weight(.bold).monospacedDigit())
+          Spacer()
+          Text("\(index + 1) / \(count)")
+            .font(.caption2.monospacedDigit())
+        }
+        Text(moment.title)
+          .font(.headline)
+        Text(moment.body)
+          .font(.caption)
+          .foregroundStyle(.white.opacity(0.86))
+          .lineLimit(3)
+      }
+      .foregroundStyle(.white)
+      .padding(CompanionSpacing.medium)
+    }
+    .frame(width: 270, height: 340)
+    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(
+      "\(moment.timeLabel)，\(moment.title)。\(moment.body)，第 \(index + 1) 个，共 \(count) 个"
+    )
+    .accessibilityIdentifier("phone.daily-moment.\(moment.id)")
   }
 }
 

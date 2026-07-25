@@ -46,6 +46,24 @@
       )
     }
 
+    @Test("Daily moments Mock selects the polar bear identity")
+    func dailyMomentsSelectPolarBear() throws {
+      let fixture = try replayedBootstrap(
+        scenarioID: MockScenarioID("mock5")
+      )
+
+      #expect(fixture.replay.unresolved.isEmpty)
+      #expect(fixture.replay.state.selectedIdentity == .polarBear)
+      #expect(
+        fixture.envelopes.contains {
+          if case .identitySelection(let record) = $0.payload {
+            return record.identity == .polarBear
+          }
+          return false
+        }
+      )
+    }
+
     @Test("Disabled and neutral scenarios keep only permitted records")
     func neutralScenarios() throws {
       let disabled = try replayedBootstrap(

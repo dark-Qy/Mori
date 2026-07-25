@@ -69,6 +69,7 @@
     private var careScheduleInFlight: Set<UUID> = []
     #if DEBUG
       private var mockCareScheduleGeneration: UInt64 = 0
+      private var mockDailyMomentsScheduleGeneration: UInt64 = 0
     #endif
     private var selectionGeneration: UInt64 = 0
     private var selectionTransitionTarget: CompanionDataSource?
@@ -463,8 +464,98 @@
       #endif
     }
 
+    public func scheduleMockDailyMomentsNotification(
+      after delay: TimeInterval = 20,
+      now: Date = Date()
+    ) async -> RuntimeNotificationScheduleStatus {
+      #if DEBUG
+        guard
+          let selectionToken =
+            await dataSourceSelection.mockDailyMomentsNotificationTokenIfNeeded()
+        else {
+          return .alreadyScheduled
+        }
+        mockDailyMomentsScheduleGeneration &+= 1
+        let generation = mockDailyMomentsScheduleGeneration
+        let notificationID =
+          "mock.daily-moments.\(source.rawValue).\(selectionToken)"
+        var permission = await mockNotifications.permissionState()
+        if permission == .notRequested {
+          permission = await mockNotifications.requestPermission()
+        }
+        guard
+          generation == mockDailyMomentsScheduleGeneration,
+          await dataSourceSelection.mockDailyMomentsNotificationTokenIfNeeded()
+            == selectionToken
+        else { return .failed }
+        switch permission {
+        case .authorized, .provisional, .ephemeral:
+          break
+        case .denied:
+          return .denied
+        case .notRequested, .unavailable:
+          return .unavailable
+        }
+
+        let isWatchLocalPreview = source == .watch
+        let interaction = ApprovedProactiveInteraction(
+          id: notificationID,
+          title:
+            isWatchLocalPreview
+            ? "白熊邀你查看今日时刻"
+            : "白熊把今天的时刻收好了",
+          body:
+            isWatchLocalPreview
+            ? "今天有 3 个时刻可以翻看；是否已经沉淀，以 iPhone 为准。"
+            : "今天留下了 3 个时刻，来和白熊一起翻一翻吧。",
+          fireDate: now.addingTimeInterval(max(1, delay)),
+          route: "memory/daily",
+          interruptionLevel: .active
+        )
+        do {
+          let decision = try await ProactiveInteractionService(
+            client: mockNotifications
+          ).schedule(
+            interaction,
+            policy: NotificationPolicy()
+          )
+          guard decision == .allow else { return .failed }
+          guard
+            generation == mockDailyMomentsScheduleGeneration,
+            await dataSourceSelection
+              .markMockDailyMomentsNotificationScheduled(
+                selectionToken: selectionToken
+              )
+          else {
+            await mockNotifications.cancelAndRemoveDelivered(id: notificationID)
+            return .failed
+          }
+          return .scheduled
+        } catch {
+          return .failed
+        }
+      #else
+        return .unavailable
+      #endif
+    }
+
+    public func cancelMockDailyMomentsNotification() async {
+      #if DEBUG
+        mockDailyMomentsScheduleGeneration &+= 1
+        if let selectionToken =
+          await dataSourceSelection
+          .lastScheduledMockDailyMomentsNotificationToken()
+        {
+          await mockNotifications.cancelAndRemoveDelivered(
+            id: "mock.daily-moments.\(source.rawValue).\(selectionToken)"
+          )
+        }
+      #endif
+    }
+
     public func cancelProactiveNotifications() async {
       await cancelMockCareNotification()
+      await cancelMockDailyMomentsNotification()
       await acquireProductionMutation()
       defer { releaseProductionMutation() }
       guard let generation = await productionGeneration() else { return }

@@ -35,7 +35,8 @@ public struct DailyMemoryCompositionPolicy: Sendable {
     at date: Date,
     timeZone: TimeZone,
     deviceRole: DailyMemoryDeviceRole,
-    authoredRevision: LamportRevision
+    authoredRevision: LamportRevision,
+    moments: [SealedMemoryMoment] = []
   ) -> DailyMemoryCompositionOutcome {
     if let rejection = state.validate() {
       return .unavailable(.invalidProfileState(rejection))
@@ -100,7 +101,8 @@ public struct DailyMemoryCompositionPolicy: Sendable {
       ),
       sceneID: representative?.sceneID ?? "memory.day",
       moriActionID: representative?.moriActionID ?? "companion.remember",
-      sealedAt: date
+      sealedAt: date,
+      moments: moments
     )
     let record = MemoryRecord(
       header: ProfileScopedRecordHeader(

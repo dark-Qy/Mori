@@ -393,6 +393,21 @@ final class WatchAppUITests: XCTestCase {
       ).firstMatch.exists)
   }
 
+  func testMock5DailyMemoryUsesMultiplePolarBearMoments() {
+    let app = launchApp(
+      scenario: "mock5",
+      additionalArguments: ["--watch-route=dailyMemory"]
+    )
+
+    XCTAssertTrue(element("watch.daily-memory", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("watch.daily-moments", in: app).exists)
+    let first = element("watch.daily-moment.morning_snow", in: app)
+    XCTAssertTrue(first.exists)
+    XCTAssertTrue(first.label.contains("晨光落在雪地上"))
+    XCTAssertTrue(first.label.contains("白熊"))
+    XCTAssertTrue(first.label.contains("共 3 个"))
+  }
+
   func testSevenDayScenarioRendersTrendChart() {
     let app = launchApp(scenario: "mock7_rhythm")
 

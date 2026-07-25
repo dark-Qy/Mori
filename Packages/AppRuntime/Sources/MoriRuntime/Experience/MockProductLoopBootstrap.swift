@@ -117,6 +117,9 @@
       )
       builder.appendWelcomeGrant()
       builder.appendDefaultCollection()
+      if scenarioID.rawValue == "mock5" {
+        builder.appendIdentitySelection(.polarBear)
+      }
 
       guard sensing.enabled else {
         return builder.envelopes
@@ -375,6 +378,28 @@
             observedAt: nil
           )
         }
+      }
+
+      mutating func appendIdentitySelection(_ identity: MoriIdentity) {
+        let metadata = nextMetadata()
+        let selection = IdentitySelectionRecord(
+          header: header(
+            IdentitySelectionID(
+              ProductLoopEventSupport.stableID(
+                prefix: "mock-identity-selection",
+                profile: profile,
+                components: [identity.rawValue]
+              )
+            )
+          ),
+          identity: identity,
+          revision: metadata.revision
+        )
+        append(
+          payload: .identitySelection(selection),
+          metadata: metadata,
+          observedAt: nil
+        )
       }
 
       mutating func appendFact(_ fact: DerivedFactRecord) {

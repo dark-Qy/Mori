@@ -28,6 +28,13 @@ struct WatchNotificationMessageView: View {
         "我可以陪你一会儿",
         "不用解释，也不需要立刻变好。"
       )
+    case .dailyMemory:
+      (
+        "photo.stack.fill",
+        AdventurePalette.blue,
+        "今天的 3 个时刻",
+        "白熊在手表上等你翻看晨光、冰海和极光；沉淀状态以 iPhone 为准。"
+      )
     }
   }
 
@@ -53,7 +60,7 @@ struct WatchNotificationMessageView: View {
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
 
-        Button("回到 Mori") {
+        Button(destination == .dailyMemory ? "查看今日时刻" : "回到 Mori") {
           onDismiss()
         }
         .buttonStyle(.borderedProminent)

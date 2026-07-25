@@ -97,6 +97,111 @@
       )
     }
 
+    @Test("iPhone daily memory seals once and survives restart")
+    func dailyMemoryPersistsAcrossRestart() async throws {
+      let root = temporaryRoot()
+      defer { try? FileManager.default.removeItem(at: root) }
+      let profile = try MockProfileDerivation.selection(
+        scenarioID: MockScenarioID("mock5"),
+        revision: LamportRevision(
+          counter: 10,
+          originDeviceID: "phone"
+        )
+      ).profile
+      let runtime = try ProductLoopAppRuntime(
+        applicationSupportURL: root,
+        profile: profile,
+        sensing: testFacadeSensing(),
+        originDeviceID: "iphone"
+      )
+      _ = try await runtime.activate()
+      let date = Date(timeIntervalSince1970: 1_785_075_600)
+      let timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
+      let moments = [
+        SealedMemoryMoment(
+          id: "morning",
+          timeLabel: "08:10",
+          title: "晨光",
+          body: "白熊陪你经过雪地。",
+          sceneID: "snow_birch_sunrise",
+          moriActionID: "idle_lively"
+        ),
+        SealedMemoryMoment(
+          id: "afternoon",
+          timeLabel: "13:40",
+          title: "冰海",
+          body: "白熊和你看了一会儿海。",
+          sceneID: "ice_ocean_day",
+          moriActionID: "story_reaction"
+        ),
+        SealedMemoryMoment(
+          id: "night",
+          timeLabel: "21:30",
+          title: "极光",
+          body: "白熊把一天轻轻收好。",
+          sceneID: "aurora_observatory",
+          moriActionID: "idle_resting"
+        ),
+      ]
+
+      let first = try await runtime.composePhoneDailyMemory(
+        at: date,
+        timeZone: timeZone,
+        moments: moments
+      )
+      guard case .sealed(let memory) = first else {
+        Issue.record("Mock 5 should seal today's memory")
+        return
+      }
+      #expect(memory.localDay == LocalDay("2026-07-26"))
+      guard case .sealed(let content) = memory.lifecycle else {
+        Issue.record("Mock 5 memory should be sealed")
+        return
+      }
+      #expect(content.moments == moments)
+      guard
+        case .alreadySealed(let retry) =
+          try await runtime.composePhoneDailyMemory(
+            at: date,
+            timeZone: timeZone,
+            moments: moments
+          )
+      else {
+        Issue.record("Second composition should reuse the sealed memory")
+        return
+      }
+      #expect(retry == memory)
+      #expect(try await runtime.snapshot().localState.memories == [memory])
+
+      let relaunched = try ProductLoopAppRuntime(
+        applicationSupportURL: root,
+        profile: profile,
+        sensing: testFacadeSensing(),
+        originDeviceID: "iphone"
+      )
+      _ = try await relaunched.activate()
+      #expect(
+        try await relaunched.snapshot().localState.memories == [memory]
+      )
+
+      let tomorrow = date.addingTimeInterval(24 * 60 * 60)
+      guard
+        case .sealed(let tomorrowMemory) =
+          try await relaunched.composePhoneDailyMemory(
+            at: tomorrow,
+            timeZone: timeZone,
+            moments: moments
+          )
+      else {
+        Issue.record("The next local day should seal a fresh memory")
+        return
+      }
+      #expect(tomorrowMemory.localDay == LocalDay("2026-07-27"))
+      #expect(
+        try await relaunched.snapshot().localState.memories.count == 2
+      )
+    }
+
     @Test("Real profile never receives Mock bootstrap content")
     func realProfileDoesNotBootstrap() async throws {
       let root = temporaryRoot()

@@ -70,6 +70,7 @@ final class WatchAppStore: ObservableObject {
   private let launchNotificationRoute: RuntimeNotificationRoute?
   private let usesE2EOfflineRuntime: Bool
   private let hasLaunchScenarioOverride: Bool
+  private let mockSystemNotificationsEnabled: Bool
   private let applicationSupportURL: URL
   private var hasStarted = false
   private var latestHealth: HealthSnapshot?
@@ -242,6 +243,13 @@ final class WatchAppStore: ObservableObject {
       launchNotificationRoute = nil
     #endif
     usesE2EOfflineRuntime = !runtimeConfiguration.peerSyncEnabled
+    #if DEBUG
+      mockSystemNotificationsEnabled =
+        !arguments.contains("-UITesting")
+        || arguments.contains("--enable-mock-system-notification")
+    #else
+      mockSystemNotificationsEnabled = false
+    #endif
   }
 
   func start() async {
@@ -252,6 +260,7 @@ final class WatchAppStore: ObservableObject {
     guard !hasLaunchScenarioOverride else {
       #if DEBUG
         startMovementSceneIfNeeded()
+        await scheduleMockDailyMomentsNotificationIfNeeded()
       #endif
       return
     }
@@ -302,6 +311,9 @@ final class WatchAppStore: ObservableObject {
   }
 
   func handleForegroundActivation() async {
+    #if DEBUG
+      refreshDailyMomentsForCurrentDayIfNeeded()
+    #endif
     guard
       companionSensingEnabled,
       model.allowsInteraction,
@@ -335,6 +347,25 @@ final class WatchAppStore: ObservableObject {
       statusMessage = "Mori 这次保持安静"
     }
   }
+
+  #if DEBUG
+    private func refreshDailyMomentsForCurrentDayIfNeeded(
+      now: Date = Date()
+    ) {
+      guard selectedDataSource.simulatesDailyMoments else { return }
+      let refreshed = WatchPresentationModel.demo(
+        selectedDataSource,
+        now: now
+      )
+      guard
+        refreshed.dailyMomentCollection?.dayID
+          != model.dailyMomentCollection?.dayID
+      else {
+        return
+      }
+      model = refreshed
+    }
+  #endif
 
   func dismissActiveGlance() {
     activeGlance = nil
@@ -565,6 +596,7 @@ final class WatchAppStore: ObservableObject {
 
   func selectDataSource(_ source: CompanionDataSource) async {
     guard !hasLaunchScenarioOverride else { return }
+    await runtime?.cancelMockDailyMomentsNotification()
     let previousRuntime = productLoopRuntime
     do {
       _ = try await selectGlobalProfile(for: source)
@@ -600,6 +632,9 @@ final class WatchAppStore: ObservableObject {
     } catch {
       statusMessage = "Mock 状态暂时没能重置"
       return
+    }
+    if let runtime {
+      _ = await runtime.saveDataSourceSelection(selectedDataSource)
     }
     await applySelectedDataSource(requestAccessIfNeeded: false)
   }
@@ -791,6 +826,7 @@ final class WatchAppStore: ObservableObject {
         statusMessage = "\(selectedDataSource.displayName) 已载入"
         startMovementSceneIfNeeded()
         scheduleMockCareIfNeeded()
+        await scheduleMockDailyMomentsNotificationIfNeeded()
       #else
         selectedDataSource = .healthKit
         await refreshHealth(requestAccessIfNeeded: requestAccessIfNeeded)
@@ -1138,6 +1174,31 @@ final class WatchAppStore: ObservableObject {
         self.statusMessage = "Mori 给你留了一封轻轻的来信"
       }
     }
+
+    private func scheduleMockDailyMomentsNotificationIfNeeded() async {
+      guard
+        selectedDataSource.simulatesDailyMoments,
+        mockSystemNotificationsEnabled,
+        let runtime
+      else { return }
+      let status = await runtime.scheduleMockDailyMomentsNotification()
+      guard selectedDataSource.simulatesDailyMoments else {
+        await runtime.cancelMockDailyMomentsNotification()
+        return
+      }
+      switch status {
+      case .scheduled:
+        statusMessage = "白熊会在约 20 秒后提醒你查看今日时刻"
+      case .alreadyScheduled:
+        break
+      case .denied:
+        statusMessage = "Mock 5 已载入；请在系统设置中开启通知"
+      case .unavailable:
+        statusMessage = "Mock 5 已载入；此设备暂时不能安排通知"
+      case .failed:
+        statusMessage = "Mock 5 已载入；每日时刻通知暂时未能安排"
+      }
+    }
   #endif
 
   private func applyPeerValues(
@@ -1148,6 +1209,7 @@ final class WatchAppStore: ObservableObject {
       let incoming = CompanionDataSource(rawValue: rawValue),
       shouldReloadDataSource
     {
+      await runtime?.cancelMockDailyMomentsNotification()
       selectedDataSource = incoming
       await applySelectedDataSource(requestAccessIfNeeded: false)
       return
@@ -1218,6 +1280,9 @@ final class WatchAppStore: ObservableObject {
       statusMessage = "Mori：要不要一起走两分钟？不完成也不会失去什么"
     case .careMessage:
       statusMessage = "Mori：不用解释，我可以陪你安静待一会儿"
+    case .dailyMemory:
+      launchProductRoute = .dailyMemory
+      statusMessage = "白熊在手表上等你查看今天的 3 个时刻"
     }
   }
 
@@ -1332,6 +1397,10 @@ final class WatchAppStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "app.data-source.v1.uitests.\(identifier)")
         UserDefaults.standard.removeObject(
           forKey: "app.data-source.v1.uitests.\(identifier).selection-token"
+        )
+        UserDefaults.standard.removeObject(
+          forKey:
+            "app.data-source.v1.uitests.\(identifier).mock-daily-moments-notification-token"
         )
       }
       if let seededSource = e2eDataSource(arguments: arguments) {

@@ -57,6 +57,8 @@
       switch scenarioID.rawValue {
       case "mock1":
         .normalDay
+      case "mock5":
+        .normalDay
       case "mock2":
         .lateSleep
       case "mock3", "activity_high":
@@ -79,7 +81,10 @@
         return nil
       }
 
-      let evaluatedAt = Date(timeIntervalSince1970: 1_760_000_000)
+      let evaluatedAt =
+        scenarioID.rawValue == "mock5"
+        ? Date(timeIntervalSince1970: 1_785_075_600)
+        : Date(timeIntervalSince1970: 1_760_000_000)
       let activeSince = evaluatedAt.addingTimeInterval(-9 * 60 * 60)
       let admission = EvidenceAdmissionMode.companion(
         sensingEpoch,
@@ -104,7 +109,10 @@
       return MoriMockScenarioSeed(
         scenario: scenario,
         evaluatedAt: evaluatedAt,
-        localHour: scenario == .lateSleep ? 9 : 12,
+        localHour:
+          scenarioID.rawValue == "mock5"
+          ? 22
+          : (scenario == .lateSleep ? 9 : 12),
         activation: activation,
         facts: facts(
           for: scenario,

@@ -31,6 +31,12 @@ struct PhoneNotificationMessageView: View {
         "已回到 Mori",
         "这是一条旧版入口；真实来信必须携带可验证的内容标识。"
       )
+    case .dailyMemory:
+      (
+        "photo.stack.fill",
+        "今天的时刻已经收好",
+        "白熊把一天里的几个画面放在一起；每天会换成当天的新时刻。"
+      )
     }
   }
 
@@ -69,7 +75,7 @@ struct PhoneNotificationMessageView: View {
       .padding(CompanionSpacing.large)
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .background(CompanionPalette.background.ignoresSafeArea())
-      .navigationTitle("Mori 来信")
+      .navigationTitle(destination == .dailyMemory ? "今日时刻" : "Mori 来信")
       .navigationBarTitleDisplayMode(.inline)
     }
     .accessibilityIdentifier("phone.notification.\(destination.rawValue)")

@@ -50,6 +50,53 @@ struct MemoryAndLetterTests {
     #expect(LocalDay("2026-7-24").isValid == false)
   }
 
+  @Test("Daily memory moments round-trip while legacy empty content stays byte-compatible")
+  func dailyMomentContentCodec() throws {
+    let legacy = MoriTestFixtures.memoryContent()
+    let legacyData = try JSONEncoder().encode(legacy)
+    let legacyObject = try #require(
+      JSONSerialization.jsonObject(with: legacyData) as? [String: Any]
+    )
+    #expect(legacyObject["moments"] == nil)
+    #expect(try JSONDecoder().decode(SealedMemoryContent.self, from: legacyData) == legacy)
+
+    let moments = [
+      SealedMemoryMoment(
+        id: "morning",
+        timeLabel: "08:10",
+        title: "晨光",
+        body: "白熊陪你经过雪地。",
+        sceneID: "snow_birch_sunrise",
+        moriActionID: "idle_lively"
+      ),
+      SealedMemoryMoment(
+        id: "night",
+        timeLabel: "21:30",
+        title: "极光",
+        body: "白熊把一天轻轻收好。",
+        sceneID: "aurora_observatory",
+        moriActionID: "idle_resting"
+      ),
+    ]
+    let content = SealedMemoryContent(
+      facts: legacy.facts,
+      narrative: legacy.narrative,
+      sceneID: legacy.sceneID,
+      moriActionID: legacy.moriActionID,
+      sealedAt: legacy.sealedAt,
+      moments: moments
+    )
+    let encoded = try JSONEncoder().encode(content)
+
+    #expect(content.isValid)
+    #expect(
+      try JSONDecoder().decode(
+        SealedMemoryContent.self,
+        from: encoded
+      ) == content
+    )
+  }
+
   @Test("A daily memory seals once and late evidence cannot rewrite it")
   func sealOnce() {
     let profile = MoriTestFixtures.profile()

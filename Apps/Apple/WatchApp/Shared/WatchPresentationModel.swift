@@ -24,6 +24,7 @@ struct WatchPresentationModel {
   let scene: WatchScenePresentation
   let metrics: [WatchMetric]
   let messages: [WatchMessage]
+  let dailyMomentCollection: WatchDailyMomentCollection?
 
   var mockScenario: WatchMockScenario? {
     guard case .mock(let scenario) = dataMode else { return nil }
@@ -42,14 +43,15 @@ struct WatchPresentationModel {
   }
 
   static func initial(
-    arguments: [String] = ProcessInfo.processInfo.arguments
+    arguments: [String] = ProcessInfo.processInfo.arguments,
+    now: Date = Date()
   ) -> Self {
     #if DEBUG
       switch debugScenarioSelection(arguments: arguments) {
       case .none:
         return liveNoData()
       case .scenario(let seed):
-        return mock(seed: seed)
+        return mock(seed: seed, now: now)
       case .invalid(let requestedID):
         return invalidMock(requestedID)
       }
@@ -82,7 +84,8 @@ struct WatchPresentationModel {
         ),
       ],
       // Production letters must come from synchronized LetterRecord values.
-      messages: []
+      messages: [],
+      dailyMomentCollection: nil
     )
   }
 
@@ -91,14 +94,17 @@ struct WatchPresentationModel {
   }
 
   #if DEBUG
-    static func demo(_ source: CompanionDataSource) -> Self {
+    static func demo(
+      _ source: CompanionDataSource,
+      now: Date = Date()
+    ) -> Self {
       guard let fixtureID = source.fixtureID else { return liveNoData() }
       switch debugScenarioSelection(
         arguments: ["--mock-scenario=\(fixtureID)"],
         enabled: true
       ) {
       case .scenario(let seed):
-        return mock(seed: seed)
+        return mock(seed: seed, now: now)
       case .none, .invalid:
         return invalidMock(fixtureID)
       }
@@ -142,7 +148,8 @@ struct WatchPresentationModel {
       outfitID: nil,
       scene: base.scene,
       metrics: base.metrics,
-      messages: []
+      messages: [],
+      dailyMomentCollection: nil
     )
   }
 
@@ -168,7 +175,10 @@ struct WatchPresentationModel {
       }
     }
 
-    private static func mock(seed: DebugScenarioSeed) -> Self {
+    private static func mock(
+      seed: DebugScenarioSeed,
+      now: Date
+    ) -> Self {
       let base = live(
         companion: seed.companionState,
         health: seed.healthSnapshot,
@@ -177,6 +187,7 @@ struct WatchPresentationModel {
       let scenario = WatchMockScenario(
         id: seed.id,
         displayName: seed.displayName,
+        characterID: seed.characterID,
         reactiveSceneTimeline: seed.reactiveSceneTimeline
       )
       let initialScreen: WatchInitialScreen =
@@ -192,9 +203,47 @@ struct WatchPresentationModel {
         dataMode: .mock(scenario),
         initialScreen: initialScreen,
         outfitID: base.outfitID,
-        scene: base.scene,
+        scene: base.scene.selectingCharacter(seed.characterID),
         metrics: base.metrics,
-        messages: WatchMessage.samples
+        messages: WatchMessage.samples,
+        dailyMomentCollection: seed.dailyMomentCollection.map {
+          WatchDailyMomentCollection(
+            dayID: localDayID(
+              for: now,
+              timeZoneIdentifier: seed.timeZoneIdentifier
+            ),
+            characterID: seed.characterID,
+            moments: $0.moments.map {
+              WatchDailyMomentPresentation(
+                id: $0.id,
+                timeLabel: $0.timeLabel,
+                title: $0.title,
+                body: $0.body,
+                sceneID: $0.sceneID,
+                animationID: $0.animationID
+              )
+            }
+          )
+        }
+      )
+    }
+
+    private static func localDayID(
+      for date: Date,
+      timeZoneIdentifier: String
+    ) -> String {
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone =
+        TimeZone(identifier: timeZoneIdentifier) ?? .current
+      let components = calendar.dateComponents(
+        [.year, .month, .day],
+        from: date
+      )
+      return String(
+        format: "%04d-%02d-%02d",
+        components.year ?? 0,
+        components.month ?? 0,
+        components.day ?? 0
       )
     }
   #endif
@@ -209,7 +258,8 @@ struct WatchPresentationModel {
       outfitID: outfitID,
       scene: scene ?? self.scene,
       metrics: metrics,
-      messages: messages ?? self.messages
+      messages: messages ?? self.messages,
+      dailyMomentCollection: dailyMomentCollection
     )
   }
 }
@@ -223,9 +273,26 @@ enum WatchInitialScreen: Equatable {
 struct WatchMockScenario: Equatable {
   let id: String
   let displayName: String
+  let characterID: String
   #if DEBUG
     let reactiveSceneTimeline: DebugReactiveSceneTimeline?
   #endif
+}
+
+struct WatchDailyMomentCollection: Equatable, Identifiable {
+  var id: String { dayID }
+  let dayID: String
+  let characterID: String
+  let moments: [WatchDailyMomentPresentation]
+}
+
+struct WatchDailyMomentPresentation: Equatable, Identifiable {
+  let id: String
+  let timeLabel: String
+  let title: String
+  let body: String
+  let sceneID: String
+  let animationID: String
 }
 
 struct WatchMetric: Identifiable {

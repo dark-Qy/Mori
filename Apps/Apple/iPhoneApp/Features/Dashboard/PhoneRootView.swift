@@ -9,6 +9,7 @@ enum PhoneTab: Hashable {
 
 struct PhoneRootView: View {
   @ObservedObject var store: PhoneAppStore
+  @Environment(\.scenePhase) private var scenePhase
 
   var body: some View {
     Group {
@@ -26,6 +27,10 @@ struct PhoneRootView: View {
     }
     .task {
       await store.start()
+    }
+    .onChange(of: scenePhase) { _, phase in
+      guard phase == .active else { return }
+      Task { await store.handleForegroundActivation() }
     }
   }
 

@@ -54,6 +54,41 @@
     }
   }
 
+  public struct MockDailyMoment: Equatable, Sendable {
+    public let id: String
+    public let timeLabel: String
+    public let title: String
+    public let body: String
+    public let sceneID: String
+    public let animationID: String
+
+    public init(
+      id: String,
+      timeLabel: String,
+      title: String,
+      body: String,
+      sceneID: String,
+      animationID: String
+    ) {
+      self.id = id
+      self.timeLabel = timeLabel
+      self.title = title
+      self.body = body
+      self.sceneID = sceneID
+      self.animationID = animationID
+    }
+  }
+
+  public struct MockDailyMomentCollection: Equatable, Sendable {
+    public let dayID: String
+    public let moments: [MockDailyMoment]
+
+    public init(dayID: String, moments: [MockDailyMoment]) {
+      self.dayID = dayID
+      self.moments = moments
+    }
+  }
+
   public struct MockReactiveSceneSample: Equatable, Sendable {
     public let offsetSeconds: TimeInterval
     public let latitude: Double
@@ -107,6 +142,8 @@
     public let reactiveSceneTimeline: MockReactiveSceneTimeline?
     public let petLifecycle: MockPetLifecycle
     public let petLevel: Int
+    public let characterID: String
+    public let dailyMomentCollection: MockDailyMomentCollection?
     public let wardrobe: MockWardrobeState
     public let aiState: MockServiceState
     public let syncState: MockServiceState
@@ -168,6 +205,17 @@
       }
       petLifecycle = lifecycle
       petLevel = max(0, Int(pet["level"]?.numberValue ?? 0))
+      characterID = pet["characterID"]?.stringValue ?? "penguin"
+      guard Self.isValidVisualIdentifier(characterID) else {
+        throw MockScenarioError.invalidValue("state.pet.characterID")
+      }
+      dailyMomentCollection = try Self.makeDailyMomentCollection(
+        from: state["dailyMoments"],
+        expectedDayID: Self.localDayID(
+          for: fixture.clock.now,
+          timeZoneIdentifier: fixture.clock.timeZone
+        )
+      )
 
       let wardrobeObject = try Self.requiredObject(state, path: "wardrobe")
       let selectedOutfitID = wardrobeObject["selectedOutfitID"]?.stringValue
@@ -280,6 +328,90 @@
         throw MockScenarioError.invalidValue("state.services")
       }
       return result
+    }
+
+    private static func makeDailyMomentCollection(
+      from value: JSONValue?,
+      expectedDayID: String
+    ) throws -> MockDailyMomentCollection? {
+      guard let value else { return nil }
+      guard
+        let object = value.objectValue,
+        let dayID = object["dayID"]?.stringValue,
+        dayID == expectedDayID,
+        let values = object["moments"]?.arrayValue,
+        (2...8).contains(values.count)
+      else {
+        throw MockScenarioError.invalidValue("state.dailyMoments")
+      }
+
+      let allowedAnimations: Set<String> = [
+        "idle_curious",
+        "idle_lively",
+        "idle_resting",
+        "story_reaction",
+      ]
+      var moments: [MockDailyMoment] = []
+      var identifiers: Set<String> = []
+      for (index, value) in values.enumerated() {
+        guard
+          let moment = value.objectValue,
+          let id = moment["id"]?.stringValue,
+          let timeLabel = moment["timeLabel"]?.stringValue,
+          let title = moment["title"]?.stringValue,
+          let body = moment["body"]?.stringValue,
+          let sceneID = moment["sceneID"]?.stringValue,
+          let animationID = moment["animationID"]?.stringValue,
+          Self.isValidVisualIdentifier(id),
+          Self.isValidVisualIdentifier(sceneID),
+          allowedAnimations.contains(animationID),
+          timeLabel.isEmpty == false,
+          title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+          body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+          identifiers.insert(id).inserted
+        else {
+          throw MockScenarioError.invalidValue(
+            "state.dailyMoments.moments[\(index)]"
+          )
+        }
+        moments.append(
+          MockDailyMoment(
+            id: id,
+            timeLabel: timeLabel,
+            title: title,
+            body: body,
+            sceneID: sceneID,
+            animationID: animationID
+          )
+        )
+      }
+      return MockDailyMomentCollection(dayID: dayID, moments: moments)
+    }
+
+    private static func isValidVisualIdentifier(_ value: String) -> Bool {
+      value.isEmpty == false
+        && value.unicodeScalars.count <= 64
+        && value.unicodeScalars.allSatisfy {
+          $0.isASCII
+            && (CharacterSet.alphanumerics.contains($0)
+              || $0 == "_"
+              || $0 == "-")
+        }
+    }
+
+    private static func localDayID(
+      for date: Date,
+      timeZoneIdentifier: String
+    ) -> String {
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .gmt
+      let components = calendar.dateComponents([.year, .month, .day], from: date)
+      return String(
+        format: "%04d-%02d-%02d",
+        components.year ?? 0,
+        components.month ?? 0,
+        components.day ?? 0
+      )
     }
 
     private static func makeReactiveSceneTimeline(

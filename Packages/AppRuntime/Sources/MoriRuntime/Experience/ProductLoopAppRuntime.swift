@@ -215,6 +215,213 @@ public actor ProductLoopAppRuntime {
     return try await snapshotUnlocked()
   }
 
+  /// Composes and durably records the iPhone-owned memory for one local day.
+  ///
+  /// The pure policy enforces the 22:00 release boundary, sensing authority,
+  /// eligible evidence, and one-record-per-day identity. Recording uses the
+  /// same ledger-first synchronized envelope path as tasks and collections.
+  public func composePhoneDailyMemory(
+    at date: Date,
+    timeZone: TimeZone,
+    moments: [SealedMemoryMoment] = []
+  ) async throws -> DailyMemoryCompositionOutcome {
+    await acquireOperation()
+    defer { releaseOperation() }
+
+    #if DEBUG
+      if moments.isEmpty == false {
+        try await ensureMockDailyMomentEvent(
+          at: date,
+          timeZone: timeZone,
+          moments: moments
+        )
+      }
+    #endif
+
+    let current = try await syncRuntime.currentLedger()
+    guard current.initialState.runtimeProfile == profile else {
+      throw ProductLoopAppRuntimeError.profileScopeMismatch
+    }
+    let state = current.replay().state
+    let metadata = try ProductLoopEventSupport.nextMetadata(
+      in: current,
+      originDeviceID: originDeviceID
+    )
+    let outcome = DailyMemoryCompositionPolicy().compose(
+      state: state,
+      at: date,
+      timeZone: timeZone,
+      deviceRole: .iPhone,
+      authoredRevision: metadata.revision,
+      moments: moments
+    )
+    guard case .sealed(let memory) = outcome else {
+      return outcome
+    }
+    let envelope = ProductLoopEventSupport.envelope(
+      payload: .memory(memory),
+      profile: profile,
+      originDeviceID: originDeviceID,
+      metadata: metadata,
+      observedAt: nil,
+      authoredAt: date
+    )
+    try await syncRuntime.recordLocal(envelope)
+    return .sealed(memory)
+  }
+
+  #if DEBUG
+    /// Keeps the daily-moments fixture scoped to the device's current local day.
+    /// A stable day-specific fact/event pair makes relaunch idempotent while
+    /// allowing the same selected Mock profile to produce tomorrow's memory.
+    private func ensureMockDailyMomentEvent(
+      at date: Date,
+      timeZone: TimeZone,
+      moments: [SealedMemoryMoment]
+    ) async throws {
+      guard
+        case .mock(let scenarioID, _) = profile.source,
+        scenarioID.rawValue == "mock5",
+        moments.isEmpty == false
+      else {
+        return
+      }
+      var current = try await syncRuntime.currentLedger()
+      var state = current.replay().state
+      guard state.companionSensingEnabled else { return }
+      let localDay = Self.localDay(for: date, timeZone: timeZone)
+      if state.passiveEvents.contains(where: {
+        $0.memoryEligibility == .eligible
+          && Self.localDay(for: $0.observedAt, timeZone: timeZone) == localDay
+      }) {
+        return
+      }
+
+      let observedAt = date.addingTimeInterval(-30 * 60)
+      let factID = EvidenceID(
+        ProductLoopEventSupport.stableID(
+          prefix: "mock-daily-moment-fact",
+          profile: profile,
+          components: [localDay.rawValue]
+        )
+      )
+      var fact = state.derivedFacts.first(where: {
+        $0.header.recordID == factID
+      })
+      if fact == nil {
+        let record = DerivedFactRecord(
+          header: ProfileScopedRecordHeader(
+            recordID: factID,
+            profileID: profile.id,
+            profileEpoch: profile.epoch,
+            deletionEpoch: profile.deletionEpoch
+          ),
+          observedAt: observedAt,
+          freshUntil: date.addingTimeInterval(30 * 60),
+          value: .foregroundInteraction,
+          provenance: .deterministicMock,
+          authorization: .companion(state.currentSensingEpoch)
+        )
+        let metadata = try ProductLoopEventSupport.nextMetadata(
+          in: current,
+          originDeviceID: originDeviceID
+        )
+        try await syncRuntime.recordLocal(
+          ProductLoopEventSupport.envelope(
+            payload: .derivedFact(record),
+            profile: profile,
+            originDeviceID: originDeviceID,
+            metadata: metadata,
+            observedAt: record.observedAt,
+            authoredAt: date
+          )
+        )
+        fact = record
+        current = try await syncRuntime.currentLedger()
+        state = current.replay().state
+      }
+      guard let fact else {
+        throw ProductLoopAppRuntimeError.profileScopeMismatch
+      }
+
+      let eventID = EventID(
+        ProductLoopEventSupport.stableID(
+          prefix: "mock-daily-moment-event",
+          profile: profile,
+          components: [localDay.rawValue]
+        )
+      )
+      guard
+        state.passiveEvents.contains(where: {
+          $0.header.recordID == eventID
+        }) == false
+      else {
+        return
+      }
+      let metadata = try ProductLoopEventSupport.nextMetadata(
+        in: current,
+        originDeviceID: originDeviceID
+      )
+      let representative = moments.last
+      let event = PassiveCompanionEvent(
+        header: ProfileScopedRecordHeader(
+          recordID: eventID,
+          profileID: profile.id,
+          profileEpoch: profile.epoch,
+          deletionEpoch: profile.deletionEpoch
+        ),
+        sensingEpoch: state.currentSensingEpoch,
+        kind: .foregroundGreeting,
+        observedAt: observedAt,
+        confidence: .high,
+        evidence: [
+          EvidenceReference(
+            id: fact.header.recordID,
+            kind: fact.value.kind
+          )
+        ],
+        presentationDeadline: nil,
+        replacementKey: nil,
+        taskCooldownKey: nil,
+        memoryEligibility: .eligible,
+        sceneID: representative?.sceneID ?? "memory.day",
+        moriActionID:
+          representative?.moriActionID ?? "companion.remember",
+        reminderRevision: metadata.revision
+      )
+      try await syncRuntime.recordLocal(
+        ProductLoopEventSupport.envelope(
+          payload: .passiveEvent(event),
+          profile: profile,
+          originDeviceID: originDeviceID,
+          metadata: metadata,
+          observedAt: event.observedAt,
+          authoredAt: date
+        )
+      )
+    }
+
+    private static func localDay(
+      for date: Date,
+      timeZone: TimeZone
+    ) -> LocalDay {
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone = timeZone
+      let components = calendar.dateComponents(
+        [.year, .month, .day],
+        from: date
+      )
+      return LocalDay(
+        String(
+          format: "%04d-%02d-%02d",
+          components.year ?? 0,
+          components.month ?? 0,
+          components.day ?? 0
+        )
+      )
+    }
+  #endif
+
   /// Consumes the newest eligible pending event for one foreground activation.
   ///
   /// The profile-scoped presentation fence is committed before a presentation

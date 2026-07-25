@@ -41,8 +41,9 @@ validation of production data.
   files, event history, permissions, or services.
 
 The Debug product starts with `Mock 1` when no source has been selected. iPhone
-and Watch expose a compact source selector for `Apple 健康`, three focused Mock
-demos, one real-time scene Mock, and five `35 日` compatibility journeys. A
+and Watch expose a compact source selector for `Apple 健康`, focused Mock
+demos including a daily-moments journey, one real-time scene Mock, and five
+`35 日` compatibility journeys. A
 selection closes the chooser, creates or selects the isolated Mock profile, and
 synchronizes only its approved selection authority. Explicitly reselecting the
 same Mock creates a new token and profile epoch instead of replaying stale state.
@@ -71,6 +72,17 @@ the system prompt. Normal Apple routing decides whether iPhone delivery mirrors
 to Watch; Watch does not schedule a second notification. The selection token
 makes scheduling once-per-selection, switching sources cancels it, and its
 cooldown store is isolated from production notifications.
+
+`Mock 5` is the daily-moments notification fixture. Its fixed local day contains
+three independent visual moments with the polar bear. iPhone seals the eligible
+day once through the profile event ledger, while both iPhone and Watch can
+schedule one ordinary local notification about 20 seconds after that device
+selects the fixture. General UI tests suppress system notification prompts;
+focused notification runs opt in with `--enable-mock-system-notification`.
+Scheduling is keyed by the selection token, and switching sources cancels the
+pending request. The two apps schedule independently: simulator success does
+not prove iPhone-to-Watch mirroring, paired delivery, background timing, or
+physical-device notification behavior.
 
 `RuntimeStorageLayout` creates distinct real and Mock parent directories. Raw
 profile, scenario, and device identifiers are SHA-256 inputs and never path
@@ -130,6 +142,22 @@ the active journey uses five distinct activities and color palettes instead of r
 scenes.
 Precise dates and numbers remain native text rather than being baked into generated artwork. No
 runtime model or network request participates in this path.
+
+### Daily moments presentation
+
+`Mock 5 · 每日时刻` contains three synthetic moments on one fixed local day:
+morning snow, afternoon ice ocean, and a night aurora. Each moment owns its own
+time, title, copy, scene, and animation while the fixture selects
+`polar_bear` as the character. The iPhone `回忆` tab presents the moments as a
+horizontal visual sequence before the independent weekly section. Watch uses a
+vertically paged daily-memory surface.
+
+The collection is valid only when its `dayID` equals the scenario clock's local
+day. Loading rejects duplicate moments, an unsupported visual identifier, or a
+collection outside the bounded 2...8 range. Changing to a fixture with a new
+local day replaces the daily sequence instead of presenting yesterday as
+today. The domain memory record is composed by the iPhone role, sealed once in
+the active Mock profile ledger, and survives runtime recreation.
 
 The same rule applies to behavior-triggered stories. `soccer_workout` provides a synthetic workout;
 `SoccerSideStoryRule` derives whether `lost_ball` is eligible from its activity, duration, and
@@ -193,6 +221,7 @@ workout-session heart rate, background execution, or physical-device sensor vali
 | `mock2` | Relationship and care demo | three complete days without interaction plus an explicitly logged stressful State of Mind |
 | `mock3` | High-activity story demo | high activity and an explicit soccer workout eligible for `lost_ball` |
 | `mock4` | Real-time scene demo | looping synthetic GPS speed and heart rate drive four scene states |
+| `mock5` | Polar-bear daily moments | three same-day visual moments refresh by local day, seal on iPhone, and can notify both devices after about 20 seconds |
 | `mock7_stable` | Five-week stable timeline | recent metrics remain steady across 35 days |
 | `mock7_recovery` | Five-week recovery timeline | sleep duration gradually reduces and the latest day enters recovery |
 | `mock7_active` | Five-week activity timeline | walking, swimming, badminton, tennis, then soccer; latest soccer workout is eligible for `lost_ball` |
@@ -263,17 +292,19 @@ not choose a default scenario.
 
 The Watch and iPhone stores use the profile-aware Mori product loop for tasks,
 coins, collection state, identity, and scene projection. Historical `Mock 1`,
-`Mock 2`, `Mock 3`, and `mock7_*` fixtures remain as Debug compatibility inputs,
+`Mock 2`, `Mock 3`, `Mock 5`, and `mock7_*` fixtures remain as Debug compatibility inputs,
 not as an independent product-state authority.
 
 At this boundary:
 
 - legacy selectors must remain Debug-only;
 - legacy Mock presentation must not write the real event ledger or invoke
-  HealthKit or connectivity; only the explicitly opted-in `Mock 2` notification
-  harness may invoke the isolated local-notification path described above;
-- new product features must use the seven scenarios above rather than adding
-  more view-owned fixture state;
+  HealthKit or connectivity; only the explicitly opted-in `Mock 2` and `Mock 5`
+  notification harnesses may invoke the isolated local-notification paths
+  described above;
+- new product features must use the profile-aware product loop rather than
+  adding view-owned fixture authority; `Mock 5` uses fixture presentation for
+  its three images but seals its memory through the profile event ledger;
 - historical fixtures do not prove physical or production behavior, paired
   delivery timing, or real Apple capability support.
 

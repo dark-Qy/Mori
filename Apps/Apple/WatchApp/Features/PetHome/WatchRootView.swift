@@ -102,6 +102,12 @@ struct WatchRootView: View {
       guard let glance else { return }
       present(glance)
     }
+    .onChange(of: store.notificationDestination) { previous, current in
+      guard previous == .dailyMemory, current == nil else { return }
+      if let route = store.consumeLaunchProductRoute() {
+        navigate(to: route)
+      }
+    }
     .task(id: exchange.phase) {
       guard exchange.phase == .completed else { return }
       try? await Task.sleep(for: .seconds(6))
@@ -231,6 +237,9 @@ struct WatchRootView: View {
     .background(Color.black)
     .confirmationDialog("和 Mori 去哪里？", isPresented: $showsMoriMenu) {
       Button("今天") { navigate(to: .today) }
+      if model.dailyMomentCollection != nil {
+        Button("今日时刻") { navigate(to: .dailyMemory) }
+      }
       Button("Mori 来信") { navigate(to: .letters) }
       Button("碰一碰") { navigate(to: .touchExchange) }
       Button("设置") { navigate(to: .settings) }

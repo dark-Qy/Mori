@@ -144,6 +144,71 @@ final class AppSmokeTests: XCTestCase {
     }
   }
 
+  func testMock5BuildsThreeDailyMomentsWithPolarBear() throws {
+    let firstDay = Date(timeIntervalSince1970: 1_785_075_600)
+    let model = PhonePresentationModel.initial(
+      arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=mock5"],
+      now: firstDay
+    )
+    let collection = try XCTUnwrap(model.dailyMomentCollection)
+
+    XCTAssertEqual(model.mockScenario?.characterID, "polar_bear")
+    XCTAssertEqual(collection.dayID, "2026-07-26")
+    XCTAssertEqual(collection.characterID, "polar_bear")
+    XCTAssertEqual(collection.moments.count, 3)
+    XCTAssertEqual(
+      collection.moments.map(\.id),
+      ["morning_snow", "afternoon_ocean", "night_aurora"]
+    )
+    XCTAssertEqual(
+      collection.moments.map(\.timeLabel),
+      ["08:10", "13:40", "21:30"]
+    )
+
+    let tomorrow = PhonePresentationModel.initial(
+      arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=mock5"],
+      now: firstDay.addingTimeInterval(24 * 60 * 60)
+    )
+    XCTAssertEqual(tomorrow.dailyMomentCollection?.dayID, "2026-07-27")
+    XCTAssertEqual(tomorrow.dailyMomentCollection?.moments.count, 3)
+  }
+
+  @MainActor
+  func testMock5SealsDailyMemoryIntoItsIsolatedProfile() async throws {
+    let identifier = "mock5-memory-\(UUID().uuidString)"
+    let store = PhoneAppStore(
+      arguments: [
+        "WatchCompanion",
+        "-UITesting",
+        "--mock-scenario=mock5",
+        "--e2e-storage-id=\(identifier)",
+        "--reset-e2e-storage",
+        "--e2e-offline-runtime",
+      ]
+    )
+
+    await store.start()
+
+    XCTAssertEqual(store.selectedCharacterID, "polar_bear")
+    XCTAssertEqual(store.model.dailyMomentCollection?.moments.count, 3)
+    XCTAssertEqual(store.model.dailyMomentCollection?.isSealed, true)
+    XCTAssertEqual(store.model.sharedMemories.count, 1)
+    XCTAssertEqual(
+      store.model.sharedMemories.first?.dayLabel,
+      store.model.dailyMomentCollection?.dayID
+    )
+
+    let firstDayID = try XCTUnwrap(
+      store.model.dailyMomentCollection?.dayID
+    )
+    await store.handleForegroundActivation(
+      now: Date().addingTimeInterval(24 * 60 * 60)
+    )
+    XCTAssertNotEqual(store.model.dailyMomentCollection?.dayID, firstDayID)
+    XCTAssertEqual(store.model.dailyMomentCollection?.isSealed, true)
+    XCTAssertEqual(store.model.sharedMemories.count, 2)
+  }
+
   func testEveryThirtyFiveDayMockBuildsFiveIllustratedWeeks() throws {
     for scenarioID in [
       "mock7_active",

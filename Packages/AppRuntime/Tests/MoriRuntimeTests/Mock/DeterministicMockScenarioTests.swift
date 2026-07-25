@@ -92,6 +92,7 @@
         ("mock1", .normalDay),
         ("mock2", .lateSleep),
         ("mock3", .fastWalking),
+        ("mock5", .normalDay),
         ("activity_high", .fastWalking),
       ]
       let sensingEpoch = SensingEpoch(
@@ -125,6 +126,13 @@
               }
               return false
             }
+          )
+        }
+        if alias == "mock5" {
+          #expect(seed.localHour == 22)
+          #expect(
+            seed.evaluatedAt
+              == Date(timeIntervalSince1970: 1_785_075_600)
           )
         }
       }

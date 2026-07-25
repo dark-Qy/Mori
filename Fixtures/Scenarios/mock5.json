@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "mock5",
+  "displayName": "Mock 5 · 每日时刻",
+  "clock": {
+    "now": "2026-07-26T22:20:00+08:00",
+    "timeZone": "Asia/Shanghai"
+  },
+  "launchArguments": ["-MockScenario", "mock5"],
+  "state": {
+    "installation": { "hasLaunchedBefore": true },
+    "permissions": { "healthRequest": "completed", "notifications": "authorized" },
+    "health": {
+      "source": "mock",
+      "dataState": "available",
+      "samples": [
+        {
+          "id": "mock5-sleep",
+          "type": "sleepAnalysis",
+          "start": "2026-07-25T23:10:00+08:00",
+          "end": "2026-07-26T06:40:00+08:00",
+          "value": "core",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "mock5-steps",
+          "type": "stepCount",
+          "start": "2026-07-26T00:00:00+08:00",
+          "end": "2026-07-26T22:20:00+08:00",
+          "value": 5280,
+          "unit": "count",
+          "source": "Mock Watch"
+        },
+        {
+          "id": "mock5-exercise",
+          "type": "appleExerciseTime",
+          "start": "2026-07-26T00:00:00+08:00",
+          "end": "2026-07-26T22:20:00+08:00",
+          "value": 36,
+          "unit": "min",
+          "source": "Mock Watch"
+        }
+      ]
+    },
+    "services": { "ai": "available", "sync": "reachable" },
+    "pet": {
+      "lifecycle": "active",
+      "level": 3,
+      "characterID": "polar_bear",
+      "vitality": 52,
+      "bond": 16,
+      "insight": 12,
+      "lastInteractionAt": "2026-07-26T21:35:00+08:00"
+    },
+    "wardrobe": {
+      "selectedOutfitID": "default",
+      "unlockedOutfitIDs": ["default", "scarf"]
+    },
+    "dailyMoments": {
+      "dayID": "2026-07-26",
+      "moments": [
+        {
+          "id": "morning_snow",
+          "timeLabel": "08:10",
+          "title": "晨光落在雪地上",
+          "body": "白熊陪你走过刚亮起来的白桦林，留下今天第一张画面。",
+          "sceneID": "snow_birch_sunrise",
+          "animationID": "idle_lively"
+        },
+        {
+          "id": "afternoon_ocean",
+          "timeLabel": "13:40",
+          "title": "午后的冰海很亮",
+          "body": "风从海面吹过来，白熊在路边停下，和你一起看了一会儿。",
+          "sceneID": "ice_ocean_day",
+          "animationID": "story_reaction"
+        },
+        {
+          "id": "night_aurora",
+          "timeLabel": "21:30",
+          "title": "极光把一天收好",
+          "body": "夜里安静下来后，白熊把今天走过的几个时刻放进了回忆。",
+          "sceneID": "aurora_observatory",
+          "animationID": "idle_resting"
+        }
+      ]
+    }
+  },
+  "expectations": {
+    "primaryState": "petHome",
+    "mockBadgeVisible": true,
+    "eventProcessedAtMostOnce": true
+  }
+}

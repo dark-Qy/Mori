@@ -21,6 +21,25 @@ struct ScenarioRuntimeTests {
     }
   }
 
+  @Test("Mock 5 projects one white-bear day with multiple visual moments")
+  func dailyMomentsScenario() throws {
+    let runtime = try runtime(named: "mock5")
+    let collection = try #require(runtime.dailyMomentCollection)
+
+    #expect(runtime.characterID == "polar_bear")
+    #expect(collection.dayID == "2026-07-26")
+    #expect(collection.moments.count == 3)
+    #expect(
+      collection.moments.map(\.sceneID)
+        == [
+          "snow_birch_sunrise",
+          "ice_ocean_day",
+          "aurora_observatory",
+        ]
+    )
+    #expect(Set(collection.moments.map(\.id)).count == 3)
+  }
+
   @Test("Thirty-five-day demos use real daily history and self-check their latest trends")
   func sevenDayScenarios() throws {
     let expectedStatuses: [String: [TrendMetric: PersonalTrendStatus]] = [

@@ -141,6 +141,31 @@ final class PhoneAppUITests: XCTestCase {
     }
   }
 
+  func testMock5RendersMultipleDailyMomentsBeforeWeeklyMoments() {
+    let app = launchMock(
+      storageID: "phone-mock5-daily-moments",
+      reset: true,
+      scenario: "mock5"
+    )
+
+    XCTAssertTrue(element("phone.overview", in: app).waitForExistence(timeout: 8))
+    XCTAssertTrue(element("phone.mock-badge", in: app).label.contains("每日时刻"))
+    app.tabBars.buttons["回忆"].tap()
+
+    XCTAssertTrue(element("phone.memories", in: app).waitForExistence(timeout: 5))
+    XCTAssertTrue(element("phone.daily-moments.gallery", in: app).exists)
+    let sealStatus = element("phone.daily-moments.seal-status", in: app)
+    XCTAssertTrue(sealStatus.waitForExistence(timeout: 5))
+    expectation(
+      for: NSPredicate(format: "label CONTAINS %@", "已沉淀"),
+      evaluatedWith: sealStatus
+    )
+    waitForExpectations(timeout: 5)
+    XCTAssertTrue(element("phone.daily-moment.morning_snow", in: app).exists)
+    XCTAssertTrue(app.staticTexts["每日时刻按本地日期刷新；昨天的内容不会冒充今天。"].exists)
+    XCTAssertTrue(element("phone.weekly-memory.collecting", in: app).exists)
+  }
+
   func testTodayCompletionAndSceneSelectionPersistAcrossRelaunch() {
     let storageID = "phone-task-ledger"
     let app = launchMock(storageID: storageID, reset: true)
@@ -579,12 +604,13 @@ final class PhoneAppUITests: XCTestCase {
   private func launchMock(
     storageID: String,
     reset: Bool,
+    scenario: String = "mock1",
     chatBehavior: String? = nil
   ) -> XCUIApplication {
     let app = XCUIApplication()
     app.launchArguments = [
       "-UITesting",
-      "--mock-scenario=mock1",
+      "--mock-scenario=\(scenario)",
       "--e2e-storage-id=\(storageID)",
       "--e2e-offline-runtime",
     ]
