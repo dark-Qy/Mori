@@ -175,7 +175,8 @@ struct WatchRootView: View {
         CompanionSceneView(
           scene: store.scenePresentation,
           reaction: sceneReaction,
-          usesStaticArtwork: true,
+          movementMotion: store.movementSceneAnimation,
+          usesStaticArtwork: store.movementSceneAnimation == nil,
           cornerRadius: 0,
           showsTouchHint: false,
           sceneAccessibilityIdentifier: "watch.pet-home",

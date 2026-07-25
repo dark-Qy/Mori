@@ -517,12 +517,12 @@ struct MoriMotionReducerTests {
   }
 }
 
-private extension Array where Element == MoriMotionEffect {
-  var hapticCount: Int {
+extension Array where Element == MoriMotionEffect {
+  fileprivate var hapticCount: Int {
     count { if case .haptic = $0 { true } else { false } }
   }
 
-  var presentation: MoriMotionPresentation? {
+  fileprivate var presentation: MoriMotionPresentation? {
     compactMap {
       if case .transition(let presentation) = $0 { presentation } else { nil }
     }.last

@@ -259,7 +259,8 @@ public struct MoriMotionCatalog: Codable, Equatable, Sendable {
     return catalog
   }
 
-  public static func load(contentsOf url: URL, decoder: JSONDecoder = JSONDecoder()) throws -> Self {
+  public static func load(contentsOf url: URL, decoder: JSONDecoder = JSONDecoder()) throws -> Self
+  {
     try load(data: Data(contentsOf: url), decoder: decoder)
   }
 
@@ -319,9 +320,11 @@ public struct MoriMotionCatalog: Codable, Equatable, Sendable {
     else { return nil }
 
     let body = String(name.dropFirst("character_".count))
-    guard let character = characterIDs.sorted(by: { $0.count > $1.count }).first(where: {
-      body.hasPrefix($0 + "_")
-    }) else { return nil }
+    guard
+      let character = characterIDs.sorted(by: { $0.count > $1.count }).first(where: {
+        body.hasPrefix($0 + "_")
+      })
+    else { return nil }
 
     let motionAndFrame = String(body.dropFirst(character.count + 1))
     guard let separator = motionAndFrame.lastIndex(of: "_") else { return nil }

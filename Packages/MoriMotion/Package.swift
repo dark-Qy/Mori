@@ -10,7 +10,7 @@ let package = Package(
     .macOS(.v14),
   ],
   products: [
-    .library(name: "MoriMotion", targets: ["MoriMotion"]),
+    .library(name: "MoriMotion", targets: ["MoriMotion"])
   ],
   targets: [
     .target(name: "MoriMotion"),

@@ -23,7 +23,8 @@ struct MoriMotionCatalogTests {
       .deletingLastPathComponent()
       .deletingLastPathComponent()
       .deletingLastPathComponent()
-    let url = repositoryRoot
+    let url =
+      repositoryRoot
       .appendingPathComponent("Design")
       .appendingPathComponent("WatchCompanionAssets")
       .appendingPathComponent("characters")

@@ -297,6 +297,9 @@ struct MoriSceneHero: View {
     PhoneCompanionSceneView(
       characterID: characterID,
       backgroundID: sceneID,
+      movementMotion: characterID == CompanionVisualCatalog.defaultCharacterID
+        ? movementScene?.petMotion
+        : nil,
       onInteraction: onInteraction
     )
     .overlay(alignment: .bottom) {

@@ -42,12 +42,15 @@ enum PhonePetInteraction: String, Equatable {
 struct PhoneCompanionSceneView: View {
   let characterID: String
   let backgroundID: String
+  let movementMotion: MovementSceneMotion?
   let onInteraction: (PhonePetInteraction) -> Void
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var transientInteraction: PhonePetInteraction?
   @State private var transientStartedAt: Date?
   @State private var transientToken = 0
+  @State private var sceneOneShotMotion: MovementSceneMotion?
+  @State private var sceneOneShotStartedAt: Date?
   @State private var lastInteractionAt = Date.distantPast
 
   private static let frameCount = 8
@@ -108,7 +111,15 @@ struct PhoneCompanionSceneView: View {
     }
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("可以互动的 \(interactionSubjectName)")
-    .accessibilityValue("\(characterDisplayName)，\(backgroundDisplayName)")
+    .accessibilityValue(
+      [
+        characterDisplayName,
+        backgroundDisplayName,
+        movementAccessibilityLabel,
+      ]
+      .compactMap(\.self)
+      .joined(separator: "，")
+    )
     .accessibilityHint("双击会轻触身体；上下轻扫可选择摸摸头或轻触身体")
     .accessibilityAddTraits(.isButton)
     .accessibilityAction {
@@ -121,6 +132,19 @@ struct PhoneCompanionSceneView: View {
       respond(to: .touchBody)
     }
     .accessibilityIdentifier("phone.companion-interaction")
+    .task(id: movementMotion) {
+      sceneOneShotMotion = nil
+      sceneOneShotStartedAt = nil
+      guard let movementMotion, !movementMotion.loopsWhileStateIsActive else { return }
+      sceneOneShotMotion = movementMotion
+      sceneOneShotStartedAt = Date()
+      try? await Task.sleep(
+        for: .seconds(Double(Self.frameCount) / movementFramesPerSecond)
+      )
+      guard !Task.isCancelled, sceneOneShotMotion == movementMotion else { return }
+      sceneOneShotMotion = nil
+      sceneOneShotStartedAt = nil
+    }
   }
 
   @ViewBuilder
@@ -135,7 +159,7 @@ struct PhoneCompanionSceneView: View {
         interaction: interaction
       )
     } else {
-      TimelineView(.animation(minimumInterval: 1 / Self.framesPerSecond)) { context in
+      TimelineView(.animation(minimumInterval: 1 / currentFramesPerSecond)) { context in
         characterFrame(
           assetName: frameAssetName(at: context.date),
           characterSize: characterSize,
@@ -222,18 +246,85 @@ struct PhoneCompanionSceneView: View {
   }
 
   private func frameAssetName(at date: Date) -> String {
-    let animation = transientInteraction?.rawValue ?? "idle_neutral"
+    let animation = currentMotionID
     let index: Int
     if reduceMotion {
-      index = transientInteraction == nil ? 0 : 1
-    } else if let transientStartedAt, transientInteraction != nil {
-      let elapsed = max(0, date.timeIntervalSince(transientStartedAt))
-      index = min(Int(elapsed * Self.framesPerSecond), Self.frameCount - 1)
+      index = currentReduceMotionFrameIndex
+    } else if let currentMotionStartedAt, currentMotionIsOneShot {
+      let elapsed = max(0, date.timeIntervalSince(currentMotionStartedAt))
+      index = min(Int(elapsed * currentFramesPerSecond), Self.frameCount - 1)
     } else {
-      let tick = Int64(date.timeIntervalSinceReferenceDate * Self.framesPerSecond)
+      let tick = Int64(date.timeIntervalSinceReferenceDate * currentFramesPerSecond)
       index = Int(tick % Int64(Self.frameCount))
     }
     return "character_\(normalizedCharacterID)_\(animation)_\(String(format: "%02d", index))"
+  }
+
+  private var currentMotionID: String {
+    if let transientInteraction {
+      return transientInteraction.rawValue
+    }
+    if let currentMovementMotion {
+      return currentMovementMotion.rawValue
+    }
+    return movementMotion == nil ? "idle_neutral" : "idle_resting"
+  }
+
+  private var currentMovementMotion: MovementSceneMotion? {
+    guard transientInteraction == nil else { return nil }
+    if let sceneOneShotMotion {
+      return sceneOneShotMotion
+    }
+    guard let movementMotion, movementMotion.loopsWhileStateIsActive else { return nil }
+    return movementMotion
+  }
+
+  private var currentMotionStartedAt: Date? {
+    if transientInteraction != nil {
+      return transientStartedAt
+    }
+    return sceneOneShotMotion == nil ? nil : sceneOneShotStartedAt
+  }
+
+  private var currentMotionIsOneShot: Bool {
+    transientInteraction != nil || sceneOneShotMotion != nil
+  }
+
+  private var currentFramesPerSecond: Double {
+    currentMovementMotion == nil ? Self.framesPerSecond : movementFramesPerSecond
+  }
+
+  private var currentReduceMotionFrameIndex: Int {
+    if transientInteraction != nil {
+      return 1
+    }
+    if let currentMovementMotion {
+      return reduceMotionFrameIndex(for: currentMovementMotion)
+    }
+    return 0
+  }
+
+  private func reduceMotionFrameIndex(
+    for motion: MovementSceneMotion
+  ) -> Int {
+    switch motion {
+    case .sitDown: 7
+    case .walk: 1
+    case .briskMove: 3
+    case .catchBreath: 4
+    }
+  }
+
+  private var movementFramesPerSecond: Double { 10 }
+
+  private var movementAccessibilityLabel: String? {
+    switch movementMotion {
+    case .sitDown: "坐下休息"
+    case .walk: "散步"
+    case .briskMove: "快速移动"
+    case .catchBreath: "调整呼吸"
+    case nil: nil
+    }
   }
 
   private var normalizedCharacterID: String {

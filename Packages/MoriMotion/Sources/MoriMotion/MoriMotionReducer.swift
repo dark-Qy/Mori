@@ -275,13 +275,14 @@ public enum MoriMotionReducer {
       guard active.resolved.motionID != catalog.fallbackMotionID else {
         return cancellation
       }
-      return cancellation + settle(
-        state: &state,
-        now: now,
-        catalog: catalog,
-        assets: assets,
-        enabledCharacterIDs: enabledCharacterIDs
-      )
+      return cancellation
+        + settle(
+          state: &state,
+          now: now,
+          catalog: catalog,
+          assets: assets,
+          enabledCharacterIDs: enabledCharacterIDs
+        )
     }
   }
 
@@ -343,12 +344,14 @@ public enum MoriMotionReducer {
       )
     }
 
-    guard hasRequiredAssets(
-      request: request,
-      resolved: resolved,
-      catalog: catalog,
-      assets: assets
-    ) else {
+    guard
+      hasRequiredAssets(
+        request: request,
+        resolved: resolved,
+        catalog: catalog,
+        assets: assets
+      )
+    else {
       return arbitrateFallback(
         sourceRequest: request,
         state: &state,
@@ -390,11 +393,13 @@ public enum MoriMotionReducer {
     }
 
     if incomingPriority == activePriority {
-      guard shouldReplace(
-        activeRequest: active.request,
-        activeResolved: active.resolved,
-        incoming: queued
-      ) else { return [] }
+      guard
+        shouldReplace(
+          activeRequest: active.request,
+          activeResolved: active.resolved,
+          incoming: queued
+        )
+      else { return [] }
       commitAccepted(request, resolved: resolved, state: &state, now: now)
       state.active = nil
       return [
@@ -406,11 +411,13 @@ public enum MoriMotionReducer {
       $0.resolved.definition.priorityClass == resolved.definition.priorityClass
     }) {
       let existing = state.queued[sameClassIndex]
-      guard shouldReplace(
-        activeRequest: existing.request,
-        activeResolved: existing.resolved,
-        incoming: queued
-      ) else { return [] }
+      guard
+        shouldReplace(
+          activeRequest: existing.request,
+          activeResolved: existing.resolved,
+          incoming: queued
+        )
+      else { return [] }
       state.queued.remove(at: sameClassIndex)
     }
     commitAccepted(request, resolved: resolved, state: &state, now: now)
@@ -426,16 +433,19 @@ public enum MoriMotionReducer {
     assets: MoriAssetInventory,
     enabledCharacterIDs: Set<String>
   ) -> [MoriMotionEffect] {
-    guard let fallback = fallbackQueued(
-      sourceRequest: sourceRequest,
-      catalog: catalog,
-      enabledCharacterIDs: enabledCharacterIDs
-    ), hasRequiredAssets(
-      request: fallback.request,
-      resolved: fallback.resolved,
-      catalog: catalog,
-      assets: assets
-    ) else { return [] }
+    guard
+      let fallback = fallbackQueued(
+        sourceRequest: sourceRequest,
+        catalog: catalog,
+        enabledCharacterIDs: enabledCharacterIDs
+      ),
+      hasRequiredAssets(
+        request: fallback.request,
+        resolved: fallback.resolved,
+        catalog: catalog,
+        assets: assets
+      )
+    else { return [] }
     guard let active = state.active else {
       return activate(fallback, state: &state, now: now, catalog: catalog)
     }
@@ -507,18 +517,22 @@ public enum MoriMotionReducer {
     assets: MoriAssetInventory,
     enabledCharacterIDs: Set<String>
   ) -> [MoriMotionEffect] {
-    guard let character = state.selectedCharacterID.flatMap({
-      catalog.characterIDs.contains($0) && enabledCharacterIDs.contains($0) ? $0 : nil
-    }) ?? catalog.characterIDs.first(where: enabledCharacterIDs.contains) else {
+    guard
+      let character = state.selectedCharacterID.flatMap({
+        catalog.characterIDs.contains($0) && enabledCharacterIDs.contains($0) ? $0 : nil
+      }) ?? catalog.characterIDs.first(where: enabledCharacterIDs.contains)
+    else {
       return []
     }
     let idleResolution = try? catalog.resolve(state.currentIdle)
-    let idleID = idleResolution?.definition.priorityClass == .idle
-      && idleResolution?.resolutionKind == .motion ? state.currentIdle : catalog.fallbackMotionID
+    let idleID =
+      idleResolution?.definition.priorityClass == .idle
+        && idleResolution?.resolutionKind == .motion ? state.currentIdle : catalog.fallbackMotionID
     let idleSurfaces = (try? catalog.resolve(idleID))?.definition.surfaces ?? ["watch.home"]
-    let surface = state.selectedSurface.flatMap {
-      idleSurfaces.contains($0) ? $0 : nil
-    } ?? idleSurfaces.first ?? "watch.home"
+    let surface =
+      state.selectedSurface.flatMap {
+        idleSurfaces.contains($0) ? $0 : nil
+      } ?? idleSurfaces.first ?? "watch.home"
     let request = MoriMotionRequest(
       motionID: idleID,
       identity: "mori.system.idle.\(now.timeIntervalSinceReferenceDate)",
@@ -527,7 +541,8 @@ public enum MoriMotionReducer {
       requestedAt: now,
       reduceMotion: state.reduceMotion
     )
-    let resolved = (try? catalog.resolve(idleID))
+    let resolved =
+      (try? catalog.resolve(idleID))
       ?? (try! MoriMotionCatalog.emergencyFallback.resolve(.idleNeutral))
     if hasRequiredAssets(
       request: request,
@@ -560,16 +575,19 @@ public enum MoriMotionReducer {
     assets: MoriAssetInventory,
     enabledCharacterIDs: Set<String>
   ) -> [MoriMotionEffect] {
-    guard let fallback = fallbackQueued(
-      sourceRequest: sourceRequest,
-      catalog: catalog,
-      enabledCharacterIDs: enabledCharacterIDs
-    ), hasRequiredAssets(
-      request: fallback.request,
-      resolved: fallback.resolved,
-      catalog: catalog,
-      assets: assets
-    ) else { return [] }
+    guard
+      let fallback = fallbackQueued(
+        sourceRequest: sourceRequest,
+        catalog: catalog,
+        enabledCharacterIDs: enabledCharacterIDs
+      ),
+      hasRequiredAssets(
+        request: fallback.request,
+        resolved: fallback.resolved,
+        catalog: catalog,
+        assets: assets
+      )
+    else { return [] }
     return activate(
       fallback,
       state: &state,
@@ -583,16 +601,17 @@ public enum MoriMotionReducer {
     catalog: MoriMotionCatalog,
     enabledCharacterIDs: Set<String>
   ) -> MoriQueuedMotion? {
-    let fallbackCatalog = (try? catalog.resolve(catalog.fallbackMotionID)) != nil
+    let fallbackCatalog =
+      (try? catalog.resolve(catalog.fallbackMotionID)) != nil
       ? catalog
       : MoriMotionCatalog.emergencyFallback
     let resolved = try! fallbackCatalog.resolve(fallbackCatalog.fallbackMotionID)
-    guard let character = (
-      fallbackCatalog.characterIDs.contains(sourceRequest.characterID)
-        && enabledCharacterIDs.contains(sourceRequest.characterID)
-    )
-      ? sourceRequest.characterID
-      : fallbackCatalog.characterIDs.first(where: enabledCharacterIDs.contains)
+    guard
+      let character =
+        (fallbackCatalog.characterIDs.contains(sourceRequest.characterID)
+          && enabledCharacterIDs.contains(sourceRequest.characterID))
+        ? sourceRequest.characterID
+        : fallbackCatalog.characterIDs.first(where: enabledCharacterIDs.contains)
     else { return nil }
     let fallbackRequest = MoriMotionRequest(
       motionID: fallbackCatalog.fallbackMotionID,
@@ -723,8 +742,9 @@ public enum MoriMotionReducer {
     activeResolved: MoriResolvedMotion,
     incoming: MoriQueuedMotion
   ) -> Bool {
-    guard activeResolved.definition.priorityClass
-      == incoming.resolved.definition.priorityClass
+    guard
+      activeResolved.definition.priorityClass
+        == incoming.resolved.definition.priorityClass
     else { return false }
 
     switch incoming.resolved.definition.replacementPolicy {

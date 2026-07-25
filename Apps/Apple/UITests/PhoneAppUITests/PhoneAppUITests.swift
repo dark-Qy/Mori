@@ -66,6 +66,20 @@ final class PhoneAppUITests: XCTestCase {
     XCTAssertNotEqual(scene.value as? String, initialSceneValue)
     XCTAssertTrue(badge.label.contains("模拟 GPS"))
     XCTAssertTrue(badge.label.contains("心率"))
+    let expectedMotionLabel = [
+      "原地休息": "坐下休息",
+      "正在散步": "散步",
+      "快速移动": "快速移动",
+      "停下恢复": "调整呼吸",
+    ]
+    .first(where: { badge.label.contains($0.key) })?
+    .value
+    XCTAssertNotNil(expectedMotionLabel)
+    XCTAssertTrue(
+      expectedMotionLabel.map {
+        (scene.value as? String)?.contains($0) == true
+      } ?? false
+    )
   }
 
   func testOccasionalChatBubbleOpensConversationAndSendsReply() {
