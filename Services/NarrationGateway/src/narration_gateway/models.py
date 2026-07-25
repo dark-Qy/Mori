@@ -7,7 +7,7 @@ injection fields and gives every potentially sensitive collection a hard cap.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Annotated, Any, List, Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -402,6 +402,12 @@ class UpstreamUsage(StrictModel):
     prompt_tokens: int = Field(ge=0, strict=True)
     completion_tokens: int = Field(ge=0, strict=True)
     total_tokens: int = Field(ge=0, strict=True)
+    # StepFun includes these accounting details on current reasoning models.
+    # They are accepted for provider compatibility but never logged or used to
+    # influence user-facing copy.
+    cached_tokens: Optional[int] = Field(default=None, ge=0, strict=True)
+    prompt_tokens_details: Optional[Dict[str, Any]] = None
+    completion_tokens_details: Optional[Dict[str, Any]] = None
 
 
 class UpstreamChatCompletionResponse(StrictModel):

@@ -63,7 +63,7 @@ def test_nginx_contract_adds_only_ai_namespace_on_port_8790() -> None:
     assert "server_name" not in locations
     assert "proxy_set_header Authorization $http_authorization;" in locations
     assert "proxy_connect_timeout 2s;" in locations
-    assert "proxy_read_timeout 8s;" in locations
+    assert "proxy_read_timeout 12s;" in locations
     assert 'add_header Cache-Control "no-store" always;' in locations
     assert "/ai/v1/narrations" not in locations
 

@@ -37,7 +37,7 @@ class GatewayConfig:
     upstream_model: str
     upstream_api_key: Optional[str] = field(default=None, repr=False)
     gateway_access_token: Optional[str] = field(default=None, repr=False)
-    upstream_timeout_seconds: float = 5.0
+    upstream_timeout_seconds: float = 8.0
     max_request_bytes: int = 32_768
     max_upstream_response_bytes: int = 16_384
     max_narration_characters: int = 180
@@ -103,7 +103,7 @@ class GatewayConfig:
             upstream_api_key=api_key,
             gateway_access_token=access_token,
             upstream_timeout_seconds=_bounded_float(
-                env, "NARRATION_UPSTREAM_TIMEOUT_SECONDS", 5.0, 0.25, 5.0
+                env, "NARRATION_UPSTREAM_TIMEOUT_SECONDS", 8.0, 0.25, 8.0
             ),
             max_request_bytes=_bounded_int(
                 env, "NARRATION_MAX_REQUEST_BYTES", 32_768, 4_096, 65_536

@@ -172,7 +172,7 @@ async def test_service_accepts_style_slots_and_excludes_facts_and_identifiers_fr
     assert "网球 45 分钟" in result.body
     assert result.title == "和网球一起向前"
     assert transport.payload["response_format"] == {"type": "json_object"}
-    assert transport.payload["max_tokens"] == 256
+    assert transport.payload["max_tokens"] == 1024
 
 
 @pytest.mark.anyio
@@ -190,6 +190,9 @@ async def test_service_accepts_stepfun_reasoning_and_agent_metadata(
     body["choices"][0]["message"]["reasoning"] = "provider-internal reasoning"
     body["choices"][0]["message"]["reasoning_content"] = "provider-internal reasoning"
     body["agent"] = {"name": "step"}
+    body["usage"]["cached_tokens"] = 4
+    body["usage"]["prompt_tokens_details"] = {"cached_tokens": 4}
+    body["usage"]["completion_tokens_details"] = {"reasoning_tokens": 12}
     transport = ScriptedTransport(
         type(response)(response.status_code, json.dumps(body).encode("utf-8"))
     )
