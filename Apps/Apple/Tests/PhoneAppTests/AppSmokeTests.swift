@@ -85,6 +85,29 @@ final class AppSmokeTests: XCTestCase {
     XCTAssertTrue(PhoneSceneOption.all.allSatisfy { !$0.title.isEmpty })
   }
 
+  func testCharacterGeneratorDemoAcceptsBilibiliLinksAndDescriptions() {
+    XCTAssertEqual(
+      PhoneCharacterGenerationInputKind(text: "https://www.bilibili.com/video/BV1demo"),
+      .bilibiliLink
+    )
+    XCTAssertEqual(
+      PhoneCharacterGenerationInputKind(text: "复制这段内容 https://b23.tv/demo"),
+      .bilibiliLink
+    )
+    XCTAssertEqual(
+      PhoneCharacterGenerationInputKind(text: "咕咕嘎嘎"),
+      .description
+    )
+    XCTAssertEqual(
+      PhoneCharacterGenerationInputKind(text: "https://notbilibili.com/video/demo"),
+      .description
+    )
+    XCTAssertEqual(
+      PhoneCharacterGenerationInputKind(text: "https://b23.tv.evil.example/demo"),
+      .description
+    )
+  }
+
   func testMock7ActiveBuildsFiveWeeklyMemoriesWithConcreteFactsAndCovers() throws {
     let model = PhonePresentationModel.initial(
       arguments: ["WatchCompanion", "-UITesting", "--mock-scenario=mock7_active"]
