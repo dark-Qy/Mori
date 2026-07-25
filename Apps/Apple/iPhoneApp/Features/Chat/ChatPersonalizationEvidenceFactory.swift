@@ -2,10 +2,16 @@ import Domain
 import Foundation
 
 struct ChatPersonalizationEvidenceFactory {
-  func make(from message: MoriChatMessage) -> [PersonalizationSignal] {
+  func make(
+    from message: MoriChatMessage,
+    evidenceKey: String? = nil
+  ) -> [PersonalizationSignal] {
     guard message.author == .owner else { return [] }
     let text = message.text.lowercased()
-    let evidencePrefix = "chat-\(message.id.uuidString.lowercased())"
+    let stableKey =
+      evidenceKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+      ?? message.id.uuidString.lowercased()
+    let evidencePrefix = "chat-\(stableKey)"
     var signals: [PersonalizationSignal] = []
 
     if containsPreferenceLanguage(text) {

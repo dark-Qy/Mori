@@ -1,4 +1,6 @@
 import Foundation
+import MoriDomain
+import MoriRuntime
 
 enum MoriChatAuthor: String, Codable, Equatable {
   case owner = "user"
@@ -10,7 +12,7 @@ struct MoriChatMessage: Identifiable, Codable, Equatable {
   let author: MoriChatAuthor
   let text: String
 
-  init(
+  nonisolated init(
     id: UUID = UUID(),
     author: MoriChatAuthor,
     text: String
@@ -93,7 +95,7 @@ private struct MoriChatAPIRequest: Codable {
   }
 }
 
-private struct MoriChatAPIResponse: Codable {
+struct MoriChatAPIResponse: Codable {
   let requestID: String
   let reply: String
   let source: String
@@ -119,7 +121,7 @@ extension WeeklyMemoryAIRuntimeConfiguration {
   }
 }
 
-final class MoriChatAIClient: MoriChatReplying {
+final class MoriChatAIClient: MoriChatReplying, @unchecked Sendable {
   private let configuration: WeeklyMemoryAIRuntimeConfiguration?
   private let credentialProvider: WeeklyMemoryAICredentialProviding
   private let session: URLSession
@@ -138,6 +140,10 @@ final class MoriChatAIClient: MoriChatReplying {
   }
 
   static func live() -> any MoriChatReplying {
+    liveClient()
+  }
+
+  static func liveClient() -> MoriChatAIClient {
     let sessionConfiguration = URLSessionConfiguration.ephemeral
     sessionConfiguration.timeoutIntervalForRequest = 8
     sessionConfiguration.timeoutIntervalForResource = 10
@@ -159,12 +165,32 @@ final class MoriChatAIClient: MoriChatReplying {
     to messages: [MoriChatMessage],
     personality: WeeklyMemoryAIPersonalityProjection
   ) async -> MoriChatReply {
+    do {
+      let response = try await fetchReply(
+        to: messages,
+        personality: personality
+      )
+      return MoriChatReply(text: response.reply, source: .upstream)
+    } catch {
+      return await localFallback.reply(to: messages, personality: personality)
+    }
+  }
+
+  func fetchReply(
+    to messages: [MoriChatMessage],
+    personality: WeeklyMemoryAIPersonalityProjection,
+    requestID: String? = nil
+  ) async throws -> MoriChatAPIResponse {
     guard
       let configuration,
       let token = credentialProvider.bearerToken(),
-      let body = request(messages: messages, personality: personality)
+      let body = request(
+        messages: messages,
+        personality: personality,
+        requestID: requestID
+      )
     else {
-      return await localFallback.reply(to: messages, personality: personality)
+      throw ConversationFailure.unauthorized
     }
 
     do {
@@ -175,12 +201,23 @@ final class MoriChatAIClient: MoriChatReplying {
       request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
       request.httpBody = try JSONEncoder().encode(body)
       let (data, response) = try await session.data(for: request)
-      guard
-        data.count <= 32_768,
-        let http = response as? HTTPURLResponse,
-        http.statusCode == 200
-      else {
-        return await localFallback.reply(to: messages, personality: personality)
+      guard data.count <= 32_768 else {
+        throw ConversationFailure.oversizedResponse
+      }
+      guard let http = response as? HTTPURLResponse else {
+        throw ConversationFailure.providerFailure
+      }
+      switch http.statusCode {
+      case 200:
+        break
+      case 401, 403:
+        throw ConversationFailure.unauthorized
+      case 408:
+        throw ConversationFailure.timedOut
+      case 429:
+        throw ConversationFailure.rateLimited
+      default:
+        throw ConversationFailure.providerFailure
       }
       let value = try JSONDecoder().decode(MoriChatAPIResponse.self, from: data)
       let reply = value.reply.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -195,17 +232,33 @@ final class MoriChatAIClient: MoriChatReplying {
           return value == 10 || (value >= 0x20 && !(0x7F...0x9F).contains(value))
         })
       else {
-        return await localFallback.reply(to: messages, personality: personality)
+        throw ConversationFailure.malformedResponse
       }
-      return MoriChatReply(text: reply, source: source)
+      guard source == .upstream else {
+        throw Self.failure(for: value.fallbackReason)
+      }
+      return value
+    } catch let failure as ConversationFailure {
+      throw failure
+    } catch let error as URLError {
+      switch error.code {
+      case .timedOut:
+        throw ConversationFailure.timedOut
+      case .notConnectedToInternet, .networkConnectionLost,
+        .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed:
+        throw ConversationFailure.offline
+      default:
+        throw ConversationFailure.providerFailure
+      }
     } catch {
-      return await localFallback.reply(to: messages, personality: personality)
+      throw ConversationFailure.malformedResponse
     }
   }
 
   private func request(
     messages: [MoriChatMessage],
-    personality: WeeklyMemoryAIPersonalityProjection
+    personality: WeeklyMemoryAIPersonalityProjection,
+    requestID: String?
   ) -> MoriChatAPIRequest? {
     var boundedMessages: [MoriChatAPIMessage] = []
     for message in messages.suffix(12) {
@@ -227,7 +280,9 @@ final class MoriChatAIClient: MoriChatReplying {
       boundedMessages.last?.role == MoriChatAuthor.owner.rawValue
     else { return nil }
     return MoriChatAPIRequest(
-      requestID: "chat_\(UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: ""))",
+      requestID:
+        requestID
+        ?? "chat_\(UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: ""))",
       locale: "zh-CN",
       messages: boundedMessages,
       personality: MoriChatAPIPersonality(
@@ -237,5 +292,117 @@ final class MoriChatAIClient: MoriChatReplying {
         isPersonalized: personality.isPersonalized
       )
     )
+  }
+
+  private static func failure(
+    for fallbackReason: String?
+  ) -> ConversationFailure {
+    switch fallbackReason {
+    case "upstream_timeout": .timedOut
+    case "upstream_network_error": .offline
+    case "upstream_rate_limited": .rateLimited
+    case "upstream_unauthorized": .unauthorized
+    case "upstream_response_too_large": .oversizedResponse
+    case "malformed_upstream_response", "unsafe_upstream_response":
+      .malformedResponse
+    default: .providerFailure
+    }
+  }
+}
+
+final class MoriChatPersonalityProvider: @unchecked Sendable {
+  private let lock = NSLock()
+  private var value: WeeklyMemoryAIPersonalityProjection
+
+  init(
+    initialValue: WeeklyMemoryAIPersonalityProjection = .moriCore
+  ) {
+    value = initialValue
+  }
+
+  func current() -> WeeklyMemoryAIPersonalityProjection {
+    lock.withLock { value }
+  }
+
+  func update(_ value: WeeklyMemoryAIPersonalityProjection) {
+    lock.withLock {
+      self.value = value
+    }
+  }
+}
+
+struct MoriRemoteChatTransport: ChatTransport, Sendable {
+  let isolation: RuntimeServiceIsolation = .production
+
+  private let client: MoriChatAIClient
+  private let personalityProvider: MoriChatPersonalityProvider
+
+  init(
+    client: MoriChatAIClient,
+    personalityProvider: MoriChatPersonalityProvider
+  ) {
+    self.client = client
+    self.personalityProvider = personalityProvider
+  }
+
+  static func live(
+    personalityProvider: MoriChatPersonalityProvider
+  ) -> MoriRemoteChatTransport {
+    MoriRemoteChatTransport(
+      client: MoriChatAIClient.liveClient(),
+      personalityProvider: personalityProvider
+    )
+  }
+
+  func stream(
+    request: ChatRequestEnvelopeV1,
+    lease: ChatAuthorityLease
+  ) -> AsyncThrowingStream<ChatStreamEvent, any Error> {
+    AsyncThrowingStream { continuation in
+      let task = Task {
+        do {
+          var messages: [MoriChatMessage] = request.recentMessages.compactMap {
+            message -> MoriChatMessage? in
+            let author: MoriChatAuthor
+            switch message.role {
+            case .user:
+              author = .owner
+            case .mori:
+              author = .mori
+            case .localSystem:
+              return nil
+            }
+            return MoriChatMessage(author: author, text: message.content)
+          }
+          if messages.last?.author == .owner {
+            messages.removeLast()
+          }
+          messages.append(
+            MoriChatMessage(author: .owner, text: request.explicitMessage)
+          )
+          let response = try await client.fetchReply(
+            to: messages,
+            personality: personalityProvider.current(),
+            requestID: request.requestID
+          )
+          try Task.checkCancellation()
+          continuation.yield(.chunk(response.reply))
+          continuation.yield(
+            .completed(
+              ChatResponseEnvelopeV1(
+                lease: lease,
+                replyText: response.reply
+              )
+            )
+          )
+          continuation.finish()
+        } catch {
+          continuation.finish(throwing: error)
+        }
+      }
+      continuation.onTermination = { _ in
+        task.cancel()
+      }
+    }
   }
 }

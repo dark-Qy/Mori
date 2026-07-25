@@ -212,12 +212,6 @@ struct PhoneSettingsView: View {
       .accessibilityIdentifier("phone.settings.clear-conversation")
     } header: {
       Text("Mori 对话")
-    } footer: {
-      Text(
-        store.model.isLive
-          ? "正式对话运行时尚未接入。"
-          : "当前是本机 Mock 预览，不发送到服务器。开启后，每次最多使用一段 500 字以内的共同回忆；清除对话不会删除回忆本身。"
-      )
     }
   }
 

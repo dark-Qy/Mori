@@ -299,7 +299,7 @@ public actor ConversationProcessor {
         mode: mode,
         includesMemoryContext: appContext.selectedMemoryExcerpt != nil
       )
-      if mode == .remote {
+      if mode != .localMock {
         state = try await repository.recordFirstSendDisclosure(
           version: currentAuthority.remoteChatConsent.disclosureVersion
         )
@@ -477,6 +477,14 @@ public actor ConversationProcessor {
       guard profile.isMock, transport.isolation == .localOnly else {
         throw ConversationFailure.invalidProfile
       }
+    case .remotePreview:
+      guard
+        profile.isMock,
+        transport.isolation == .production,
+        currentAuthority.remoteChatIsAuthorized
+      else {
+        throw ConversationFailure.unauthorized
+      }
     case .remote:
       guard
         profile.isMock == false,
@@ -647,7 +655,7 @@ public actor ConversationProcessor {
     guard currentAuthority.profile == lease.profile else {
       throw ConversationFailure.staleAuthority
     }
-    if mode == .remote {
+    if mode != .localMock {
       guard
         currentAuthority.remoteChatIsAuthorized,
         currentAuthority.remoteChatConsent.revision

@@ -89,12 +89,18 @@ final class PhoneAppStore: ObservableObject {
   private let weeklyMemoryArchive: WeeklyMemoryArchiveStore
   private let weeklyMemoryPolisher: WeeklyMemoryPolishing
   private let chatReplying: any MoriChatReplying
+  private let conversationUsesRemoteAI: Bool
   private let chatNudgePolicy: MoriChatNudgePolicy
   private let personalizationRepository: any PersonalizationRepositoryProtocol
+  private let chatPersonalityProvider = MoriChatPersonalityProvider()
   private let runtimeStorageDirectory: URL
   private var hasStarted = false
   private var hasLoadedPersonalization = false
-  private var personalityProjection = WeeklyMemoryAIPersonalityProjection.moriCore
+  private var personalityProjection = WeeklyMemoryAIPersonalityProjection.moriCore {
+    didSet {
+      chatPersonalityProvider.update(personalityProjection)
+    }
+  }
   private var latestHealth: HealthSnapshot?
   private var authoritativeProfileSource: MoriGlobalProfileSource?
   private var authoritativeProfileScope: MoriGlobalProfileScope?
@@ -218,6 +224,7 @@ final class PhoneAppStore: ObservableObject {
     let usesLocalChatFixture =
       arguments.contains("-UITesting")
       && !arguments.contains("--enable-chat-ai")
+    conversationUsesRemoteAI = !usesLocalChatFixture
     chatRequiresExternalAIConsent =
       arguments.contains("--chat-consent=required") || !usesLocalChatFixture
     if usesLocalChatFixture {
@@ -330,9 +337,15 @@ final class PhoneAppStore: ObservableObject {
     return await chatReplying.reply(to: messages, personality: personality)
   }
 
-  private func rememberChatHabits(from message: MoriChatMessage) async {
+  private func rememberChatHabits(
+    from message: MoriChatMessage,
+    evidenceKey: String? = nil
+  ) async {
     guard isPersonalizationEnabled else { return }
-    let signals = ChatPersonalizationEvidenceFactory().make(from: message)
+    let signals = ChatPersonalizationEvidenceFactory().make(
+      from: message,
+      evidenceKey: evidenceKey
+    )
     guard !signals.isEmpty else { return }
     do {
       for signal in signals {
@@ -926,6 +939,14 @@ final class PhoneAppStore: ObservableObject {
       activeConversationRequestID == actualRequestID
     else {
       return
+    }
+    if result.messages.contains(where: {
+      $0.role == .user && $0.content == text
+    }) {
+      await rememberChatHabits(
+        from: MoriChatMessage(author: .owner, text: text),
+        evidenceKey: actualClientTurnID
+      )
     }
     applyConversation(result)
     conversationSendTask = nil
@@ -1789,7 +1810,17 @@ final class PhoneAppStore: ObservableObject {
       return
     }
     do {
-      let authority = try await globalPreferenceRuntime.currentChatAuthority()
+      var authority = try await globalPreferenceRuntime.currentChatAuthority()
+      if
+        conversationUsesRemoteAI,
+        authority.profile.isMock == false,
+        authority.remoteChatIsAuthorized == false
+      {
+        authority = try await globalPreferenceRuntime.setConsent(
+          .remoteChat,
+          enabled: true
+        )
+      }
       let layout = try RuntimeStorageLayout(
         applicationSupportURL: runtimeStorageDirectory
       )
@@ -1808,13 +1839,18 @@ final class PhoneAppStore: ObservableObject {
       )
       let transport: any ChatTransport
       #if DEBUG
-        transport =
-          authority.profile.isMock
-          ? DeterministicMockChatTransport(
+        if conversationUsesRemoteAI {
+          transport = MoriRemoteChatTransport.live(
+            personalityProvider: chatPersonalityProvider
+          )
+        } else if authority.profile.isMock {
+          transport = DeterministicMockChatTransport(
             behavior: mockChatBehavior,
             configuration: conversationConfiguration
           )
-          : UnavailableRemoteChatTransport()
+        } else {
+          transport = UnavailableRemoteChatTransport()
+        }
       #else
         transport = UnavailableRemoteChatTransport()
       #endif
@@ -1827,7 +1863,8 @@ final class PhoneAppStore: ObservableObject {
           let localAuthority = PhoneMockChatAuthority(
             profile: authority.profile,
             memoryContextEnabled:
-              settings.conversationMemoryContextEnabled
+              settings.conversationMemoryContextEnabled,
+            remoteChatEnabled: conversationUsesRemoteAI
           )
           mockChatAuthority = localAuthority
           chatAuthority = localAuthority
@@ -1863,14 +1900,17 @@ final class PhoneAppStore: ObservableObject {
   }
 
   private var conversationConfiguration: ConversationRuntimeConfiguration {
+    if conversationUsesRemoteAI {
+      return .standard
+    }
     #if DEBUG
       if mockChatBehavior == .slowStream {
-        ConversationRuntimeConfiguration(
+        return ConversationRuntimeConfiguration(
           requestTimeout: 20,
           streamChunkDelay: 1
         )
       } else {
-        ConversationRuntimeConfiguration(
+        return ConversationRuntimeConfiguration(
           requestTimeout: 1,
           streamChunkDelay: 0.04
         )
@@ -1881,6 +1921,13 @@ final class PhoneAppStore: ObservableObject {
   }
 
   private var conversationTransportMode: ChatTransportMode {
+    if conversationUsesRemoteAI {
+      #if DEBUG
+        return selectedDataSource.isMock ? .remotePreview : .remote
+      #else
+        return .remote
+      #endif
+    }
     #if DEBUG
       if selectedDataSource.isMock {
         return .localMock

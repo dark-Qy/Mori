@@ -331,6 +331,61 @@ struct ConversationProcessorTests {
     #expect(persisted.messages.map(\.role) == [.user])
   }
 
+  @Test("Mock remote preview requires its own consent and production transport")
+  func mockRemotePreviewKeepsIsolationExplicit() async throws {
+    let profile = testProfile(mock: true)
+    let repository = try ConversationRepository(
+      storage: InMemoryConversationRepositoryStorage(),
+      profile: profile,
+      originDeviceID: "phone-chat",
+      configuration: fastConfiguration
+    )
+    let authority = MutableChatAuthority(
+      snapshot: chatAuthority(
+        profile: profile,
+        remoteEnabled: true
+      )
+    )
+    let processor = try ConversationProcessor(
+      profile: profile,
+      repository: repository,
+      authority: authority,
+      transport: UnavailableRemoteChatTransport(),
+      configuration: fastConfiguration
+    )
+
+    let preview = await processor.send(
+      "你好",
+      appContext: .init(identity: .penguin, tone: .gentle),
+      mode: .remotePreview,
+      requestID: "request-mock-remote",
+      clientTurnID: "turn-mock-remote"
+    )
+    #expect(
+      preview.phase
+        == .failed(
+          requestID: "request-mock-remote",
+          failure: .unavailable
+        )
+    )
+    #expect(preview.messages.map(\.role) == [.user])
+
+    let wrongMode = await processor.send(
+      "这次不能冒充正式 profile",
+      appContext: .init(identity: .penguin, tone: .gentle),
+      mode: .remote,
+      requestID: "request-mock-production",
+      clientTurnID: "turn-mock-production"
+    )
+    #expect(
+      wrongMode.phase
+        == .failed(
+          requestID: "request-mock-production",
+          failure: .unauthorized
+        )
+    )
+  }
+
   private var fastConfiguration: ConversationRuntimeConfiguration {
     ConversationRuntimeConfiguration(
       requestTimeout: 1,

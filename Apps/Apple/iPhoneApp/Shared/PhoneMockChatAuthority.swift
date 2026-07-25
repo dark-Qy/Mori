@@ -12,7 +12,8 @@
 
     init(
       profile: RuntimeProfile,
-      memoryContextEnabled: Bool
+      memoryContextEnabled: Bool,
+      remoteChatEnabled: Bool = false
     ) {
       self.profile = profile
       let selectionCounter: UInt64
@@ -30,8 +31,11 @@
           selectionCounter
         ) &+ 1
       remoteChatConsent = MoriConsentRecord(
-        enabled: false,
-        disclosureVersion: 0,
+        enabled: remoteChatEnabled,
+        disclosureVersion:
+          remoteChatEnabled
+          ? MoriConsentKind.remoteChat.requiredDisclosureVersion
+          : 0,
         revision: LamportRevision(
           counter: baseCounter,
           originDeviceID: "phone-mock-chat"

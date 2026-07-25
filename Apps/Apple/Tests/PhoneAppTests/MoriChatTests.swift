@@ -1,4 +1,6 @@
 import Domain
+import MoriDomain
+import MoriRuntime
 import Persistence
 import XCTest
 
@@ -119,6 +121,118 @@ final class MoriChatTests: XCTestCase {
 
     XCTAssertEqual(reply.source, .fallback)
     XCTAssertTrue(MoriChatURLProtocolStub.recordedRequest() == nil)
+  }
+
+  @MainActor
+  func testRemoteConversationTransportUsesGatewayAndPreservesLease() async throws {
+    MoriChatURLProtocolStub.reset()
+    let sessionConfiguration = URLSessionConfiguration.ephemeral
+    sessionConfiguration.protocolClasses = [MoriChatURLProtocolStub.self]
+    let session = URLSession(configuration: sessionConfiguration)
+    defer { session.invalidateAndCancel() }
+    let client = MoriChatAIClient(
+      configuration: WeeklyMemoryAIRuntimeConfiguration(
+        baseURL: try XCTUnwrap(URL(string: "https://social.example"))
+      ),
+      credentialProvider: StaticChatCredentialProvider(token: "runtime-token"),
+      session: session
+    )
+    let personality = MoriChatPersonalityProvider(
+      initialValue: WeeklyMemoryAIPersonalityProjection(
+        voice: "playful",
+        pace: "brisk",
+        themes: ["racket_sports"],
+        isPersonalized: true
+      )
+    )
+    let transport = MoriRemoteChatTransport(
+      client: client,
+      personalityProvider: personality
+    )
+    let revision = LamportRevision(counter: 1, originDeviceID: "phone")
+    let epoch = ProfileEpoch(revision)
+    let profile = RuntimeProfile(
+      id: ProfileID("mock-chat"),
+      epoch: epoch,
+      deletionEpoch: DeletionEpoch(
+        requestID: DeletionRequestID("chat-baseline"),
+        revision: revision
+      ),
+      source: .mock(
+        scenarioID: MockScenarioID("health_normal"),
+        selectionEpoch: epoch
+      )
+    )
+    let lease = ChatAuthorityLease(
+      requestID: "request-remote-preview",
+      clientTurnID: "turn-remote-preview",
+      profile: profile,
+      conversationID: ConversationID("main"),
+      conversationClearGeneration: 0,
+      remoteChatConsentRevision: LamportRevision(
+        counter: 2,
+        originDeviceID: "phone"
+      ),
+      memoryContextConsentRevision: nil
+    )
+    let request = ChatRequestEnvelopeV1(
+      requestID: lease.requestID,
+      clientTurnID: lease.clientTurnID,
+      profile: profile,
+      conversationID: lease.conversationID,
+      conversationClearGeneration: lease.conversationClearGeneration,
+      remoteChatConsentRevision: lease.remoteChatConsentRevision,
+      memoryContextConsentRevision: nil,
+      explicitMessage: "你知道我最近在做什么吗？",
+      recentMessages: [
+        ChatMessageV1(
+          recordID: ConversationRecordID("previous-user"),
+          role: .user,
+          content: "我最近常打网球。"
+        ),
+        ChatMessageV1(
+          recordID: ConversationRecordID("previous-mori"),
+          role: .mori,
+          content: "那听起来挺开心的。"
+        ),
+      ],
+      appContext: ChatAppContextV1(
+        identity: .penguin,
+        tone: .gentle,
+        approvedEventIDs: [],
+        selectedMemoryExcerpt: nil
+      )
+    )
+
+    var events: [ChatStreamEvent] = []
+    for try await event in transport.stream(request: request, lease: lease) {
+      events.append(event)
+    }
+
+    XCTAssertEqual(events.count, 2)
+    XCTAssertEqual(events.first, .chunk("我在这里，慢慢听你说。"))
+    guard case .completed(let response) = events.last else {
+      return XCTFail("Expected a completed response envelope")
+    }
+    XCTAssertEqual(response.requestID, lease.requestID)
+    XCTAssertEqual(response.clientTurnID, lease.clientTurnID)
+    XCTAssertEqual(response.profileID, lease.profile.id)
+    XCTAssertEqual(response.replyText, "我在这里，慢慢听你说。")
+
+    let captured = try XCTUnwrap(MoriChatURLProtocolStub.recordedRequest())
+    let body = try XCTUnwrap(
+      try JSONSerialization.jsonObject(with: captured.httpBody ?? Data())
+        as? [String: Any]
+    )
+    XCTAssertEqual(body["request_id"] as? String, lease.requestID)
+    XCTAssertEqual(
+      (body["messages"] as? [[String: Any]])?.last?["content"] as? String,
+      request.explicitMessage
+    )
+    XCTAssertEqual(
+      (body["personality"] as? [String: Any])?["is_personalized"] as? Bool,
+      true
+    )
   }
 
   func testBundledCredentialReadsTrimmedToken() throws {

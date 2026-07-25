@@ -124,6 +124,7 @@ public struct ChatAuthorityLease: Hashable, Sendable {
 
 public enum ChatTransportMode: String, Hashable, Codable, Sendable {
   case localMock
+  case remotePreview
   case remote
 }
 

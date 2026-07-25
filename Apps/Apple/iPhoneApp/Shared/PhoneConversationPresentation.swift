@@ -137,9 +137,9 @@ extension ConversationFailure {
   var phoneMessage: String {
     switch self {
     case .unavailable:
-      "正式对话服务尚未接入。"
+      "Mori 现在没能接上，过一会儿再试。"
     case .unauthorized:
-      "需要先了解并允许正式对话。"
+      "Mori 现在还不能回复，稍后再试。"
     case .invalidProfile, .staleAuthority:
       "数据模式或权限已经改变，请重新发送。"
     case .unsafeInput:

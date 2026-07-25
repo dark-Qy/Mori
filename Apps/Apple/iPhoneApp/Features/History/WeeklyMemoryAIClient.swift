@@ -3,7 +3,7 @@ import Domain
 import Foundation
 import Security
 
-struct WeeklyMemoryAIPersonalityProjection: Equatable {
+struct WeeklyMemoryAIPersonalityProjection: Equatable, Sendable {
   static let cacheSchemaVersion = 2
 
   var voice: String

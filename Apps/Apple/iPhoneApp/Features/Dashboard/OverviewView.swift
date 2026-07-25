@@ -100,20 +100,8 @@ struct MoriHomeView: View {
   @ViewBuilder
   private var conversation: some View {
     VStack(alignment: .leading, spacing: CompanionSpacing.medium) {
-      HStack(alignment: .firstTextBaseline) {
-        Text("和 Mori 说说话")
-          .font(.title3.bold())
-        Spacer()
-        if store.model.isLive {
-          Text("待接入")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(CompanionPalette.secondaryText)
-        } else {
-          Label("本机预览", systemImage: "iphone")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(CompanionPalette.mint)
-        }
-      }
+      Text("和 Mori 说说话")
+        .font(.title3.bold())
 
       if store.model.isLive {
         ContentUnavailableView(
@@ -167,12 +155,6 @@ struct MoriHomeView: View {
           .frame(height: 1)
           .id("phone.mori.conversation-bottom")
           .accessibilityHidden(true)
-
-        Text("本机回复不会完成任务、发放金币或声称知道没有感知到的事实。")
-          .font(.caption)
-          .foregroundStyle(CompanionPalette.secondaryText)
-          .fixedSize(horizontal: false, vertical: true)
-          .accessibilityIdentifier("phone.mori.local-disclosure")
       }
     }
   }
